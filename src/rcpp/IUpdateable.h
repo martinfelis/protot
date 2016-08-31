@@ -20,7 +20,7 @@
 #ifndef IUPDATEABLE_INCLUDED
 #define IUPDATEABLE_INCLUDED
 
-#include "RuntimeCompiledCpp/RuntimeObjectSystem/IObject.h"
+#include "IObject.h"
 
 struct IUpdateable : public IObject
 {

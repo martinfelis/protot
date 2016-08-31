@@ -28,7 +28,10 @@ INCLUDE_DIRECTORIES (
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/src
+
+	# Required to compile RCPP related code
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
+	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem
 	)
 
 FIND_PACKAGE (X11 REQUIRED)
