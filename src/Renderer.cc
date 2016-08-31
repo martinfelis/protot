@@ -510,12 +510,12 @@ void Renderer::initialize(int width, int height) {
 
 	createGeometries();
 
-	setupShaders();
+//	setupShaders();
 
-	setupRenderPasses();
+//	setupRenderPasses();
 
 	// imgui initialization.
-	imguiCreate();
+//	imguiCreate();
 
 //	// Start the imgui frame such that widgets can be submitted
 //	imguiBeginFrame (inputState.mouseX,

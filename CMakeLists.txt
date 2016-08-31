@@ -64,7 +64,7 @@ SET ( protot_SRCS
 	3rdparty/glfw/deps/glad.c
 	)
 
-ADD_EXECUTABLE (protot_glfw src/main_glfw.cc ${protot_SRCS})
+ADD_EXECUTABLE (protot src/main.cc ${protot_SRCS})
 
 file(GLOB glcpp-library_sources 
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/main/*.c
@@ -110,7 +110,7 @@ SET (glfw_dependencies
 	${CMAKE_THREAD_LIBS_INIT}
 	)
 
-TARGET_LINK_LIBRARIES ( protot_glfw
+TARGET_LINK_LIBRARIES ( protot
 	#glew
 	glfw
 	${glfw_dependencies}
