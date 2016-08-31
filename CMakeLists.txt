@@ -28,6 +28,7 @@ INCLUDE_DIRECTORIES (
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/src
+	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
 	)
 
 FIND_PACKAGE (X11 REQUIRED)
@@ -61,6 +62,9 @@ SET ( protot_SRCS
 	src/shaderc_glsl.cpp
 	src/shaderc_hlsl.cpp
 
+	src/Scene.cc
+	src/SceneObject.cpp
+
 	3rdparty/glfw/deps/glad.c
 	)
 
@@ -76,6 +80,27 @@ file(GLOB glcpp-library_sources
 	)
 
 list(REMOVE_ITEM glcpp-library_sources ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx/3rdparty/glsl-optimizer/src/glsl/main.cpp)
+
+ADD_LIBRARY (RuntimeCompiledCpp
+	3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem/ObjectInterfacePerModuleSource.cpp
+	3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem/RuntimeObjectSystem_PlatformPosix.cpp
+	3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem/RuntimeObjectSystem.cpp
+	3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem/RuntimeObjectSystem.cpp
+
+	3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem/ObjectFactorySystem/ObjectFactorySystem.cpp
+
+	3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem/SimpleSerializer/SimpleSerializer.cpp
+
+	3rdparty/RuntimeCompiledCpp/RuntimeCompiler/BuildTool.cpp  
+	3rdparty/RuntimeCompiledCpp/RuntimeCompiler/Compiler_PlatformPosix.cpp
+	3rdparty/RuntimeCompiledCpp/RuntimeCompiler/FileChangeNotifier.cpp
+
+	3rdparty/RuntimeCompiledCpp/RuntimeCompiler/SimpleFileWatcher/FileWatcher.cpp
+	3rdparty/RuntimeCompiledCpp/RuntimeCompiler/SimpleFileWatcher/FileWatcherLinux.cpp
+
+	3rdparty/RuntimeCompiledCpp/Examples/ConsoleExample/StdioLogSystem.cpp
+	
+	)
 
 ADD_LIBRARY (glsl-optimizer
 	${glcpp-library_sources}
@@ -118,6 +143,5 @@ TARGET_LINK_LIBRARIES ( protot
 	bgfx
 	bgfx_aux
 	glsl-optimizer
-	gcc_s
-	gcc
+	RuntimeCompiledCpp
 )

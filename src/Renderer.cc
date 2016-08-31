@@ -20,6 +20,10 @@
 
 #include "math_types.h"
 
+#include "Scene.h"
+
+// BGFX globals
+
 bgfx::VertexBufferHandle cube_vbh;
 bgfx::IndexBufferHandle cube_ibh;
 bgfx::IndexBufferHandle cube_edges_ibh;
@@ -461,6 +465,8 @@ class BGFXCallbacks: public bgfx::CallbackI {
 	};
 };
 
+Scene scene;
+
 void Renderer::initialize(int width, int height) {
 	this->width = width;
 	this->height = height;
@@ -528,6 +534,8 @@ void Renderer::initialize(int width, int height) {
 	initialized = true;
 	resize (width, height);
 	bgfx::frame();
+
+	scene.init();
 }
 
 void Renderer::shutdown() {
@@ -596,6 +604,8 @@ void Renderer::paintGLSimple() {
 	bgfx::dbgTextPrintf(0, 1, 0x4f, "bgfx/examples/00-helloworld");
 	bgfx::dbgTextPrintf(0, 2, 0x6f, "Description: Initialization and debug text.");
 	bgfx::dbgTextPrintf(0, 3, 0x8f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
+
+	scene.update();
 
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.

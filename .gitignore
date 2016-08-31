@@ -12,3 +12,8 @@ build/*
 3rdparty/bgfx/3rdparty/dxsdk/**
 3rdparty/bgfx/3rdparty/scintilla/**
 
+3rdparty/RuntimeCompiledCpp/Assets/**
+3rdparty/RuntimeCompiledCpp/Aurora**
+3rdparty/RuntimeCompiledCpp/External/**
+3rdparty/RuntimeCompiledCpp/Examples/SimpleTest/**
+
