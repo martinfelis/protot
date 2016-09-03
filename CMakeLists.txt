@@ -71,6 +71,13 @@ SET ( protot_SRCS
 	3rdparty/glfw/deps/glad.c
 	)
 
+SET (PROTOT_SOURCE_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
+CONFIGURE_FILE (
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/protot_config.h.cmake" 
+	"${CMAKE_CURRENT_BINARY_DIR}/src/protot_config.h"
+	)
+
 ADD_EXECUTABLE (protot src/main.cc ${protot_SRCS})
 
 file(GLOB glcpp-library_sources 

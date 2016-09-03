@@ -17,7 +17,7 @@ struct ModuleManager : IObjectFactoryListener {
 	virtual ~ModuleManager();
 
 	bool init();
-	void update ();
+	void update (float dt);
 
 	void OnConstructorsAdded();
 	bool RegisterModule(const char* name);

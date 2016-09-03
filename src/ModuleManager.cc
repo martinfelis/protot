@@ -1,11 +1,11 @@
 #include "ModuleManager.h"
 
+#include "protot_config.h"
+
 // Runtime Compiled Cpp
 #include "RuntimeCompiledCpp/RuntimeObjectSystem/IObjectFactorySystem.h"
 #include "RuntimeCompiledCpp/RuntimeObjectSystem/ObjectInterface.h"
-#include "RuntimeCompiledCpp/RuntimeCompiler/AUArray.h"
 
-#include "RuntimeCompiledCpp/RuntimeCompiler/BuildTool.h"
 #include "RuntimeCompiledCpp/RuntimeCompiler/ICompilerLogger.h"
 #include "RuntimeCompiledCpp/RuntimeCompiler/FileChangeNotifier.h"
 #include "RuntimeCompiledCpp/RuntimeObjectSystem/IObjectFactorySystem.h"
@@ -21,8 +21,8 @@
 #include <iostream>
 #include <unistd.h>
 
-
 #include <iostream>
+#include <string>
 
 using namespace std;
 
@@ -62,6 +62,15 @@ bool ModuleManager::init() {
 
 	mRuntimeObjectSystem->GetObjectFactorySystem()->AddListener(this);
 
+	// Setup of the compiler settings
+	mRuntimeObjectSystem->SetAdditionalCompileOptions("--std=c++11");
+
+	// add include paths
+	string protot_source_root_path = PROTOT_SOURCE_ROOT_PATH;
+	mRuntimeObjectSystem->AddIncludeDir (
+			string(protot_source_root_path + "/3rdparty/bgfx/include"
+				).c_str());
+
 	return true;
 }
 
@@ -82,24 +91,17 @@ void ModuleManager::OnConstructorsAdded() {
 	}
 }
 
-void ModuleManager::update() {
+void ModuleManager::update(float dt) {
 	if (mRuntimeObjectSystem->GetIsCompiledComplete()) {
 		mRuntimeObjectSystem->LoadCompiledModule();
 	}
 
 	if (!mRuntimeObjectSystem->GetIsCompiling()) {
-		static int num_updates = 0;
-		num_updates ++;
-		std::cout << "Main loop. num_updates = " << num_updates << "\n";
-
-		const float delta_time = 1.0f;
-		mRuntimeObjectSystem->GetFileChangeNotifier()->Update(delta_time);
+		mRuntimeObjectSystem->GetFileChangeNotifier()->Update(dt);
 
 		for (unsigned int i = 0; i < mModules.size(); i++) {
-			mModules[i]->Update(delta_time);
+			mModules[i]->Update(dt);
 		}
-
-		usleep(1000 * 100);
 	}
 }
 

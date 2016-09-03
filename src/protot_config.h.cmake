@@ -1,0 +1,3 @@
+#pragma once
+
+#cmakedefine PROTOT_SOURCE_ROOT_PATH "@PROTOT_SOURCE_ROOT_PATH@"

@@ -179,7 +179,7 @@ int main(void)
 			renderer.resize(width, height);
 		}
 
-		module_manager.update();
+		module_manager.update((float)(frameTime / freq));
 
 		renderer.paintGLSimple();
 
