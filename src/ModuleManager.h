@@ -6,17 +6,20 @@
 struct IUpdateable;
 struct IRuntimeObjectSystem;
 
-struct Scene : IObjectFactoryListener {
+struct ModuleManager : IObjectFactoryListener {
 	ICompilerLogger* mCompilerLogger;
 	IRuntimeObjectSystem* mRuntimeObjectSystem;
 
-	IUpdateable* mUpdateable;
-	ObjectId mObjectId;
+	std::vector<IUpdateable*> mModules;
+	std::vector<ObjectId> mModuleIds;
 
-	Scene();
-	virtual ~Scene();
+	ModuleManager();
+	virtual ~ModuleManager();
 
 	bool init();
-	void OnConstructorsAdded();
 	void update ();
+
+	void OnConstructorsAdded();
+	bool RegisterModule(const char* name);
+
 };

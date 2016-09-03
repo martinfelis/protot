@@ -65,8 +65,8 @@ SET ( protot_SRCS
 	src/shaderc_glsl.cpp
 	src/shaderc_hlsl.cpp
 
-	src/Scene.cc
-	src/SceneObject.cpp
+	src/ModuleManager.cc
+	src/TestModule.cpp
 
 	3rdparty/glfw/deps/glad.c
 	)

@@ -1,4 +1,4 @@
-#include "Scene.h"
+#include "ModuleManager.h"
 
 // Runtime Compiled Cpp
 #include "RuntimeCompiledCpp/RuntimeObjectSystem/IObjectFactorySystem.h"
@@ -26,13 +26,13 @@
 
 using namespace std;
 
-Scene::Scene() :
+ModuleManager::ModuleManager() :
 	mCompilerLogger(nullptr),
-	mRuntimeObjectSystem(nullptr),
-	mUpdateable(nullptr) {
+	mRuntimeObjectSystem(nullptr)
+	{
 }
 
-Scene::~Scene() {
+ModuleManager::~ModuleManager() {
 	if (mRuntimeObjectSystem != nullptr) {
 		mRuntimeObjectSystem->CleanObjectFiles();
 	}
@@ -40,16 +40,18 @@ Scene::~Scene() {
 	if (mRuntimeObjectSystem && mRuntimeObjectSystem->GetObjectFactorySystem()) {
 		mRuntimeObjectSystem->GetObjectFactorySystem()->RemoveListener(this);
 
-		// delete object via correct interface
-		IObject* obj = mRuntimeObjectSystem->GetObjectFactorySystem()->GetObject( mObjectId );
-		delete obj;
+		for (unsigned int i = 0; i < mModuleIds.size(); i++) {
+			// delete object via correct interface
+			IObject* obj = mRuntimeObjectSystem->GetObjectFactorySystem()->GetObject( mModuleIds[i] );
+			delete obj;
+		}
 	}
 
 	delete mRuntimeObjectSystem;
 	delete mCompilerLogger;
 }
 
-bool Scene::init() {
+bool ModuleManager::init() {
 	mRuntimeObjectSystem = new RuntimeObjectSystem;
 	mCompilerLogger = new StdioLogSystem();
 
@@ -60,48 +62,66 @@ bool Scene::init() {
 
 	mRuntimeObjectSystem->GetObjectFactorySystem()->AddListener(this);
 
-	// construct an object
-	IObjectConstructor* constructor = mRuntimeObjectSystem->GetObjectFactorySystem()->GetConstructor("SceneObject");
-	if (constructor) {
-		IObject* obj = constructor->Construct();
-		obj->GetInterface(&mUpdateable);
-		
-		if (nullptr == mUpdateable) {
-			delete obj;
-			mCompilerLogger->LogError("Error - no updateable interface found!\n");
-			return false;
-		}
-
-		mObjectId = obj->GetObjectId();
-	}
-
 	return true;
 }
 
-void Scene::OnConstructorsAdded() {
-	if (mUpdateable) {
-		IObject* obj = mRuntimeObjectSystem->GetObjectFactorySystem()->GetObject(mObjectId);
-		obj->GetInterface(&mUpdateable);
+void ModuleManager::OnConstructorsAdded() {
+	for (unsigned int i = 0; i < mModules.size(); i++) {
+		IUpdateable* module = mModules[i];
+
+		if (!module)
+			continue;
+
+		IObject* obj = mRuntimeObjectSystem->GetObjectFactorySystem()->GetObject(mModuleIds[i]);
+		obj->GetInterface(&mModules[i]);
 		
-		if (nullptr == mUpdateable) {
+		if (nullptr == module) {
 			delete obj;
 			mCompilerLogger->LogError("Error - no updateable interface found!\n");
 		}
 	}
 }
 
-void Scene::update() {
+void ModuleManager::update() {
 	if (mRuntimeObjectSystem->GetIsCompiledComplete()) {
 		mRuntimeObjectSystem->LoadCompiledModule();
 	}
 
 	if (!mRuntimeObjectSystem->GetIsCompiling()) {
 		static int num_updates = 0;
+		num_updates ++;
 		std::cout << "Main loop. num_updates = " << num_updates << "\n";
 
 		const float delta_time = 1.0f;
 		mRuntimeObjectSystem->GetFileChangeNotifier()->Update(delta_time);
-		mUpdateable->Update(delta_time);
-		usleep(1000 * 1000);
+
+		for (unsigned int i = 0; i < mModules.size(); i++) {
+			mModules[i]->Update(delta_time);
+		}
+
+		usleep(1000 * 100);
 	}
+}
+
+bool ModuleManager::RegisterModule(const char* name) {
+	cout << "Registering Module: " << name << endl;
+
+	// construct an object
+	IObjectConstructor* constructor = mRuntimeObjectSystem->GetObjectFactorySystem()->GetConstructor(name);
+	if (constructor) {
+		IObject* obj = constructor->Construct();
+		IUpdateable** module = new IUpdateable*[1];
+		obj->GetInterface(module);
+		
+		if (nullptr == module) {
+			delete obj;
+			mCompilerLogger->LogError("Error - no updateable interface found!\n");
+			return false;
+		}
+
+		mModules.push_back(*module);
+		mModuleIds.push_back(obj->GetObjectId());
+	}
+
+	return true;
 }

@@ -5,14 +5,13 @@
 #include "rcpp/InterfaceIds.h"
 #include <iostream>
 
-
-class SceneObject : public TInterface<IID_IUPDATEABLE,IUpdateable>
+class TestModule : public TInterface<IID_IUPDATEABLE,IUpdateable>
 {
 public:
 	virtual void Update( float deltaTime )
 	{
-		std::cout << "Runtime Object 23 update called!\n";
+		std::cout << "TestModule:  1 Runtime Object 214 update called!\n";
 	}
 };
 
-REGISTERCLASS(SceneObject);
+REGISTERCLASS(TestModule);

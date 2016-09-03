@@ -48,6 +48,7 @@
 #include "bgfx/bgfxplatform.h"
 #include "bx/timer.h"
 #include "Renderer.h"
+#include "ModuleManager.h"
 
 using namespace std;
 
@@ -153,6 +154,11 @@ int main(void)
 	// Set view 0 clear state.
 //	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x3070F0FF);
 
+	printf("Initializing ModuleManager...\n");
+	ModuleManager module_manager;
+	module_manager.init();
+	module_manager.RegisterModule("TestModule");
+
 	printf("Starting main loop...\n");
 	glfwSetKeyCallback(win, key_callback);
 	int64_t time_offset = bx::getHPCounter();
@@ -173,7 +179,10 @@ int main(void)
 			renderer.resize(width, height);
 		}
 
+		module_manager.update();
+
 		renderer.paintGLSimple();
+
 //		bgfx::setViewRect(0, 0, 0, width, height);
 
 		// Dummy submit call to make sure view 0 is cleared
