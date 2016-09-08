@@ -115,12 +115,6 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
-void glfw_simple_example_init () {
-}
-
-void glfw_simple_example_draw () {
-}
-
 int main(void)
 {
 	// TODO GLFW error checking
@@ -181,7 +175,7 @@ int main(void)
 
 		module_manager.update((float)(frameTime / freq));
 
-		renderer.paintGLSimple();
+		renderer.paintGL();
 
 //		bgfx::setViewRect(0, 0, 0, width, height);
 
@@ -195,6 +189,17 @@ int main(void)
 //		bgfx::frame();
 
 		glfwPollEvents();
+
+		// send inputs to the input state of the renderer
+		double mouse_x, mouse_y;
+		glfwGetCursorPos(win, &mouse_x, &mouse_y);
+		renderer.inputState.mouseX = mouse_x;
+		renderer.inputState.mouseY = mouse_y;
+		renderer.inputState.mouseButton =
+			glfwGetMouseButton(win, 0)
+			+ (glfwGetMouseButton(win, 1) << 1)
+			+ (glfwGetMouseButton(win, 2) << 2);
+
 	}
 }
 

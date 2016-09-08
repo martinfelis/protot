@@ -32,6 +32,7 @@ INCLUDE_DIRECTORIES (
 	# Required to compile RCPP related code
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/RuntimeCompiledCpp/RuntimeObjectSystem
+	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx
 	)
 
 FIND_PACKAGE (X11 REQUIRED)

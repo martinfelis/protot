@@ -1,6 +1,7 @@
 .*.swp
 
 build/*
+tags
 
 3rdparty/glfw/docs/**
 3rdparty/glfw/examples/**

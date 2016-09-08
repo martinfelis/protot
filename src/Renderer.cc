@@ -512,20 +512,20 @@ void Renderer::initialize(int width, int height) {
 
 	createGeometries();
 
-//	setupShaders();
+	setupShaders();
 
-//	setupRenderPasses();
+	setupRenderPasses();
 
 	// imgui initialization.
-//	imguiCreate();
+	imguiCreate();
 
 //	// Start the imgui frame such that widgets can be submitted
-//	imguiBeginFrame (inputState.mouseX,
-//			inputState.mouseY,
-//			inputState.mouseButton,
-//			inputState.mouseScroll,
-//			width,
-//			height);
+	imguiBeginFrame (inputState.mouseX,
+			inputState.mouseY,
+			inputState.mouseButton,
+			inputState.mouseScroll,
+			width,
+			height);
 	
 	initialized = true;
 	resize (width, height);
@@ -602,7 +602,6 @@ void Renderer::paintGLSimple() {
 	// process submitted rendering primitives.
 	bgfx::frame();
 	bgfx::dbgTextClear();
-
 }
 
 void Renderer::paintGL() {
@@ -621,11 +620,11 @@ void Renderer::paintGL() {
 	bgfx::dbgTextPrintf(0, 0, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
 
 	// submit the imgui widgets
-//	imguiEndFrame();
+	imguiEndFrame();
 
 	// This dummy draw call is here to make sure that view 0 is cleared
 	// if no other draw calls are submitted to view 0.
-//	bgfx::touch(0);
+	bgfx::touch(0);
 
 	// update camera matrices
 	for (uint32_t i = 0; i < cameras.size(); i++) {
@@ -804,13 +803,13 @@ void Renderer::paintGL() {
 	// process submitted rendering primitives.
 	bgfx::frame();
 
-//	// Start the next imgui frame
-//	imguiBeginFrame (inputState.mouseX,
-//			inputState.mouseY,
-//			inputState.mouseButton,
-//			inputState.mouseScroll,
-//			width,
-//			height);
+	// Start the next imgui frame
+	imguiBeginFrame (inputState.mouseX,
+			inputState.mouseY,
+			inputState.mouseButton,
+			inputState.mouseScroll,
+			width,
+			height);
 }
 
 Entity* Renderer::createEntity() {

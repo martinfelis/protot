@@ -70,6 +70,16 @@ bool ModuleManager::init() {
 	mRuntimeObjectSystem->AddIncludeDir (
 			string(protot_source_root_path + "/3rdparty/bgfx/include"
 				).c_str());
+	mRuntimeObjectSystem->AddIncludeDir (
+			string(protot_source_root_path + "/3rdparty/bgfx/"
+				).c_str());
+	mRuntimeObjectSystem->AddIncludeDir (
+			string(protot_source_root_path + "/3rdparty/bgfx/3rdparty"
+				).c_str());
+	mRuntimeObjectSystem->AddIncludeDir (
+			string(protot_source_root_path + "/3rdparty/bgfx/examples/common"
+				).c_str());
+
 
 	return true;
 }
