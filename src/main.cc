@@ -43,12 +43,13 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <iostream>
 
 #include "bgfx/bgfxplatform.h"
 #include "bx/timer.h"
 #include "Renderer.h"
-#include "ModuleManager.h"
+#include "RuntimeModuleManager.h"
 
 using namespace std;
 
@@ -149,9 +150,8 @@ int main(void)
 //	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x3070F0FF);
 
 	printf("Initializing ModuleManager...\n");
-	ModuleManager module_manager;
-	module_manager.init();
-	module_manager.RegisterModule("TestModule");
+	RuntimeModuleManager module_manager;
+	module_manager.RegisterModule("libTestModule.so");
 
 	printf("Starting main loop...\n");
 	glfwSetKeyCallback(win, key_callback);
@@ -173,7 +173,7 @@ int main(void)
 			renderer.resize(width, height);
 		}
 
-		module_manager.update((float)(frameTime / freq));
+		module_manager.Update((float)(frameTime / freq));
 
 		renderer.paintGL();
 
@@ -200,7 +200,10 @@ int main(void)
 			+ (glfwGetMouseButton(win, 1) << 1)
 			+ (glfwGetMouseButton(win, 2) << 2);
 
+    usleep(16000);
 	}
+
+	module_manager.UnloadModules();
 }
 
 //! [code]

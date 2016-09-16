@@ -211,6 +211,7 @@ bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName)
 }
 
 bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_fsFileName) {
+	std::cout << "Loading shader " << _vsFileName << std::endl;
 	const char* argv[11];
 	argv[0] = "--type";
 	argv[1] = "vertex";
