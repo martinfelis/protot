@@ -1,39 +1,3 @@
-//========================================================================
-// Simple GLFW example
-// Copyright (c) Camilla Berglund <elmindreda@elmindreda.org>
-//
-// This software is provided 'as-is', without any express or implied
-// warranty. In no event will the authors be held liable for any damages
-// arising from the use of this software.
-//
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-//
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would
-//    be appreciated but is not required.
-//
-// 2. Altered source versions must be plainly marked as such, and must not
-//    be misrepresented as being the original software.
-//
-// 3. This notice may not be removed or altered from any source
-//    distribution.
-//
-//========================================================================
-//! [code]
-
-//#define USE_GLAD
-
-#ifdef USE_GLEW
-#include <GL/glew.h>
-#endif
-
-#ifdef USE_GLAD
-#include <glad/glad.h>
-#endif
-
 #define GLFW_EXPOSE_NATIVE_GLX
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3.h>
@@ -51,36 +15,11 @@
 #include "Renderer.h"
 #include "RuntimeModuleManager.h"
 
+#include "Globals.h"
+Renderer* gRenderer = nullptr;
+GLFWwindow* gWindow = nullptr;
+
 using namespace std;
-
-static const struct
-{
-    float x, y;
-    float r, g, b;
-} vertices[3] =
-{
-    { -0.6f, -0.4f, 1.f, 0.f, 0.f },
-    {  0.6f, -0.4f, 0.f, 1.f, 0.f },
-    {   0.f,  0.6f, 0.f, 0.f, 1.f }
-};
-
-static const char* vertex_shader_text =
-"uniform mat4 MVP;\n"
-"attribute vec3 vCol;\n"
-"attribute vec2 vPos;\n"
-"varying vec3 color;\n"
-"void main()\n"
-"{\n"
-"    gl_Position = MVP * vec4(vPos, 0.0, 1.0);\n"
-"    color = vCol;\n"
-"}\n";
-
-static const char* fragment_shader_text =
-"varying vec3 color;\n"
-"void main()\n"
-"{\n"
-"    gl_FragColor = vec4(color, 1.0);\n"
-"}\n";
 
 namespace bgfx {
 	inline void glfwSetWindow(GLFWwindow* _window)
@@ -127,17 +66,19 @@ int main(void)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
 
-	GLFWwindow* win = glfwCreateWindow(800, 600, "ProtoT", NULL, NULL);
-	glfwMakeContextCurrent(win);
+	gWindow = glfwCreateWindow(800, 600, "ProtoT", NULL, NULL);
+	glfwMakeContextCurrent(gWindow);
 	int width, height;
-	glfwGetWindowSize(win, &width, &height);
+	glfwGetWindowSize(gWindow, &width, &height);
 
 	Renderer renderer;
-	bgfx::glfwSetWindow(win);
+	bgfx::glfwSetWindow(gWindow);
 	bgfx::renderFrame();
 
 	renderer.initialize(width, height);
 
+	gRenderer = &renderer;
+	
 //	bgfx::init();
 //	bgfx::reset(width, height, BGFX_RESET_VSYNC);
 
@@ -154,10 +95,10 @@ int main(void)
 	module_manager.RegisterModule("libTestModule.so");
 
 	printf("Starting main loop...\n");
-	glfwSetKeyCallback(win, key_callback);
+	glfwSetKeyCallback(gWindow, key_callback);
 	int64_t time_offset = bx::getHPCounter();
 
-	while(!glfwWindowShouldClose(win)) {
+	while(!glfwWindowShouldClose(gWindow)) {
 		int64_t now = bx::getHPCounter();
 		static int64_t last = now;
 		const int64_t frameTime = now - last;
@@ -168,7 +109,7 @@ int main(void)
 		float time = (float)( (now-time_offset)/double(bx::getHPFrequency() ) );
 
 		int width, height;
-		glfwGetWindowSize(win, &width, &height);
+		glfwGetWindowSize(gWindow, &width, &height);
 		if (width != renderer.width || height != renderer.height) {
 			renderer.resize(width, height);
 		}
@@ -192,18 +133,20 @@ int main(void)
 
 		// send inputs to the input state of the renderer
 		double mouse_x, mouse_y;
-		glfwGetCursorPos(win, &mouse_x, &mouse_y);
+		glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
 		renderer.inputState.mouseX = mouse_x;
 		renderer.inputState.mouseY = mouse_y;
 		renderer.inputState.mouseButton =
-			glfwGetMouseButton(win, 0)
-			+ (glfwGetMouseButton(win, 1) << 1)
-			+ (glfwGetMouseButton(win, 2) << 2);
+			glfwGetMouseButton(gWindow, 0)
+			+ (glfwGetMouseButton(gWindow, 1) << 1)
+			+ (glfwGetMouseButton(gWindow, 2) << 2);
 
     usleep(16000);
 	}
 
 	module_manager.UnloadModules();
+
+	gRenderer = nullptr;
 }
 
 //! [code]

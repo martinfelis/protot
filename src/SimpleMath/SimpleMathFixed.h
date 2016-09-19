@@ -78,13 +78,10 @@ class Matrix {
 			for (i = 0; i < nrows * ncols; i++)
 				mData[i] = matrix.mData[i];
 		}
-		Matrix(unsigned int rows, unsigned int cols, val_type *data_ptr) {
-			assert (rows == nrows);
-			assert (cols == ncols);
-
-			for (int i = 0; i < 16; i++) {
-				mData[i] = data_ptr[i];
-			}
+		Matrix(unsigned int _nrows, unsigned int _ncols, const value_type* values) {
+			assert(nrows == _nrows);
+			assert(ncols == _ncols);
+			memcpy (mData, values, sizeof(value_type) * nrows * ncols);
 		}
 
 		Matrix& operator=(const Matrix &matrix) {
@@ -529,6 +526,28 @@ class Matrix {
 			return result;
 		}
 
+		val_type trace() const {
+			COMPILE_ASSERT(nrows == ncols);
+			val_type result = 0.;
+
+			for (unsigned int i = 0; i < rows(); i++) {
+				result += operator()(i,i);
+			}
+
+			return result;
+		}
+
+		val_type mean() const {
+			COMPILE_ASSERT(nrows == 1 || ncols == 1);
+
+			val_type result = 0.;
+			for (unsigned int i = 0; i < rows() * cols(); i++) {
+				result += operator[](i);
+			}
+
+			return result / static_cast<val_type>(nrows * ncols);
+		}
+
 		static matrix_type Zero() {
 			matrix_type result;
 			result.setZero();
@@ -616,6 +635,27 @@ class Matrix {
 				return Block<matrix_type, val_type>(*this, row_start, col_start, block_row_count, block_col_count);
 			}
 
+		// row and col accessors
+		Block<matrix_type, val_type>
+		col(unsigned int index) const {
+			return Block<matrix_type, val_type>(*this, 0, index, rows(), 1);
+		}
+
+		Block<matrix_type, val_type>
+		col(unsigned int index) {
+			return Block<matrix_type, val_type>(*this, 0, index, rows(), 1);
+		}
+
+		Block<matrix_type, val_type>
+		row(unsigned int index) const {
+			return Block<matrix_type, val_type>(*this, index, 0, 1, cols());
+		}
+
+		Block<matrix_type, val_type>
+		row(unsigned int index) {
+			return Block<matrix_type, val_type>(*this, index, 0, 1, cols());
+		}
+
 		// Operators with scalars
 		void operator*=(const val_type &scalar) {
 			for (unsigned int i = 0; i < nrows * ncols; i++)
@@ -700,7 +740,6 @@ class Matrix {
 			
 			return result;
 		}
-
 
 		void operator*=(const Matrix &matrix) {
 			matrix_type temp (*this);

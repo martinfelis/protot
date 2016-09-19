@@ -233,7 +233,7 @@ namespace SimpleMath {
 					MatrixXXd Q (MatrixXXd::Identity(mR.rows(), mR.rows()));
 
 					Q.block(i, i, block_rows, block_rows) = MatrixXXd (Q.block(i, i, block_rows, block_rows))
-						- MatrixXXd(v * v.transpose() / (v.squaredNorm() * 0.5));
+						- MatrixXXd(v * v.transpose() / (v.squaredNorm() * static_cast<value_type>(0.5)));
 
 					mR = Q * mR;
 

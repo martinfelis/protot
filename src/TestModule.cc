@@ -1,10 +1,62 @@
 #include "RuntimeModule.h"
+#include "Globals.h"
 #include "Renderer.h"
 #include "3rdparty/ocornut-imgui/imgui.h"
 #include "imgui/imgui.h"
+#include <GLFW/glfw3.h>
+#include "SimpleMath/SimpleMath.h"
+#include "SimpleMath/SimpleMathMap.h"
 
 #include <iostream>
 #include <sstream>
+
+typedef SimpleMath::Matrix44f Matrix44f;
+typedef SimpleMath::Vector4f Vector4f;
+typedef SimpleMath::Matrix33f Matrix33f;
+typedef SimpleMath::Vector3f Vector3f;
+typedef SimpleMath::MatrixNNf MatrixNNf;
+typedef SimpleMath::VectorNf VectorNf;
+
+
+void handle_keyboard () {
+	Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+	assert (active_camera != nullptr);
+	Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
+	Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
+
+	Vector3f forward = camera_rot_inv.transpose() * Vector3f (0.f, 0.f, 1.f);
+	Vector3f right = camera_rot_inv.transpose() * Vector3f (1.f, 0.f, 0.f);
+	
+	Vector3f eye = SimpleMath::Map<Vector3f>(active_camera->eye, 3, 1);
+	Vector3f poi= SimpleMath::Map<Vector3f>(active_camera->poi, 3, 1);
+
+	Vector3f direction (0.f, 0.f, 0.f);
+
+	if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
+		direction += forward;
+	} 
+	
+	if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
+		direction -= forward;
+	}
+	
+	if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
+		direction += right;
+	} 
+	
+	if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
+		direction -= right;
+	}
+
+	float step = 0.1f;
+	eye += direction * step;
+	poi += direction * step;
+
+	memcpy (active_camera->eye, eye.data(), sizeof(float) * 3);
+	memcpy (active_camera->poi, poi.data(), sizeof(float) * 3);
+}
+
+// Boilerplate for the module reload stuff
 
 struct module_state {
 	int width, height;
@@ -33,8 +85,13 @@ static void module_unload(struct module_state *state) {
 
 static bool module_step(struct module_state *state) {
 	bool enabled = true;
-	ImGui::Begin("yoyoyo");
-	if (ImGui::Button("Baem Yahoo")) {
+	ImGui::Begin("yoyoyoxi2");
+	if (ImGui::Button("Hallo Katrina")) {
+		if (gRenderer->drawDebug) {
+			gRenderer->drawDebug = false;
+		} else {
+			gRenderer->drawDebug = true;
+		}
 		std::cout << "Clicked on Baem!" << std::endl;
 	}
 	ImGui::End();
@@ -42,6 +99,8 @@ static bool module_step(struct module_state *state) {
 	float deltaTime = 0.3;
 	std::ostringstream s;
 	s << "TestModule:  2 Runtime Object 4 " << deltaTime << " update called!";
+
+	handle_keyboard();
 
 	bgfx::dbgTextPrintf(1, 20, 0x6f, s.str().c_str());
 
