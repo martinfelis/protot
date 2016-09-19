@@ -79,17 +79,6 @@ int main(void)
 
 	gRenderer = &renderer;
 	
-//	bgfx::init();
-//	bgfx::reset(width, height, BGFX_RESET_VSYNC);
-
-//	printf("bgfx renderer is %s\n", bgfx::getRendererName(bgfx::getRendererType()));
-
-	// Enable debug text.
-//	bgfx::setDebug(BGFX_DEBUG_TEXT);
-
-	// Set view 0 clear state.
-//	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x3070F0FF);
-
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("libTestModule.so");
@@ -118,22 +107,13 @@ int main(void)
 
 		renderer.paintGL();
 
-//		bgfx::setViewRect(0, 0, 0, width, height);
-
-		// Dummy submit call to make sure view 0 is cleared
-//		bgfx::touch(0);
-
-//		bgfx::dbgTextClear();
-//		bgfx::dbgTextPrintf(0, 1, 0x4f, "Test text");
-//		bgfx::dbgTextPrintf(0, 3, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
-//
-//		bgfx::frame();
-
 		glfwPollEvents();
 
 		// send inputs to the input state of the renderer
 		double mouse_x, mouse_y;
 		glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
+		renderer.inputState.mousedX = mouse_x - renderer.inputState.mouseX;
+		renderer.inputState.mousedY = mouse_y - renderer.inputState.mouseY;
 		renderer.inputState.mouseX = mouse_x;
 		renderer.inputState.mouseY = mouse_y;
 		renderer.inputState.mouseButton =

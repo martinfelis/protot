@@ -12,6 +12,8 @@
 struct Entity;
 
 struct InputState {
+	int32_t mousedX;
+	int32_t mousedY;
 	int32_t mouseX;
 	int32_t mouseY;
 	uint8_t mouseButton;

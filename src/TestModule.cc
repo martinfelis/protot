@@ -48,6 +48,14 @@ void handle_keyboard () {
 		direction -= right;
 	}
 
+	if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		direction += Vector3f (0.f, 1.f, 0.f);
+	}
+
+	if (glfwGetKey(gWindow, GLFW_KEY_C) == GLFW_PRESS) {
+		direction += Vector3f (0.f, -1.f, 0.f);
+	}
+
 	float step = 0.1f;
 	eye += direction * step;
 	poi += direction * step;
@@ -85,7 +93,7 @@ static void module_unload(struct module_state *state) {
 
 static bool module_step(struct module_state *state) {
 	bool enabled = true;
-	ImGui::Begin("yoyoyoxi2");
+	ImGui::Begin("Ddebug");
 	if (ImGui::Button("Hallo Katrina")) {
 		if (gRenderer->drawDebug) {
 			gRenderer->drawDebug = false;
@@ -95,6 +103,10 @@ static bool module_step(struct module_state *state) {
 		std::cout << "Clicked on Baem!" << std::endl;
 	}
 	ImGui::End();
+
+
+	static bool imgui_test_window = true;
+	ImGui::ShowTestWindow();
 
 	float deltaTime = 0.3;
 	std::ostringstream s;
