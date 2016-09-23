@@ -12,8 +12,9 @@
 
 #include "bgfx/bgfxplatform.h"
 #include "bx/timer.h"
-#include "Renderer.h"
 #include "RuntimeModuleManager.h"
+#include "imgui/imgui.h"
+
 
 #include "Globals.h"
 Renderer* gRenderer = nullptr;
@@ -57,7 +58,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 int main(void)
 {
-	// TODO GLFW error checking
+	// Initialize GLFW
 	glfwSetErrorCallback(error_callback);
 	glfwInit();
 
@@ -71,17 +72,26 @@ int main(void)
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
 
-	Renderer renderer;
+	// Initialize Renderer	
 	bgfx::glfwSetWindow(gWindow);
 	bgfx::renderFrame();
 
-	renderer.initialize(width, height);
+	uint32_t debug = BGFX_DEBUG_TEXT;
+	uint32_t reset = BGFX_RESET_VSYNC;
 
-	gRenderer = &renderer;
-	
+	bool result = bgfx::init();
+	if (!result) {
+		std::cerr << "Error: could not initialize renderer!" << std::endl;
+		exit (EXIT_FAILURE);
+	}
+
+	// imgui initialization.
+	imguiCreate();
+
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
-	module_manager.RegisterModule("libTestModule.so");
+	module_manager.RegisterModule("src/modules/libTestModule.so");
+	module_manager.RegisterModule("src/modules/libRenderModule.so");
 
 	printf("Starting main loop...\n");
 	glfwSetKeyCallback(gWindow, key_callback);
@@ -97,29 +107,9 @@ int main(void)
 
 		float time = (float)( (now-time_offset)/double(bx::getHPFrequency() ) );
 
-		int width, height;
-		glfwGetWindowSize(gWindow, &width, &height);
-		if (width != renderer.width || height != renderer.height) {
-			renderer.resize(width, height);
-		}
-
 		module_manager.Update((float)(frameTime / freq));
 
-		renderer.paintGL();
-
 		glfwPollEvents();
-
-		// send inputs to the input state of the renderer
-		double mouse_x, mouse_y;
-		glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
-		renderer.inputState.mousedX = mouse_x - renderer.inputState.mouseX;
-		renderer.inputState.mousedY = mouse_y - renderer.inputState.mouseY;
-		renderer.inputState.mouseX = mouse_x;
-		renderer.inputState.mouseY = mouse_y;
-		renderer.inputState.mouseButton =
-			glfwGetMouseButton(gWindow, 0)
-			+ (glfwGetMouseButton(gWindow, 1) << 1)
-			+ (glfwGetMouseButton(gWindow, 2) << 2);
 
     usleep(16000);
 	}
@@ -127,6 +117,9 @@ int main(void)
 	module_manager.UnloadModules();
 
 	gRenderer = nullptr;
+
+	imguiDestroy();
+	bgfx::shutdown();
 }
 
 //! [code]

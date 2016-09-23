@@ -11,7 +11,7 @@
 #include <iostream>
 
 struct RuntimeModule {
-	std::string name ="";
+	std::string name = "";
 	void *handle = nullptr;
 	ino_t id = 0;
 	void *data = nullptr;
@@ -40,7 +40,6 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 		if (handle) {
 			module->handle = handle;
 			module->id = attr.st_ino;
-			std::cerr << "Loading API symbol" << std::endl;
 			const struct module_api *api = (module_api*) dlsym(module->handle, "MODULE_API");
 			if (api != NULL) {
 				module->api = *api;
@@ -48,7 +47,7 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 					std::cerr << "Initializing module" << std::endl;
 					module->state = module->api.init();
 				}
-				std::cerr << "Reloading module" << std::endl;
+				std::cerr << "Reloading module " << module->name << std::endl;
 				module->api.reload(module->state);
 			} else {
 				dlclose(module->handle);

@@ -92,9 +92,12 @@ static void module_unload(struct module_state *state) {
 }
 
 static bool module_step(struct module_state *state) {
+	if (gRenderer == nullptr)
+		return false;
+
 	bool enabled = true;
 	ImGui::Begin("Ddebug");
-	if (ImGui::Button("Hallo Katrina")) {
+	if (ImGui::Button("Hallo Katrina Whaddup?")) {
 		if (gRenderer->drawDebug) {
 			gRenderer->drawDebug = false;
 		} else {

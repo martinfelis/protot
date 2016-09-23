@@ -54,13 +54,12 @@ INCLUDE_DIRECTORIES (
 
 SUBDIRS ( 
 	#	tests/ 
+	src/modules
 	3rdparty/glfw
 	3rdparty/bgfx
 	)
 
 SET ( protot_SRCS
-	src/Renderer.cc
-	src/RenderUtils.cc
 	src/shaderc_compile.cpp
 	src/shaderc_glsl.cpp
 	src/shaderc_hlsl.cpp
@@ -89,10 +88,6 @@ file(GLOB glcpp-library_sources
 	)
 
 list(REMOVE_ITEM glcpp-library_sources ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx/3rdparty/glsl-optimizer/src/glsl/main.cpp)
-
-ADD_LIBRARY (TestModule SHARED
-	src/TestModule.cc
-	)
 
 ADD_LIBRARY (glsl-optimizer
 	${glcpp-library_sources}
