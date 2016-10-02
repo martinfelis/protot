@@ -10,6 +10,8 @@
 #include <iostream>
 #include <sstream>
 
+using namespace std;
+
 typedef SimpleMath::Matrix44f Matrix44f;
 typedef SimpleMath::Vector4f Vector4f;
 typedef SimpleMath::Matrix33f Matrix33f;
@@ -17,6 +19,28 @@ typedef SimpleMath::Vector3f Vector3f;
 typedef SimpleMath::MatrixNNf MatrixNNf;
 typedef SimpleMath::VectorNf VectorNf;
 
+double mouse_scroll_x = 0.;
+double mouse_scroll_y = 0.;
+
+void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	mouse_scroll_x += xoffset;
+	mouse_scroll_y += yoffset;
+}
+
+void handle_mouse () {
+	double mouse_x, mouse_y;
+	glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
+	gRenderer->inputState.mousedX = mouse_x - gRenderer->inputState.mouseX;
+	gRenderer->inputState.mousedY = mouse_y - gRenderer->inputState.mouseY;
+	gRenderer->inputState.mouseX = mouse_x;
+	gRenderer->inputState.mouseY = mouse_y;
+	gRenderer->inputState.mouseScroll = mouse_scroll_y;
+
+	gRenderer->inputState.mouseButton =
+		glfwGetMouseButton(gWindow, 0)
+		+ (glfwGetMouseButton(gWindow, 1) << 1)
+		+ (glfwGetMouseButton(gWindow, 2) << 2);
+}
 
 void handle_keyboard () {
 	Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
@@ -52,7 +76,7 @@ void handle_keyboard () {
 		direction += Vector3f (0.f, 1.f, 0.f);
 	}
 
-	if (glfwGetKey(gWindow, GLFW_KEY_C) == GLFW_PRESS) {
+	if (glfwGetKey(gWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
 		direction += Vector3f (0.f, -1.f, 0.f);
 	}
 
@@ -85,10 +109,17 @@ static void module_finalize(struct module_state *state) {
 
 static void module_reload(struct module_state *state) {
 	std::cout << "Module reload called" << std::endl;
+
+	// reset mouse scrolling state
+	mouse_scroll_x = 0;
+	mouse_scroll_y = 0;
+
+	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
 
 static void module_unload(struct module_state *state) {
 	std::cout << "Module unload called" << std::endl;
+	glfwSetScrollCallback (gWindow, nullptr);
 }
 
 static bool module_step(struct module_state *state) {
@@ -115,6 +146,7 @@ static bool module_step(struct module_state *state) {
 	std::ostringstream s;
 	s << "TestModule:  2 Runtime Object 4 " << deltaTime << " update called!";
 
+	handle_mouse();
 	handle_keyboard();
 
 	bgfx::dbgTextPrintf(1, 20, 0x6f, s.str().c_str());

@@ -86,19 +86,6 @@ static bool module_step(struct module_state *state) {
 	glfwGetWindowSize(gWindow, &width, &height);
 	state->renderer->resize (width, height);
 
-
-	double mouse_x, mouse_y;
-	glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
-	state->renderer->inputState.mousedX = mouse_x - state->renderer->inputState.mouseX;
-	state->renderer->inputState.mousedY = mouse_y - state->renderer->inputState.mouseY;
-	state->renderer->inputState.mouseX = mouse_x;
-	state->renderer->inputState.mouseY = mouse_y;
-	state->renderer->inputState.mouseButton =
-		glfwGetMouseButton(gWindow, 0)
-		+ (glfwGetMouseButton(gWindow, 1) << 1)
-		+ (glfwGetMouseButton(gWindow, 2) << 2);
-
-
 	state->renderer->paintGL();
 
 	return true;
