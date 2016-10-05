@@ -8,6 +8,26 @@ namespace SimpleMath {
 
 namespace GL {
 
+inline Matrix33f RotateMat33 (float rot_deg, float x, float y, float z) {
+	float c = cosf (rot_deg * M_PI / 180.f);
+	float s = sinf (rot_deg * M_PI / 180.f);
+	return Matrix33f (
+			x * x * (1.0f - c) + c,
+			y * x * (1.0f - c) + z * s,
+			x * z * (1.0f - c) - y * s,
+
+			x * y * (1.0f - c) - z * s,
+			y * y * (1.0f - c) + c,
+			y * z * (1.0f - c) + x * s,
+
+			x * z * (1.0f - c) + y * s,
+			y * z * (1.0f - c) - x * s,
+			z * z * (1.0f - c) + c
+
+			);
+}
+
+
 inline Matrix44f RotateMat44 (float rot_deg, float x, float y, float z) {
 	float c = cosf (rot_deg * M_PI / 180.f);
 	float s = sinf (rot_deg * M_PI / 180.f);
