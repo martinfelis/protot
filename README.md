@@ -3,7 +3,7 @@ Copyright (c) 2016 - Martin Felis <martin@fysx.org
 
 mkdir build/
 cd build/
-ccmake ../ -DGLFW_BUILD_DOCS=OFF -DGLFW_BUILD_EXAMPLES=OFF -DGLFW_BUILD_TESTS=OFF
+cmake ../ -DGLFW_BUILD_DOCS=OFF -DGLFW_BUILD_EXAMPLES=OFF -DGLFW_BUILD_TESTS=OFF
 make -j4
 cd src/modules/
 cp ../../../src/modules/autorebuild.sh .
