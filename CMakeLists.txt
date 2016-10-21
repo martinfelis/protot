@@ -40,6 +40,7 @@ FIND_PACKAGE (Threads REQUIRED)
 
 INCLUDE_DIRECTORIES ( 
 	3rdparty/glfw/deps
+	3rdparty/glfw/include
 	3rdparty/bx/include
 	3rdparty/bgfx/include
 	3rdparty/bgfx/examples/common
