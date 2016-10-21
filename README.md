@@ -11,7 +11,7 @@ cp ../../../src/modules/autorebuild.sh .
 
 press ctrl-z
 
-fg
+bg
 
 cd -
 
