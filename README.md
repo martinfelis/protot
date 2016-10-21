@@ -3,6 +3,8 @@ Copyright (c) 2016 - Martin Felis <martin@fysx.org
 
 mkdir build/
 cd build/
+ln -s ../shaders
+ln -s ../data
 cmake ../ -DGLFW_BUILD_DOCS=OFF -DGLFW_BUILD_EXAMPLES=OFF -DGLFW_BUILD_TESTS=OFF
 make -j4
 cd src/modules/
