@@ -43,13 +43,14 @@ struct Camera {
 
 	float mtxProj[16];
 	float mtxView[16];
+	float mtxEnv[16];
 
 	Camera() :
 		eye {5.f, 4.f, 5.f},
 		poi {0.f, 2.f, 0.f},
 		up  {0.f, 1.f, 0.f},
-		near (1.f),
-		far (20.f),
+		near (0.1f),
+		far (150.f),
 		fov (70.f),
 		orthographic (false),
 		width (-1.f),
@@ -61,6 +62,11 @@ struct Camera {
 			0.f, 0.f, 1.f, 0.f,
 			0.f, 0.f, 0.f, 1.f},
 		mtxView {
+			1.f, 0.f, 0.f, 0.f,
+			0.f, 1.f, 0.f, 0.f,
+			0.f, 0.f, 1.f, 0.f,
+			0.f, 0.f, 0.f, 1.f},
+		mtxEnv {
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
 			0.f, 0.f, 1.f, 0.f,
@@ -146,6 +152,30 @@ struct Entity {
 		mesh (NULL) {};
 };
 
+struct LightProbe
+{
+	enum Enum
+	{
+		Bolonga,
+		Kyoto,
+
+		Count
+	};
+
+	void load(const char* _name);
+
+	void destroy()
+	{
+		bgfx::destroyTexture(m_tex);
+		bgfx::destroyTexture(m_texIrr);
+	}
+
+	bgfx::TextureHandle m_tex;
+	bgfx::TextureHandle m_texIrr;
+};
+
+
+
 struct Renderer {
 	bool initialized;
 	bool drawDebug;
@@ -158,6 +188,9 @@ struct Renderer {
 	std::vector<bgfxutils::Mesh*> meshes;
 	typedef std::map<std::string, unsigned int> MeshIdMap;
 	MeshIdMap meshIdMap;
+
+	LightProbe mLightProbes[LightProbe::Count];
+	LightProbe::Enum mCurrentLightProbe;
 
 	std::vector<Entity*> entities;
 
@@ -195,6 +228,7 @@ struct Renderer {
 
 struct RenderState {
 	enum  {
+		Skybox,
 		ShadowMap,
 		Scene,
 		SceneTextured,

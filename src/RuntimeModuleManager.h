@@ -10,6 +10,7 @@ struct RuntimeModuleManager {
 
 	void RegisterModule(const char* name);
 	void LoadModule(RuntimeModule* module);
+	bool CheckModulesChanged();
 	void UnloadModules();
 	void Update(float dt);
 };

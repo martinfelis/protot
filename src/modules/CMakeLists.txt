@@ -10,3 +10,7 @@ ADD_LIBRARY (RenderModule SHARED
 ADD_LIBRARY (TestModule SHARED
 	TestModule.cc
 	)
+
+TARGET_LINK_LIBRARIES ( TestModule
+	RenderModule
+	)

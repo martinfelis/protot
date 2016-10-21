@@ -20,7 +20,7 @@ namespace stl = tinystl;
 
 #include "shaderc.h"
 
-#include "Renderer.h"
+#include "RenderModule.h"
 #include "RenderUtils.h"
 //#include "MeshVBO.h"
 
@@ -293,10 +293,12 @@ bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const char* _name, uin
 	char filePath[512] = { '\0' };
 	if (NULL == strchr(_name, '/') )
 	{
-		strcpy(filePath, "textures/");
+		strcpy(filePath, "data/textures/");
 	}
 
 	strcat(filePath, _name);
+
+	std::cout << "Loading texture " << filePath << std::endl;
 
 	if (NULL != bx::stristr(_name, ".dds")
 	||  NULL != bx::stristr(_name, ".pvr")

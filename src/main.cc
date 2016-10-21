@@ -90,10 +90,9 @@ int main(void)
 
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
-	module_manager.RegisterModule("src/modules/libTestModule.so");
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
+	module_manager.RegisterModule("src/modules/libTestModule.so");
 
-	printf("Starting main loop...\n");
 	glfwSetKeyCallback(gWindow, key_callback);
 	int64_t time_offset = bx::getHPCounter();
 
@@ -121,5 +120,3 @@ int main(void)
 	imguiDestroy();
 	bgfx::shutdown();
 }
-
-//! [code]

@@ -1,6 +1,6 @@
 #include "RuntimeModule.h"
 #include "Globals.h"
-#include "Renderer.h"
+#include "modules/RenderModule.h"
 #include "3rdparty/ocornut-imgui/imgui.h"
 #include "imgui/imgui.h"
 #include <bx/fpumath.h>
@@ -73,9 +73,9 @@ void handle_mouse (struct module_state *state) {
 	if (glfwGetMouseButton(gWindow, 1)) {
 		Vector3f view_dir;
 
-		view_dir = poi - eye;
+		view_dir = (poi - eye).normalized();
 		Vector3f right = camera_rot_inv.block<1,3>(0,0).transpose();
-		right = view_dir.normalized().cross (Vector3f (0.f, 1.f, 0.f));
+		right = view_dir.cross (Vector3f (0.f, 1.f, 0.f));
 		Matrix33f rot_matrix_y = SimpleMath::GL::RotateMat33(
 				gRenderer->inputState.mousedY * 0.4f,
 				right[0], right[1], right[2]);
@@ -87,15 +87,7 @@ void handle_mouse (struct module_state *state) {
 		memcpy (active_camera->poi, poi.data(), sizeof(float) * 3);
 	}
 
-//	bx::mtxLookAt(
-//			active_camera->mtxView, 
-//			active_camera->eye, 
-//			active_camera->poi, 
-//			active_camera->up
-//			);
-
-	// Not working: why?!?
-// active_camera->updateMatrices();
+	active_camera->updateMatrices();
 }
 
 void handle_keyboard (struct module_state *state) {
@@ -159,7 +151,7 @@ static void module_finalize(struct module_state *state) {
 }
 
 static void module_reload(struct module_state *state) {
-	std::cout << "Module reload called" << std::endl;
+	std::cout << "Module reload called. State: " << state << std::endl;
 
 	// reset mouse scrolling state
 	mouse_scroll_x = 0;
@@ -169,7 +161,7 @@ static void module_reload(struct module_state *state) {
 }
 
 static void module_unload(struct module_state *state) {
-	std::cout << "Module unload called" << std::endl;
+	std::cout << "TestModule unloaded. State: " << state << std::endl;
 	glfwSetScrollCallback (gWindow, nullptr);
 }
 
@@ -193,7 +185,6 @@ static bool module_step(struct module_state *state) {
 		}
 		assert (active_camera != nullptr);
 	}
-
 
 	if (ImGui::Button("Hallo Katrina Whaddup?")) {
 		if (gRenderer->drawDebug) {

@@ -3,7 +3,12 @@
 #include "RenderModule.h"
 #include "3rdparty/ocornut-imgui/imgui.h"
 #include "imgui/imgui.h"
+#define GLFW_EXPOSE_NATIVE_GLX
+#define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
+
 #include "SimpleMath/SimpleMath.h"
 #include "SimpleMath/SimpleMathMap.h"
 
@@ -15,6 +20,7 @@
 #include <bx/timer.h>
 #include <bx/fpumath.h>
 #include <bx/uint32_t.h>
+#include <bx/string.h>
 #include <dbg.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -65,6 +71,7 @@ static void module_reload(struct module_state *state) {
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
 
+	std::cout << "renderer initialize" << std::endl;
 	assert (state != nullptr);
 	state->renderer->initialize(width, height);
 	gRenderer = state->renderer;
@@ -111,6 +118,127 @@ bgfx::VertexBufferHandle plane_vbh;
 bgfx::IndexBufferHandle plane_ibh;
 bgfx::UniformHandle u_time;
 bgfx::UniformHandle u_color;
+
+bgfx::UniformHandle u_mtx;
+bgfx::UniformHandle u_exposure;
+bgfx::UniformHandle u_flags;
+bgfx::UniformHandle u_camPos;
+bgfx::UniformHandle s_texCube;
+bgfx::UniformHandle s_texCubeIrr;
+
+namespace IBL {
+	struct Uniforms
+	{
+		enum { NumVec4 = 12 };
+
+		void init()
+		{
+			u_params = bgfx::createUniform("u_params", bgfx::UniformType::Vec4, NumVec4);
+		}
+
+		void submit()
+		{
+			bgfx::setUniform(u_params, m_params, NumVec4);
+		}
+
+		void destroy()
+		{
+			bgfx::destroyUniform(u_params);
+		}
+
+		union
+		{
+			struct
+			{
+				union
+				{
+					float m_mtx[16];
+					/* 0*/ struct { float m_mtx0[4]; };
+					/* 1*/ struct { float m_mtx1[4]; };
+					/* 2*/ struct { float m_mtx2[4]; };
+					/* 3*/ struct { float m_mtx3[4]; };
+				};
+				/* 4*/ struct { float m_glossiness, m_reflectivity, m_exposure, m_bgType; };
+				/* 5*/ struct { float m_metalOrSpec, m_unused5[3]; };
+				/* 6*/ struct { float m_doDiffuse, m_doSpecular, m_doDiffuseIbl, m_doSpecularIbl; };
+				/* 7*/ struct { float m_cameraPos[3], m_unused7[1]; };
+				/* 8*/ struct { float m_rgbDiff[4]; };
+				/* 9*/ struct { float m_rgbSpec[4]; };
+				/*10*/ struct { float m_lightDir[3], m_unused10[1]; };
+				/*11*/ struct { float m_lightCol[3], m_unused11[1]; };
+			};
+
+			float m_params[NumVec4*4];
+		};
+
+		bgfx::UniformHandle u_params;
+	};
+
+	struct Settings
+	{
+		Settings()
+		{
+			m_envRotCurr = 0.0f;
+			m_envRotDest = 0.0f;
+			m_lightDir[0] = -0.8f;
+			m_lightDir[1] = 0.2f;
+			m_lightDir[2] = -0.5f;
+			m_lightCol[0] = 1.0f;
+			m_lightCol[1] = 1.0f;
+			m_lightCol[2] = 1.0f;
+			m_glossiness = 0.7f;
+			m_exposure = 0.0f;
+			m_bgType = 3.0f;
+			m_radianceSlider = 2.0f;
+			m_reflectivity = 0.85f;
+			m_rgbDiff[0] = 1.0f;
+			m_rgbDiff[1] = 1.0f;
+			m_rgbDiff[2] = 1.0f;
+			m_rgbSpec[0] = 1.0f;
+			m_rgbSpec[1] = 1.0f;
+			m_rgbSpec[2] = 1.0f;
+			m_lod = 0.0f;
+			m_doDiffuse = false;
+			m_doSpecular = false;
+			m_doDiffuseIbl = true;
+			m_doSpecularIbl = true;
+			m_showLightColorWheel = true;
+			m_showDiffColorWheel = true;
+			m_showSpecColorWheel = true;
+			m_metalOrSpec = 0;
+			m_meshSelection = 0;
+			m_crossCubemapPreview = ImguiCubemap::Latlong;
+		}
+
+		float m_envRotCurr;
+		float m_envRotDest;
+		float m_lightDir[3];
+		float m_lightCol[3];
+		float m_glossiness;
+		float m_exposure;
+		float m_radianceSlider;
+		float m_bgType;
+		float m_reflectivity;
+		float m_rgbDiff[3];
+		float m_rgbSpec[3];
+		float m_lod;
+		bool m_doDiffuse;
+		bool m_doSpecular;
+		bool m_doDiffuseIbl;
+		bool m_doSpecularIbl;
+		bool m_showLightColorWheel;
+		bool m_showDiffColorWheel;
+		bool m_showSpecColorWheel;
+		uint8_t m_metalOrSpec;
+		uint8_t m_meshSelection;
+		ImguiCubemap::Enum m_crossCubemapPreview;
+	};
+
+	Settings settings;
+	Uniforms uniforms;
+};
+
+
 int64_t m_timeOffset;
 
 // 
@@ -147,6 +275,18 @@ uint32_t packF4u(float _x, float _y = 0.0f, float _z = 0.0f, float _w = 0.0f)
 //
 
 RenderState s_renderStates[RenderState::Count] = {
+	{ // Skybox
+   	0 
+		| BGFX_STATE_RGB_WRITE
+		| BGFX_STATE_ALPHA_WRITE
+		| BGFX_STATE_DEPTH_WRITE
+		| BGFX_STATE_DEPTH_TEST_LESS
+		| BGFX_STATE_CULL_CCW
+		| BGFX_STATE_MSAA,
+		0,
+		bgfx::invalidHandle,
+		RenderState::Skybox
+	},
 	{ // ShadowMap
    	0 
 		| BGFX_STATE_RGB_WRITE
@@ -156,7 +296,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		UINT16_MAX,
+		bgfx::invalidHandle,
 		RenderState::ShadowMap
 	},
 	{ // Scene
@@ -168,7 +308,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		UINT16_MAX,
+		bgfx::invalidHandle,
 		RenderState::Scene
 	},
 	{ // SceneTextured
@@ -180,7 +320,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		UINT16_MAX,
+		bgfx::invalidHandle,
 		RenderState::SceneTextured
 	},
 	{ // Debug
@@ -193,7 +333,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_PT_LINES
 		| BGFX_STATE_MSAA,
 		0,
-		UINT16_MAX,
+		bgfx::invalidHandle,
 		RenderState::Debug
 	}
 };
@@ -270,6 +410,30 @@ struct PosNormalColorTexcoordVertex
 
 bgfx::VertexDecl PosNormalColorTexcoordVertex::ms_decl;
 
+struct PosColorTexCoord0Vertex
+{
+	float m_x;
+	float m_y;
+	float m_z;
+	uint32_t m_rgba;
+	float m_u;
+	float m_v;
+
+	static void init()
+	{
+		ms_decl
+			.begin()
+			.add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
+			.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+			.end();
+	}
+
+	static bgfx::VertexDecl ms_decl;
+};
+
+bgfx::VertexDecl PosColorTexCoord0Vertex::ms_decl;
+
 // 
 // Static geometries
 // 
@@ -336,23 +500,135 @@ const uint16_t s_cubeIndices[36] =
 	6, 3, 7,
 };
 
-
 bool flipV = false;
+static float s_texelHalf = 0.0f;
+
+void screenSpaceQuad(float _textureWidth, float _textureHeight, bool _originBottomLeft = false, float _width = 1.0f, float _height = 1.0f)
+{
+	if (bgfx::checkAvailTransientVertexBuffer(3, PosColorTexCoord0Vertex::ms_decl) )
+	{
+		bgfx::TransientVertexBuffer vb;
+		bgfx::allocTransientVertexBuffer(&vb, 3, PosColorTexCoord0Vertex::ms_decl);
+		PosColorTexCoord0Vertex* vertex = (PosColorTexCoord0Vertex*)vb.data;
+
+		const float zz = 0.0f;
+
+		const float minx = -_width;
+		const float maxx =  _width;
+		const float miny = 0.0f;
+		const float maxy = _height*2.0f;
+
+		const float texelHalfW = s_texelHalf/_textureWidth;
+		const float texelHalfH = s_texelHalf/_textureHeight;
+		const float minu = -1.0f + texelHalfW;
+		const float maxu =  1.0f + texelHalfW;
+
+		float minv = texelHalfH;
+		float maxv = 2.0f + texelHalfH;
+
+		if (_originBottomLeft)
+		{
+			std::swap(minv, maxv);
+			minv -= 1.0f;
+			maxv -= 1.0f;
+		}
+
+		vertex[0].m_x = minx;
+		vertex[0].m_y = miny;
+		vertex[0].m_z = zz;
+		vertex[0].m_rgba = 0xffffffff;
+		vertex[0].m_u = minu;
+		vertex[0].m_v = minv;
+
+		vertex[1].m_x = maxx;
+		vertex[1].m_y = miny;
+		vertex[1].m_z = zz;
+		vertex[1].m_rgba = 0xffffffff;
+		vertex[1].m_u = maxu;
+		vertex[1].m_v = minv;
+
+		vertex[2].m_x = maxx;
+		vertex[2].m_y = maxy;
+		vertex[2].m_z = zz;
+		vertex[2].m_rgba = 0xffffffff;
+		vertex[2].m_u = maxu;
+		vertex[2].m_v = maxv;
+
+		bgfx::setVertexBuffer(&vb);
+	}
+}
 
 void Camera::updateMatrices() {
 	assert (width != -1.f && height != -1.f);
-	float aspect = width / height;
 
+	// view matrix
 	bx::mtxLookAt (mtxView, eye, poi, up);
 
+	// projection matrix
 	if (orthographic) {
 		bx::mtxOrtho(mtxProj, 
 				-width * 0.5f, width * 0.5f,
 				-height * 0.5f, height * 0.5f, 
 				near, far);
 	} else {
+		float aspect = width / height;
 		bx::mtxProj(mtxProj, fov, aspect, near, far);
 	}
+
+	// environment matrix
+	const float dir[3] =
+	{
+		poi[0] - eye[0],
+		poi[1] - eye[1],
+		poi[2] - eye[2]
+	};
+
+	const float dirLen = bx::vec3Length(dir);
+	const float invDirLen = 1.0f / (dirLen + FLT_MIN);
+
+	const float dirNorm[3] =
+	{
+		dir[0] * invDirLen,
+		dir[1] * invDirLen,
+		dir[2] * invDirLen
+	};
+
+	float tmp[3];
+	const float fakeUp[3] = { 0.0f, 1.0f, 0.0f };
+	float right[3];
+	bx::vec3Cross (tmp, fakeUp, dirNorm);
+	bx::vec3Norm(right, tmp);
+
+	float up[3];
+	bx::vec3Cross(tmp, dirNorm, right);
+	bx::vec3Norm(up, tmp);
+
+	mtxEnv[ 0] = right[0];
+	mtxEnv[ 1] = right[1];
+	mtxEnv[ 2] = right[2];
+	mtxEnv[ 3] = 0.0f;
+	mtxEnv[ 4] = up[0];
+	mtxEnv[ 5] = up[1];
+	mtxEnv[ 6] = up[2];
+	mtxEnv[ 7] = 0.0f;
+	mtxEnv[ 8] = dirNorm[0];
+	mtxEnv[ 9] = dirNorm[1];
+	mtxEnv[10] = dirNorm[2];
+	mtxEnv[11] = 0.0f;
+	mtxEnv[12] = 0.0f;
+	mtxEnv[13] = 0.0f;
+	mtxEnv[14] = 0.0f;
+	mtxEnv[15] = 1.0f;
+}
+
+void LightProbe::load(const char* _name) {
+	char filePath[512];
+
+	bx::snprintf(filePath, BX_COUNTOF(filePath), "data/textures/%s_lod.dds", _name);
+	m_tex = bgfxutils::loadTexture(filePath, BGFX_TEXTURE_U_CLAMP|BGFX_TEXTURE_V_CLAMP|BGFX_TEXTURE_W_CLAMP);
+
+	bx::snprintf(filePath, BX_COUNTOF(filePath), "data/textures/%s_irr.dds", _name);
+	m_texIrr = bgfxutils::loadTexture(filePath, BGFX_TEXTURE_U_CLAMP|BGFX_TEXTURE_V_CLAMP|BGFX_TEXTURE_W_CLAMP);
 }
 
 void Renderer::createGeometries() {
@@ -360,6 +636,7 @@ void Renderer::createGeometries() {
 	PosColorVertex::init();
 	PosNormalVertex::init();
 	PosNormalColorTexcoordVertex::init();
+	PosColorTexCoord0Vertex::init();
 
 	// Create static vertex buffer.
 	cube_vbh = bgfx::createVertexBuffer(
@@ -393,6 +670,11 @@ void Renderer::createGeometries() {
 void Renderer::setupShaders() {
 	// Create uniforms
 	sceneDefaultTextureSampler = bgfx::createUniform("sceneDefaultTexture", bgfx::UniformType::Int1);
+	u_mtx        = bgfx::createUniform("u_mtx",        bgfx::UniformType::Mat4);
+	u_flags      = bgfx::createUniform("u_flags",      bgfx::UniformType::Vec4);
+	u_camPos     = bgfx::createUniform("u_camPos",     bgfx::UniformType::Vec4);
+	s_texCube    = bgfx::createUniform("s_texCube",    bgfx::UniformType::Int1);
+	s_texCubeIrr = bgfx::createUniform("s_texCubeIrr", bgfx::UniformType::Int1);
 
 	int grid_size = 1024;
 	int grid_border = 12;
@@ -432,10 +714,29 @@ void Renderer::setupShaders() {
 	m_timeOffset = bx::getHPCounter();
 
 	// Initialize light
+	std::cout << "Creating light uniforms..." << std::endl;
 	lights[0].u_shadowMap = bgfx::createUniform("u_shadowMap", bgfx::UniformType::Int1);
 	lights[0].u_shadowMapParams = bgfx::createUniform("u_shadowMapParams", bgfx::UniformType::Vec4);
 	lights[0].u_lightPos  = bgfx::createUniform("u_lightPos", bgfx::UniformType::Int1);
 	lights[0].u_lightMtx  = bgfx::createUniform("u_lightMtx", bgfx::UniformType::Int1);
+
+	// Setup the light probe pass
+	IBL::uniforms.init();
+	IBL::uniforms.m_glossiness   = IBL::settings.m_glossiness;
+	IBL::uniforms.m_reflectivity = IBL::settings.m_reflectivity;
+	IBL::uniforms.m_exposure     = IBL::settings.m_exposure;
+	IBL::uniforms.m_bgType       = IBL::settings.m_bgType;
+	IBL::uniforms.m_metalOrSpec   = float(IBL::settings.m_metalOrSpec);
+	IBL::uniforms.m_doDiffuse     = float(IBL::settings.m_doDiffuse);
+	IBL::uniforms.m_doSpecular    = float(IBL::settings.m_doSpecular);
+	IBL::uniforms.m_doDiffuseIbl  = float(IBL::settings.m_doDiffuseIbl);
+	IBL::uniforms.m_doSpecularIbl = float(IBL::settings.m_doSpecularIbl);
+	memcpy(IBL::uniforms.m_rgbDiff,  IBL::settings.m_rgbDiff,  3*sizeof(float) );
+	memcpy(IBL::uniforms.m_rgbSpec,  IBL::settings.m_rgbSpec,  3*sizeof(float) );
+	memcpy(IBL::uniforms.m_lightDir, IBL::settings.m_lightDir, 3*sizeof(float) );
+	memcpy(IBL::uniforms.m_lightCol, IBL::settings.m_lightCol, 3*sizeof(float) );
+
+	s_renderStates[RenderState::Skybox].m_program = bgfxutils::loadProgramFromFiles("shaders/src/vs_ibl_skybox.sc", "shaders/src/fs_ibl_skybox.sc");
 
 	// Get renderer capabilities info.
 	const bgfx::Caps* caps = bgfx::getCaps();
@@ -545,6 +846,30 @@ class BGFXCallbacks: public bgfx::CallbackI {
 	};
 };
 
+namespace bgfx {
+	inline void glfwSetWindow(GLFWwindow* _window)
+	{
+		bgfx::PlatformData pd;
+#	if BX_PLATFORM_LINUX || BX_PLATFORM_BSD
+		pd.ndt          = glfwGetX11Display();
+		pd.nwh          = (void*)(uintptr_t)glfwGetGLXWindow(_window);
+		pd.context      = glfwGetGLXContext(_window);
+#	elif BX_PLATFORM_OSX
+		pd.ndt          = NULL;
+		pd.nwh          = glfwGetCocoaWindow(_window);
+		pd.context      = glfwGetNSGLContext(_window);
+#	elif BX_PLATFORM_WINDOWS
+		pd.ndt          = NULL;
+		pd.nwh          = glfwGetWin32Window(_window);
+		pd.context      = NULL;
+#	endif // BX_PLATFORM_WINDOWS
+		pd.backBuffer   = NULL;
+		pd.backBufferDS = NULL;
+		bgfx::setPlatformData(pd);
+	}
+}
+
+
 void Renderer::initialize(int width, int height) {
 	this->width = width;
 	this->height = height;
@@ -554,6 +879,8 @@ void Renderer::initialize(int width, int height) {
 
 	reset = BGFX_RESET_VSYNC | BGFX_RESET_MAXANISOTROPY | BGFX_RESET_MSAA_X16;
 	bgfx::reset(width, height, reset);
+
+	std::cout << "bla55aa" << std::endl;
 
 	bgfx::setViewClear(0
 			, BGFX_CLEAR_COLOR|BGFX_CLEAR_DEPTH
@@ -571,25 +898,20 @@ void Renderer::initialize(int width, int height) {
 
 	bgfx::setDebug(debug);
 
+	std::cout << "Creating Cameras" << std::endl;
 	cameras.push_back (Camera());
 	activeCameraIndex = 0;
 	lights.push_back (Light());
 
-	// set the clear state
-//	for (int i = 0; i < 2; i++) {
-//		bgfx::setViewClear(i
-//				, BGFX_CLEAR_COLOR|BGFX_CLEAR_DEPTH
-//				, 0x303030ff
-//				, 1.0f
-//				, 0
-//				);
-//	}
-	
 	createGeometries();
 
 	setupShaders();
 
 	setupRenderPasses();
+
+	mLightProbes[LightProbe::Bolonga].load("bolonga");
+	mLightProbes[LightProbe::Kyoto  ].load("kyoto");
+	mCurrentLightProbe = LightProbe::Bolonga;
 
 	// Start the imgui frame such that widgets can be submitted
 	imguiBeginFrame (inputState.mouseX,
@@ -605,21 +927,33 @@ void Renderer::initialize(int width, int height) {
 }
 
 void Renderer::shutdown() {
-	bgfx::destroyFrameBuffer(lights[0].shadowMapFB);
-
-	bgfx::destroyUniform(lights[0].u_shadowMap);
-	bgfx::destroyUniform(lights[0].u_shadowMapParams);
-	bgfx::destroyUniform(lights[0].u_lightPos);
-	bgfx::destroyUniform(lights[0].u_lightMtx);
-
 	bgfx::destroyIndexBuffer(cube_ibh);
 	bgfx::destroyIndexBuffer(cube_edges_ibh);
 	bgfx::destroyVertexBuffer(cube_vbh);
 	bgfx::destroyIndexBuffer(plane_ibh);
 	bgfx::destroyVertexBuffer(plane_vbh);
 
+	bgfx::destroyUniform(u_camPos);
+	bgfx::destroyUniform(u_flags);
+	bgfx::destroyUniform(u_mtx);
+
+	IBL::uniforms.destroy();
+
+	bgfx::destroyUniform(s_texCube);
+	bgfx::destroyUniform(s_texCubeIrr);
+
 	bgfx::destroyUniform(u_time);
 	bgfx::destroyUniform(u_color);
+
+	for (uint8_t ii = 0; ii < RenderState::Count; ++ii) {
+		if (bgfx::isValid(s_renderStates[ii].m_program)) {
+			bgfx::destroyProgram(s_renderStates[ii].m_program);
+		}
+	}
+
+	for (uint8_t ii = 0; ii < LightProbe::Count; ++ii) {
+		mLightProbes[ii].destroy();
+	}
 
 	for (size_t i = 0; i < entities.size(); i++) {
 		delete entities[i];
@@ -631,7 +965,18 @@ void Renderer::shutdown() {
 		meshes[i] = NULL;
 	}
 
+	for (size_t i = 0; i < lights.size(); i++) {
+		std::cout << "Destroying light uniforms for light " << i << std::endl;
+		bgfx::destroyFrameBuffer(lights[i].shadowMapFB);
+
+		bgfx::destroyUniform(lights[i].u_shadowMap);
+		bgfx::destroyUniform(lights[i].u_shadowMapParams);
+		bgfx::destroyUniform(lights[i].u_lightPos);
+		bgfx::destroyUniform(lights[i].u_lightMtx);
+	}
 	lights.clear();
+
+	cameras.clear();
 }
 
 void Renderer::resize (int width, int height) {
@@ -747,6 +1092,13 @@ void Renderer::paintGL() {
 	}
 
 	// setup render passes
+	float view[16];
+	float proj[16];
+	bx::mtxIdentity(view);
+	bx::mtxOrtho(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f);
+	bgfx::setViewRect(RenderState::Skybox, 0, 0, width, height);
+	bgfx::setViewTransform(RenderState::Skybox, view, proj);
+	
 	bgfx::setViewRect(RenderState::ShadowMap, 0, 0, lights[0].shadowMapSize, lights[0].shadowMapSize);
 	bgfx::setViewFrameBuffer(RenderState::ShadowMap, lights[0].shadowMapFB);
 	bgfx::setViewTransform(RenderState::ShadowMap, lights[0].mtxView, lights[0].mtxProj);
@@ -774,17 +1126,47 @@ void Renderer::paintGL() {
 	bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 
 	// Clear backbuffer and shadowmap framebuffer at beginning.
+	bgfx::setViewClear(RenderState::Skybox
+			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
+			, 0xf03030ff, 1.0f, 0
+			);
+
 	bgfx::setViewClear(RenderState::ShadowMap
 			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
 			, 0x303030ff, 1.0f, 0
 			);
 
-	bgfx::setViewClear(RenderState::Scene
-			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
-			, 0x303030ff, 1.0f, 0
-			);
+//	bgfx::setViewClear(RenderState::Scene
+//			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
+//			, 0x303030ff, 1.0f, 0
+//			);
 
 	bgfx::touch(RenderState::Scene);
+	bgfx::touch(RenderState::Skybox);
+
+	// Skybox pass
+	memcpy (IBL::uniforms.m_cameraPos, cameras[activeCameraIndex].eye, 3 * sizeof(float));
+
+	const float amount = bx::fmin(0.012/0.12f, 1.0f);
+	IBL::settings.m_envRotCurr = bx::flerp(IBL::settings.m_envRotCurr, IBL::settings.m_envRotDest, amount);
+
+
+	float mtxEnvRot[16];
+	float env_rot_cur = 0.0f;
+	float mtx_u_mtx[16];
+
+	bx::mtxRotateY(mtxEnvRot, env_rot_cur);
+	bx::mtxMul(IBL::uniforms.m_mtx, cameras[activeCameraIndex].mtxEnv, mtxEnvRot); // Used for Skybox.
+
+	bgfx::setTexture(0, s_texCube, mLightProbes[mCurrentLightProbe].m_tex);
+	bgfx::setTexture(1, s_texCubeIrr, mLightProbes[mCurrentLightProbe].m_texIrr);
+	bgfx::setState(BGFX_STATE_RGB_WRITE|BGFX_STATE_ALPHA_WRITE);
+	screenSpaceQuad( 
+			(float)cameras[activeCameraIndex].width,
+			(float)cameras[activeCameraIndex].height, true);
+
+	IBL::uniforms.submit();
+	bgfx::submit(RenderState::Skybox, s_renderStates[RenderState::Skybox].m_program);
 
 	// render the plane
 	uint32_t cached = bgfx::setTransform(mtxFloor);
@@ -795,6 +1177,10 @@ void Renderer::paintGL() {
 			continue;
 
 		const RenderState& st = s_renderStates[pass];
+		if (!isValid(st.m_program)) {
+			continue;
+		}
+
 		bgfx::setTransform(cached);
 		for (uint8_t tex = 0; tex < st.m_numTextures; ++tex)
 		{
