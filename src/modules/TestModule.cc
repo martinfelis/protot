@@ -29,14 +29,21 @@ bool fps_camera = true;
 
 // Boilerplate for the module reload stuff
 
+struct CharacterEntity {
+	/// Render entity
+	Entity *entity;
+	Vector3f position;
+};
+
 struct module_state {
 	bool fps_camera;
 	float camera_theta;
 	float camera_phi;
 	bool modules_window_visible = false;
 	bool imgui_demo_window_visible = false;
-
 	int modules_window_selected_index = -1;
+
+	CharacterEntity* character = nullptr;
 };
 
 void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
@@ -145,6 +152,9 @@ void handle_keyboard (struct module_state *state) {
 static struct module_state *module_init() {
 	std::cout << "Module init called" << std::endl;
 	module_state *state = (module_state*) malloc(sizeof(*state));
+	state->character = new CharacterEntity;
+	state->character->position = Vector3f (0.f, 0.f, 0.f);
+	state->modules_window_selected_index = -1;
 
 	fps_camera = true;
 
@@ -163,12 +173,30 @@ static void module_reload(struct module_state *state) {
 	mouse_scroll_x = 0;
 	mouse_scroll_y = 0;
 
+	cout << "Creating render entity ..." << endl;
+	state->character->entity = gRenderer->createEntity();
+	cout << "Creating render entity ... success!" << endl;
+
+	cout << "Creating render entity mesh ..." << endl;
+	state->character->entity->mesh = bgfxutils::createUVSphere (25, 25);
+	cout << "Creating render entity mesh ... success!" << endl;
+
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
 
 static void module_unload(struct module_state *state) {
-	std::cout << "TestModule unloaded. State: " << state << std::endl;
 	glfwSetScrollCallback (gWindow, nullptr);
+
+	cout << "destroying render entity " << state->character->entity << endl;
+	if (!gRenderer->destroyEntity (state->character->entity)) {
+		cerr << "Warning: could not destroy entity " << state->character->entity << endl;
+	} else {
+		cout << "Successfully destroyed entity " << state->character->entity << endl;
+
+	}
+	state->character->entity = nullptr;
+
+	std::cout << "TestModule unloaded. State: " << state << std::endl;
 }
 
 void ShowModulesWindow(struct module_state *state) {

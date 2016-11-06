@@ -54,6 +54,8 @@ namespace bgfxutils {
 
 	// Loads the mesh data from a VBO into a bgfx Mesh
 //	Mesh *createMeshFromVBO (const MeshVBO& mesh_buffer);
+
+	Mesh *createUVSphere (int rows, int segments);
 }
 
 #endif

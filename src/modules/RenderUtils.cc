@@ -23,6 +23,9 @@ namespace stl = tinystl;
 #include "RenderModule.h"
 #include "RenderUtils.h"
 //#include "MeshVBO.h"
+#include "SimpleMath/SimpleMath.h"
+
+using namespace SimpleMath;
 
 void *load(const char *_filePath, uint32_t *_size = NULL);
 
@@ -933,6 +936,94 @@ void mesh_load(Mesh* mesh, const void* _vertices, uint32_t _numVertices, const b
 // 
 // 	return result;
 // }
+
+Mesh *createUVSphere (int rows, int segments) {
+	// work arrays that we fill with data
+ 	std::vector<Vector4f> vertices;
+ 	std::vector<Vector3f> normals;
+ 	std::vector<Vector4f> colors;
+
+	// fill arrays
+	float row_d = 1. / (rows);
+	float angle_d = 2 * M_PI / static_cast<float>(segments);
+
+	for (unsigned int j = 0; j < rows; j++) {
+		float alpha0 = j * row_d * M_PI;
+		float alpha1 = (j + 1) * row_d * M_PI;
+
+		float r0 = sin (alpha0);
+		float r1 = sin (alpha1);
+
+		float h0 = cos (alpha0);
+		float h1 = cos (alpha1);
+
+		for (unsigned int i = 0; i < segments; i++) {
+			Vector3f v0, v1, v2, v3;
+			float a0 = (i - 0.5) * angle_d;
+			float a1 = (i + 0.5) * angle_d;
+
+	    v0 = Vector3f (r1 * cos(a0), h1, r1 * sin (a0));
+	    v1 = Vector3f (r1 * cos(a1), h1, r1 * sin (a1));
+	    v2 = Vector3f (r0 * cos(a1), h0, r0 * sin (a1));
+	    v3 = Vector3f (r0 * cos(a0), h0, r0 * sin (a0));
+
+			vertices.push_back (Vector4f(v0[0], v0[1], v0[2], 0.f));
+			normals.push_back (v0 * 1.f/ v0.norm());
+
+			vertices.push_back (Vector4f(v2[0], v2[1], v2[2], 0.f));
+			normals.push_back (v2 * 1.f/ v2.norm());
+
+			vertices.push_back (Vector4f(v1[0], v1[1], v1[2], 0.f));
+			normals.push_back (v1 * 1.f/ v1.norm());
+
+			vertices.push_back (Vector4f(v0[0], v0[1], v0[2], 0.f));
+			normals.push_back (v0 * 1.f/ v0.norm());
+
+			vertices.push_back (Vector4f(v3[0], v3[1], v3[2], 0.f));
+			normals.push_back (v3 * 1.f/ v3.norm());
+
+			vertices.push_back (Vector4f(v2[0], v2[1], v2[2], 0.f));
+			normals.push_back (v2 * 1.f/ v2.norm());
+		}
+	}
+	
+	// create and copy the data into the actual mesh
+ 	Mesh* result = new Mesh();
+	PosNormalColorVertex::init();
+	bool have_normals = normals.size() > 0;
+ 	bool have_colors = colors.size() > 0;
+ 
+ 	uint16_t stride = PosNormalColorVertex::ms_decl.getStride();
+ 	const bgfx::Memory* vb_mem = bgfx::alloc (vertices.size() * stride);
+ 	PosNormalColorVertex* mesh_vb = (PosNormalColorVertex*) vb_mem;
+ 
+ 	const bgfx::Memory* ib_mem = bgfx::alloc (sizeof(uint16_t) * vertices.size());
+ 	uint16_t* mesh_ib = (uint16_t*) ib_mem;
+ 
+ 	for (unsigned int i = 0; i < vertices.size(); i++) {
+ 		mesh_vb[i].m_x = vertices[i][0];
+ 		mesh_vb[i].m_y = vertices[i][1];
+ 		mesh_vb[i].m_z = vertices[i][2];
+ 
+ 		if (have_normals) {
+ 			mesh_vb[i].m_normal = packF4u (-normals[i][0], -normals[i][1], -normals[i][2]);
+ 		} else {
+ 			mesh_vb[i].m_normal = 0;
+ 		}
+ 
+ 		if (have_colors) {
+ 			mesh_vb[i].m_rgba = packF4u (colors[i][0], colors[i][1], colors[i][2], colors[i][3]);
+ 		} else {
+ 			mesh_vb[i].m_rgba = packF4u (1.f, 1.f, 1.f, 1.f);
+ 		}
+ 
+ 		mesh_ib[i] = i;
+ 	}
+ 
+ 	mesh_load(result, mesh_vb, vertices.size(), PosNormalColorVertex::ms_decl, mesh_ib, vertices.size());
+ 
+ 	return result;
+}
 
 }
 

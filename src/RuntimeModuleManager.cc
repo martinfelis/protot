@@ -65,7 +65,10 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 void RuntimeModuleManager::Update(float dt) {
 	if (CheckModulesChanged()) {
 		std::cout << "Detected module update. Unloading all modules." << std::endl;
-		for (int i = 0; i < mModules.size(); i++) {
+
+		// We unload in reverse order so that dependencies are cleaned
+		// up properly.
+		for (int i = mModules.size() - 1; i >= 0; i--) {
 			if (mModules[i]->handle) {
 				std::cerr << "Unloading module " << mModules[i]->name << std::endl;
 				mModules[i]->api.unload(mModules[i]->state);
@@ -76,7 +79,7 @@ void RuntimeModuleManager::Update(float dt) {
 		}
 
 		// We need to sleep to make sure we load the new files
-		usleep(350000);
+		usleep(100000);
 	}
 
 	for (int i = 0; i < mModules.size(); i++) {

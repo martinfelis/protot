@@ -679,6 +679,7 @@ void Renderer::setupShaders() {
 	int grid_size = 1024;
 	int grid_border = 12;
 	uint8_t grid_color_border [4] = {255, 255, 255, 255};
+//	uint8_t grid_color_border [4] = {0, 0, 0, 0};
 	uint8_t grid_color_0[4] = {192, 192, 192, 255};
 	uint8_t grid_color_1[4] = {96, 96, 96, 255};
 	uint8_t* texture_data = NULL;
@@ -1275,6 +1276,30 @@ Entity* Renderer::createEntity() {
 	entities.push_back(result);
 
 	return result;
+}
+
+bool Renderer::destroyEntity(Entity* entity) {
+	int i = 0;
+	for (i = 0; i < entities.size(); i++) {
+		if (entities[i] == entity) {
+			break;
+		}
+	}
+
+	if (i != entities.size()) {
+		if (entity->mesh != nullptr) {
+			meshUnload (entity->mesh);
+			entity->mesh = nullptr;
+		}
+		
+		delete entity;
+
+		entities.erase(entities.begin() + i);
+
+		return true;
+	}
+
+	return false;
 }
 
 bgfxutils::Mesh* Renderer::loadMesh(const char* filename) {

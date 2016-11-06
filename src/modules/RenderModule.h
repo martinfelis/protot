@@ -223,6 +223,8 @@ struct Renderer {
 	void resize (int width, int height);
 
 	Entity* createEntity();
+	bool destroyEntity (Entity* entity);
+
 	bgfxutils::Mesh* loadMesh(const char* filename);
 };
 
