@@ -9,6 +9,8 @@
 #include "SimpleMath/SimpleMathMap.h"
 #include "SimpleMath/SimpleMathGL.h"
 
+#include "RuntimeModuleManager.h"
+
 #include <iostream>
 #include <sstream>
 
@@ -31,6 +33,10 @@ struct module_state {
 	bool fps_camera;
 	float camera_theta;
 	float camera_phi;
+	bool modules_window_visible = false;
+	bool imgui_demo_window_visible = false;
+
+	int modules_window_selected_index = -1;
 };
 
 void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
@@ -124,7 +130,7 @@ void handle_keyboard (struct module_state *state) {
 		direction += Vector3f (0.f, 1.f, 0.f);
 	}
 
-	if (glfwGetKey(gWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+	if (glfwGetKey(gWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
 		direction += Vector3f (0.f, -1.f, 0.f);
 	}
 
@@ -165,39 +171,89 @@ static void module_unload(struct module_state *state) {
 	glfwSetScrollCallback (gWindow, nullptr);
 }
 
+void ShowModulesWindow(struct module_state *state) {
+	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
+	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
+	ImGui::Begin("Modules");
+
+//	ImGui::Columns(2);
+	int selected = state->modules_window_selected_index;
+	for (int i = 0; i < gModuleManager->mModules.size(); i++) {
+		ImGuiTreeNodeFlags node_flags = 
+			ImGuiTreeNodeFlags_Leaf
+			| ((i == selected) ? ImGuiTreeNodeFlags_Selected : 0)
+			;
+
+		bool node_open = ImGui::TreeNodeEx(
+				gModuleManager->mModules[i]->name.c_str(),
+				node_flags);
+
+		if (ImGui::IsItemClicked()) {
+			selected = i;
+		}
+
+		if (node_open) {
+			ImGui::TreePop();
+		}
+	}
+	state->modules_window_selected_index = selected;
+
+
+//	ImGui::NextColumn();
+
+	ImGui::Separator();
+
+	RuntimeModule* selected_module = nullptr;
+	if (selected != -1) {
+		selected_module = gModuleManager->mModules[selected];
+	}
+
+	if (selected_module) {
+		static char time_buf[32];
+		memset (time_buf, 0, 32);
+
+		ImGui::LabelText("File", "%s", selected_module->name.c_str());
+		ImGui::LabelText("Handle", "0x%p", selected_module->handle);
+		ImGui::LabelText("id", "%ld", selected_module->id);
+
+		ctime_r((time_t*)&selected_module->mtime, time_buf);
+		ImGui::LabelText("mtime", "%s", time_buf);
+
+		if (ImGui::Button ("Force Reload")) {
+			selected_module->mtime = 0;
+			selected_module->id = 0;
+		}
+	}
+
+	ImGui::End();
+}
+
 static bool module_step(struct module_state *state) {
 	if (gRenderer == nullptr)
 		return false;
 
 	bool enabled = true;
-	ImGui::Begin("TestModule");
-	if (ImGui::Checkbox("FPS Camera", &state->fps_camera)) {
+	static bool imgui_demo_window_visible = false;
+
+	ImGui::BeginMainMenuBar();
+
+	if (ImGui::BeginMenu("Dialogs"))
+	{
+		ImGui::Checkbox("Modules", &state->modules_window_visible);
+		ImGui::Checkbox("ImGui Demo", &state->imgui_demo_window_visible);
+		
+		ImGui::EndMenu();
 	}
 
-	ImGui::SliderFloat("Theta", &state->camera_theta, -3.141592f, 3.141592f);
-	ImGui::SliderFloat("Phi", &state->camera_phi, -3.141592f, 3.141592f);
+	ImGui::EndMainMenuBar();
 
-	if (gRenderer) {
-		Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
-		if (active_camera) {
-			ImGui::SliderFloat3("Eye", active_camera->eye, -30.0f, 30.0f);
-			ImGui::SliderFloat3("Poi", active_camera->poi, -30.0f, 30.0f);
-		}
-		assert (active_camera != nullptr);
+	if (state->modules_window_visible) {
+		ShowModulesWindow(state);
 	}
 
-	if (ImGui::Button("Hallo Katrina Whaddup?")) {
-		if (gRenderer->drawDebug) {
-			gRenderer->drawDebug = false;
-		} else {
-			gRenderer->drawDebug = true;
-		}
-		std::cout << "Clicked on Baem!" << std::endl;
+	if (state->imgui_demo_window_visible) {
+		ImGui::ShowTestWindow();
 	}
-	ImGui::End();
-
-	static bool imgui_test_window = true;
-//	ImGui::ShowTestWindow();
 
 	float deltaTime = 0.3;
 	std::ostringstream s;

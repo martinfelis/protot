@@ -19,6 +19,7 @@
 #include "Globals.h"
 Renderer* gRenderer = nullptr;
 GLFWwindow* gWindow = nullptr;
+RuntimeModuleManager* gModuleManager = nullptr;
 
 using namespace std;
 
@@ -92,6 +93,9 @@ int main(void)
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
 	module_manager.RegisterModule("src/modules/libTestModule.so");
+
+	// Setup global variables
+	gModuleManager = &module_manager;
 
 	glfwSetKeyCallback(gWindow, key_callback);
 	int64_t time_offset = bx::getHPCounter();

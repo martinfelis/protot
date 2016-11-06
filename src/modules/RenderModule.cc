@@ -1032,7 +1032,10 @@ void Renderer::paintGL() {
 
 	// Use debug font to print information about this example.
 	bgfx::dbgTextClear();
-	bgfx::dbgTextPrintf(0, 0, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
+
+	// debug font is 8 pixels wide
+	int num_chars = width / 8;
+	bgfx::dbgTextPrintf(num_chars - 18, 0, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
 
 	// submit the imgui widgets
 	imguiEndFrame();

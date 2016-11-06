@@ -1,6 +1,8 @@
 ProtoT - Fun 3D programming prototyping environment
 Copyright (c) 2016 - Martin Felis <martin@fysx.org
 
+Needs inotifywait to work (in ubuntu provided by inotify-tools)
+
 mkdir build/
 cd build/
 ln -s ../shaders

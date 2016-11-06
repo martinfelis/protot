@@ -13,17 +13,6 @@
 
 #include "Globals.h"
 
-struct RuntimeModule {
-	std::string name = "";
-	void *handle = nullptr;
-	ino_t id = 0;
-	void *data = nullptr;
-	int mtime = 0;
-
-	struct module_api api;
-	struct module_state *state = nullptr;
-};
-
 void RuntimeModuleManager::RegisterModule(const char* name) {
 	RuntimeModule* module = new RuntimeModule();
 	module->name = name;
@@ -87,7 +76,7 @@ void RuntimeModuleManager::Update(float dt) {
 		}
 
 		// We need to sleep to make sure we load the new files
-		usleep(150000);
+		usleep(350000);
 	}
 
 	for (int i = 0; i < mModules.size(); i++) {
