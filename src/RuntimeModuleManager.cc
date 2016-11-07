@@ -85,7 +85,7 @@ void RuntimeModuleManager::Update(float dt) {
 	for (int i = 0; i < mModules.size(); i++) {
 		LoadModule(mModules[i]);
 		if (mModules[i]->handle) {
-			mModules[i]->api.step(mModules[i]->state);
+			mModules[i]->api.step(mModules[i]->state, dt);
 		}
 	}
 }

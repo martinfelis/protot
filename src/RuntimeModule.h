@@ -29,7 +29,7 @@ struct module_api {
      * Called at a regular interval by the main program.
      * @return true if the program should continue
      */
-    bool (*step)(struct module_state *state);
+    bool (*step)(struct module_state *state, float dt);
 };
 
 extern "C" {

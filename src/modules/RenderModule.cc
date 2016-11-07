@@ -83,7 +83,7 @@ static void module_unload(struct module_state *state) {
 	std::cout << "RenderModule unload called" << std::endl;
 }
 
-static bool module_step(struct module_state *state) {
+static bool module_step(struct module_state *state, float dt) {
 	float deltaTime = 0.3;
 	std::ostringstream s;
 	s << "RenderModule:  2 Runtime Object 4 " << deltaTime << " update called!";

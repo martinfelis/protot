@@ -29,10 +29,60 @@ bool fps_camera = true;
 
 // Boilerplate for the module reload stuff
 
+struct CharacterController {
+	enum ControllerState {
+		ControlForward = 1,
+		ControlLeft,
+		ControlRight,
+		ControlBack,
+		ControlJump,
+		ControlStateLast
+	};
+
+	bool state[ControlStateLast];
+
+	void reset() {
+		for (int i = 0; i < ControlStateLast; i++) {
+			state[i] = false;
+		}
+	}
+
+	CharacterController() {
+		reset();
+	};
+};
+
 struct CharacterEntity {
 	/// Render entity
 	Entity *entity;
 	Vector3f position;
+	CharacterController controller;
+
+	void update(float dt) {
+		Vector3f local_velocity (Vector3f::Zero());
+
+		if (controller.state[CharacterController::ControlForward]) {
+			local_velocity += Vector3f (1.f, 0.f, 0.f);
+		}
+
+		if (controller.state[CharacterController::ControlBack]) {
+			local_velocity -= Vector3f (1.f, 0.f, 0.f);
+		}
+
+		if (controller.state[CharacterController::ControlRight]) {
+			local_velocity += Vector3f (0.f, 0.f, 1.f);
+		}
+
+		if (controller.state[CharacterController::ControlLeft]) {
+			local_velocity -= Vector3f (0.f, 0.f, 1.f);
+		}
+
+		// integrate position
+		position += local_velocity * 5 * dt;
+
+		// apply transformation
+		bx::mtxTranslate(entity->transform, position[0], position[1], position[2]);
+	}
 };
 
 struct module_state {
@@ -103,50 +153,94 @@ void handle_mouse (struct module_state *state) {
 	active_camera->updateMatrices();
 }
 
-void handle_keyboard (struct module_state *state) {
-	Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
-	assert (active_camera != nullptr);
-	Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
-	Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
-
-	Vector3f forward = camera_rot_inv.transpose() * Vector3f (0.f, 0.f, 1.f);
-	Vector3f right = camera_rot_inv.transpose() * Vector3f (1.f, 0.f, 0.f);
-	
-	Vector3f eye = SimpleMath::Map<Vector3f>(active_camera->eye, 3, 1);
-	Vector3f poi= SimpleMath::Map<Vector3f>(active_camera->poi, 3, 1);
-
-	Vector3f direction (0.f, 0.f, 0.f);
-
-	if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
-		direction += forward;
-	} 
-	
-	if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
-		direction -= forward;
-	}
-	
-	if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
-		direction += right;
-	} 
-	
-	if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
-		direction -= right;
+void handle_keyboard (struct module_state *state, float dt) {
+	if (!glfwGetWindowAttrib(gWindow, GLFW_FOCUSED)) {
+		return;
 	}
 
-	if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
-		direction += Vector3f (0.f, 1.f, 0.f);
+	if (glfwGetMouseButton(gWindow, 1)) {
+		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	} else {
+		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	}
 
-	if (glfwGetKey(gWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-		direction += Vector3f (0.f, -1.f, 0.f);
+	if (glfwGetMouseButton(gWindow, 1)) {
+		// Right mouse button pressed, move the camera
+		Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+		assert (active_camera != nullptr);
+		Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
+		Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
+
+		Vector3f forward = camera_rot_inv.transpose() * Vector3f (0.f, 0.f, 1.f);
+		Vector3f right = camera_rot_inv.transpose() * Vector3f (1.f, 0.f, 0.f);
+
+		Vector3f eye = SimpleMath::Map<Vector3f>(active_camera->eye, 3, 1);
+		Vector3f poi= SimpleMath::Map<Vector3f>(active_camera->poi, 3, 1);
+
+		Vector3f direction (0.f, 0.f, 0.f);
+
+		if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
+			direction += forward;
+		} 
+
+		if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
+			direction -= forward;
+		}
+
+		if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
+			direction += right;
+		} 
+
+		if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
+			direction -= right;
+		}
+
+		if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+			direction += Vector3f (0.f, 1.f, 0.f);
+		}
+
+		if (glfwGetKey(gWindow, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+			direction += Vector3f (0.f, -1.f, 0.f);
+		}
+
+		eye += direction * 5.f * dt;
+		poi += direction * 5.f * dt;
+
+		memcpy (active_camera->eye, eye.data(), sizeof(float) * 3);
+		memcpy (active_camera->poi, poi.data(), sizeof(float) * 3);
+	} else if (state->character != nullptr) {
+		// Movement of the character
+		CharacterController& controller = state->character->controller;
+
+		controller.reset();
+
+		// Reset the character control state:
+		if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
+			controller.state[CharacterController::ControlForward] = true;	
+		} 
+
+		if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
+			controller.state[CharacterController::ControlBack] = true;	
+		}
+
+		if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
+			controller.state[CharacterController::ControlRight] = true;	
+		} 
+
+		if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
+			controller.state[CharacterController::ControlLeft] = true;	
+		}
+
+		if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
+			controller.state[CharacterController::ControlJump] = true;	
+		}
 	}
+}
 
-	float step = 0.1f;
-	eye += direction * step;
-	poi += direction * step;
-
-	memcpy (active_camera->eye, eye.data(), sizeof(float) * 3);
-	memcpy (active_camera->poi, poi.data(), sizeof(float) * 3);
+void update_character(module_state* state, float dt) {
+	if (state->character != nullptr) {
+		state->character->update(dt);
+	}
 }
 
 static struct module_state *module_init() {
@@ -175,6 +269,7 @@ static void module_reload(struct module_state *state) {
 
 	cout << "Creating render entity ..." << endl;
 	state->character->entity = gRenderer->createEntity();
+	state->character->position = Vector3f (0.f, 0.74f, 0.0f);
 	cout << "Creating render entity ... success!" << endl;
 
 	cout << "Creating render entity mesh ..." << endl;
@@ -226,9 +321,6 @@ void ShowModulesWindow(struct module_state *state) {
 	}
 	state->modules_window_selected_index = selected;
 
-
-//	ImGui::NextColumn();
-
 	ImGui::Separator();
 
 	RuntimeModule* selected_module = nullptr;
@@ -256,7 +348,7 @@ void ShowModulesWindow(struct module_state *state) {
 	ImGui::End();
 }
 
-static bool module_step(struct module_state *state) {
+static bool module_step(struct module_state *state, float dt) {
 	if (gRenderer == nullptr)
 		return false;
 
@@ -283,14 +375,9 @@ static bool module_step(struct module_state *state) {
 		ImGui::ShowTestWindow();
 	}
 
-	float deltaTime = 0.3;
-	std::ostringstream s;
-	s << "TestModule:  2 Runtime Object 4 " << deltaTime << " update called!";
-
 	handle_mouse(state);
-	handle_keyboard(state);
-
-	bgfx::dbgTextPrintf(1, 20, 0x6f, s.str().c_str());
+	handle_keyboard(state, dt);
+	update_character(state, dt);
 
 	return true;
 }
