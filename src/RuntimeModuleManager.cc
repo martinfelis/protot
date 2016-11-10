@@ -79,7 +79,7 @@ void RuntimeModuleManager::Update(float dt) {
 		}
 
 		// We need to sleep to make sure we load the new files
-		usleep(100000);
+		usleep(200000);
 	}
 
 	for (int i = 0; i < mModules.size(); i++) {

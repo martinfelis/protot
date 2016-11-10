@@ -681,7 +681,7 @@ void Renderer::setupShaders() {
 	uint8_t grid_color_border [4] = {255, 255, 255, 255};
 //	uint8_t grid_color_border [4] = {0, 0, 0, 0};
 	uint8_t grid_color_0[4] = {192, 192, 192, 255};
-	uint8_t grid_color_1[4] = {96, 96, 96, 255};
+	uint8_t grid_color_1[4] = {128, 128, 128, 255};
 	uint8_t* texture_data = NULL;
 	texture_data = new uint8_t[grid_size * grid_size * 4];
 	for (int i = 0; i < grid_size; i++) {
@@ -1061,9 +1061,9 @@ void Renderer::paintGL() {
 		bgfx::setUniform(lights[i].u_shadowMapParams, &shadow_map_params);
 
 		float eye[3];
-		eye[0] = -lights[i].pos[0];
-		eye[1] = -lights[i].pos[1];
-		eye[2] = -lights[0].pos[2];
+		eye[0] = lights[i].pos[0];
+		eye[1] = lights[i].pos[1];
+		eye[2] = lights[0].pos[2];
 
 		float at[3];
 		at[0] = - lights[i].pos[0] + lights[i].dir[0];
@@ -1072,9 +1072,9 @@ void Renderer::paintGL() {
 
 		bx::mtxLookAt(lights[i].mtxView, eye, at);
 
-		lights[i].area = 2.5f;
+		lights[i].area = 20.0f;
 		lights[i].near = 0.f;
-		lights[i].far = 5.f;
+		lights[i].far = 40.f;
 
 		//	bx::mtxProj(lightProj, 20.0f, 1., 5.f, 10.0f);
 
@@ -1258,6 +1258,7 @@ void Renderer::paintGL() {
 		}
 	}
 
+
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.
 	bgfx::frame();
@@ -1269,6 +1270,23 @@ void Renderer::paintGL() {
 			inputState.mouseScroll,
 			width,
 			height);
+
+	ImGui::SetNextWindowSize (ImVec2(400.f, 100.0f), ImGuiSetCond_Once);
+	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
+
+	ImGui::Begin("Render Settings");
+
+	ImGui::Checkbox("Draw Debug", &drawDebug);
+
+	for (int i = 0; i < lights.size(); i++) {
+		ImGui::SliderFloat("Bias", 
+			&lights[i].shadowMapBias,
+			0.0001f,
+			0.10f
+			);
+	}
+
+	ImGui::End();
 }
 
 Entity* Renderer::createEntity() {

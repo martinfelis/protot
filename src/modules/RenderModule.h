@@ -106,7 +106,7 @@ struct Light {
 		u_lightMtx (BGFX_INVALID_HANDLE),
 		shadowMapTexture (BGFX_INVALID_HANDLE),
 		shadowMapFB (BGFX_INVALID_HANDLE),
-		pos {1.f, 1.f, 1.f},
+		pos {10.f, 10.f, 10.f},
 		dir {-1.f, -1.f, -1.f},
 		mtxView {
 			1.f, 0.f, 0.f, 0.f,
@@ -126,9 +126,9 @@ struct Light {
 			0.f, 0.f, 1.f, 0.f,
 			0.f, 0.f, 0.f, 1.f
 		},
-		shadowMapBias (0.0001f),
-		shadowMapSize (1024),
-		near (-100.f),
+		shadowMapBias (0.004f),
+		shadowMapSize (2048),
+		near (0.1f),
 		far (100.f),
 		area (10.f),
 		enabled (false)

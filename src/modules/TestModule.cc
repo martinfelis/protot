@@ -273,7 +273,7 @@ static void module_reload(struct module_state *state) {
 	cout << "Creating render entity ... success!" << endl;
 
 	cout << "Creating render entity mesh ..." << endl;
-	state->character->entity->mesh = bgfxutils::createUVSphere (25, 25);
+	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
 	cout << "Creating render entity mesh ... success!" << endl;
 
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
