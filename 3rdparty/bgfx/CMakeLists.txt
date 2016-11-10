@@ -35,7 +35,6 @@ SET (BGFX_AUX_SOURCES
 	3rdparty/ib-compress/indexbufferdecompression.cpp
 	3rdparty/stb/stb_image.c
 	3rdparty/ocornut-imgui/imgui.cpp
-	3rdparty/ocornut-imgui/imgui_wm.cpp
 	3rdparty/ocornut-imgui/imgui_draw.cpp
 	3rdparty/ocornut-imgui/imgui_demo.cpp
 	3rdparty/ocornut-imgui/imgui_node_graph_test.cpp
