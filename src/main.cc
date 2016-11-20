@@ -14,12 +14,13 @@
 #include "bx/timer.h"
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
-
+#include "luatables.h"
 
 #include "Globals.h"
 Renderer* gRenderer = nullptr;
 GLFWwindow* gWindow = nullptr;
 RuntimeModuleManager* gModuleManager = nullptr;
+LuaTable* gSerializer = nullptr;
 
 using namespace std;
 
@@ -94,8 +95,12 @@ int main(void)
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
 	module_manager.RegisterModule("src/modules/libTestModule.so");
 
+	printf("Loading state from state.lua");
+	LuaTable serializer = LuaTable::fromFile("state.lua");
+
 	// Setup global variables
 	gModuleManager = &module_manager;
+	gSerializer = &serializer;
 
 	glfwSetKeyCallback(gWindow, key_callback);
 	int64_t time_offset = bx::getHPCounter();

@@ -8,3 +8,6 @@ extern GLFWwindow* gWindow;
 
 struct RuntimeModuleManager;
 extern RuntimeModuleManager* gModuleManager;
+
+#include "Serializer.h"
+extern LuaTable* gSerializer;

@@ -10,8 +10,11 @@
 
 #include "RuntimeModule.h"
 #include <iostream>
+#include <fstream>
 
 #include "Globals.h"
+
+using namespace std;
 
 void RuntimeModuleManager::RegisterModule(const char* name) {
 	RuntimeModule* module = new RuntimeModule();
@@ -77,6 +80,12 @@ void RuntimeModuleManager::Update(float dt) {
 				mModules[i]->id = 0;
 			}
 		}
+
+		cout << "Writing state to state.lua" << endl;
+		// save state
+		ofstream current_state("state.lua");
+		current_state << (*gSerializer).serialize() << endl;
+		current_state.close();
 
 		// We need to sleep to make sure we load the new files
 		usleep(200000);

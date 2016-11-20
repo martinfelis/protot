@@ -5,6 +5,8 @@
 #include <map>
 #include <vector>
 
+#include "SimpleMath/SimpleMath.h"
+
 #include <bgfx/bgfx.h>
 
 #include "RenderUtils.h"
@@ -30,9 +32,9 @@ struct InputState {
 };
 
 struct Camera {
-	float eye[3];
-	float poi[3];
-	float up[3];
+	SimpleMath::Vector3f eye;
+	SimpleMath::Vector3f poi;
+	SimpleMath::Vector3f up;
 
 	float near;
 	float far;

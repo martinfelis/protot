@@ -19,6 +19,7 @@
 #include <cmath>
 #include <assert.h>
 #include <algorithm>
+#include <string.h>
 
 #include "compileassert.h"
 #include "SimpleMathBlock.h"

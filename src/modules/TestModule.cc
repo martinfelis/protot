@@ -10,6 +10,7 @@
 #include "SimpleMath/SimpleMathGL.h"
 
 #include "RuntimeModuleManager.h"
+#include "Serializer.h"
 
 #include <iostream>
 #include <sstream>
@@ -130,8 +131,8 @@ void handle_mouse (struct module_state *state) {
 	Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
 	Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
 
-	Vector3f eye = SimpleMath::Map<Vector3f>(active_camera->eye, 3, 1);
-	Vector3f poi = SimpleMath::Map<Vector3f>(active_camera->poi, 3, 1);
+	Vector3f eye = active_camera->eye;
+	Vector3f poi = active_camera->poi;
 
 	if (glfwGetMouseButton(gWindow, 1)) {
 		Vector3f view_dir;
@@ -147,7 +148,7 @@ void handle_mouse (struct module_state *state) {
 				0.f, 1.f, 0.f);
 		poi = eye + rot_matrix_x * rot_matrix_y * view_dir;
 
-		memcpy (active_camera->poi, poi.data(), sizeof(float) * 3);
+		active_camera->poi = poi;
 	}
 
 	active_camera->updateMatrices();
@@ -164,18 +165,18 @@ void handle_keyboard (struct module_state *state, float dt) {
 		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	}
 
+	Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+	assert (active_camera != nullptr);
+	Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
+	Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
+
 	if (glfwGetMouseButton(gWindow, 1)) {
 		// Right mouse button pressed, move the camera
-		Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
-		assert (active_camera != nullptr);
-		Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
-		Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
-
 		Vector3f forward = camera_rot_inv.transpose() * Vector3f (0.f, 0.f, 1.f);
 		Vector3f right = camera_rot_inv.transpose() * Vector3f (1.f, 0.f, 0.f);
 
-		Vector3f eye = SimpleMath::Map<Vector3f>(active_camera->eye, 3, 1);
-		Vector3f poi= SimpleMath::Map<Vector3f>(active_camera->poi, 3, 1);
+		Vector3f eye = active_camera->eye;
+		Vector3f poi = active_camera->poi;
 
 		Vector3f direction (0.f, 0.f, 0.f);
 
@@ -206,8 +207,8 @@ void handle_keyboard (struct module_state *state, float dt) {
 		eye += direction * 5.f * dt;
 		poi += direction * 5.f * dt;
 
-		memcpy (active_camera->eye, eye.data(), sizeof(float) * 3);
-		memcpy (active_camera->poi, poi.data(), sizeof(float) * 3);
+		active_camera->eye = eye;
+		active_camera->poi = poi;
 	} else if (state->character != nullptr) {
 		// Movement of the character
 		CharacterController& controller = state->character->controller;
@@ -276,12 +277,20 @@ static void module_reload(struct module_state *state) {
 	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
 	cout << "Creating render entity mesh ... success!" << endl;
 
+	// load the state of the entity
+	state->character->position = 
+		(*gSerializer)["protot"]["TestModule"]["entity"]["position"].getDefault(state->character->position);
+
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
 
 static void module_unload(struct module_state *state) {
 	glfwSetScrollCallback (gWindow, nullptr);
 
+	// serialize the state of the entity
+	(*gSerializer)["protot"]["TestModule"]["entity"]["position"] = state->character->position;
+
+	// clean up
 	cout << "destroying render entity " << state->character->entity << endl;
 	if (!gRenderer->destroyEntity (state->character->entity)) {
 		cerr << "Warning: could not destroy entity " << state->character->entity << endl;
@@ -290,6 +299,12 @@ static void module_unload(struct module_state *state) {
 
 	}
 	state->character->entity = nullptr;
+
+	Vector3f bla (1.2f, 1.3f, 1.6f);
+
+	(*gSerializer)["protot"]["TestModule"]["blaa"] = 123.0f;
+	(*gSerializer)["protot"]["TestModule"]["blaabl"] = 12.50f;
+	(*gSerializer)["protot"]["TestModule"]["myvec"] = bla;
 
 	std::cout << "TestModule unloaded. State: " << state << std::endl;
 }

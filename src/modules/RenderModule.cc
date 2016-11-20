@@ -8,7 +8,6 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
-
 #include "SimpleMath/SimpleMath.h"
 #include "SimpleMath/SimpleMathMap.h"
 
@@ -31,6 +30,10 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+
+#include "Serializer.h"
+
+using namespace std;
 
 typedef SimpleMath::Matrix44f Matrix44f;
 typedef SimpleMath::Vector4f Vector4f;
@@ -75,11 +78,28 @@ static void module_reload(struct module_state *state) {
 	assert (state != nullptr);
 	state->renderer->initialize(width, height);
 	gRenderer = state->renderer;
+
+	// get the state from the serializer
+	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+	assert (camera != nullptr);
+
+	camera->eye = (*gSerializer)["protot"]["RenderModule"]["camera"]["eye"].getDefault(camera->eye);
+	camera->poi = (*gSerializer)["protot"]["RenderModule"]["camera"]["poi"].getDefault(camera->poi);
+
+	camera->updateMatrices();
 }
 
 static void module_unload(struct module_state *state) {
+	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+
+	(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
+
+	(*gSerializer)["protot"]["RenderModule"]["camera"]["eye"] = camera->eye;
+	(*gSerializer)["protot"]["RenderModule"]["camera"]["poi"] = camera->poi;
+
 	gRenderer = nullptr;
 	state->renderer->shutdown();
+
 	std::cout << "RenderModule unload called" << std::endl;
 }
 
@@ -562,7 +582,7 @@ void Camera::updateMatrices() {
 	assert (width != -1.f && height != -1.f);
 
 	// view matrix
-	bx::mtxLookAt (mtxView, eye, poi, up);
+	bx::mtxLookAt (mtxView, eye.data(), poi.data(), up.data());
 
 	// projection matrix
 	if (orthographic) {
@@ -1149,7 +1169,7 @@ void Renderer::paintGL() {
 	bgfx::touch(RenderState::Skybox);
 
 	// Skybox pass
-	memcpy (IBL::uniforms.m_cameraPos, cameras[activeCameraIndex].eye, 3 * sizeof(float));
+	memcpy (IBL::uniforms.m_cameraPos, cameras[activeCameraIndex].eye.data(), 3 * sizeof(float));
 
 	const float amount = bx::fmin(0.012/0.12f, 1.0f);
 	IBL::settings.m_envRotCurr = bx::flerp(IBL::settings.m_envRotCurr, IBL::settings.m_envRotDest, amount);

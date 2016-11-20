@@ -47,6 +47,8 @@ INCLUDE_DIRECTORIES (
 	3rdparty/bgfx/examples/common/entry
 	3rdparty/bgfx/3rdparty
 	3rdparty/tinyobjloader
+	3rdparty/lua-5.1/src
+	3rdparty/luatables
 	3rdparty/bgfx/3rdparty/glsl-optimizer/include/
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/
@@ -58,6 +60,8 @@ SUBDIRS (
 	src/modules
 	3rdparty/glfw
 	3rdparty/bgfx
+	3rdparty/lua-5.1
+	3rdparty/luatables
 	)
 
 SET ( protot_SRCS
@@ -66,6 +70,7 @@ SET ( protot_SRCS
 	src/shaderc_hlsl.cpp
 
 	src/RuntimeModuleManager.cc
+	src/Serializer.cc
 
 	3rdparty/glfw/deps/glad.c
 	)
@@ -131,4 +136,6 @@ TARGET_LINK_LIBRARIES ( protot
 	bgfx
 	bgfx_aux
 	glsl-optimizer
+	luatables
+	${LUA_LIBRARIES}
 )
