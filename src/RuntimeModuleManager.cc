@@ -13,13 +13,30 @@
 #include <fstream>
 
 #include "Globals.h"
+#include "Serializer.h"
 
 using namespace std;
+const char* state_file = "state.ser";
 
 void RuntimeModuleManager::RegisterModule(const char* name) {
 	RuntimeModule* module = new RuntimeModule();
 	module->name = name;
 	mModules.push_back(module);
+}
+
+void RuntimeModuleManager::UnregisterModules() {
+	UnloadModules();
+
+	for (int i = 0; i < mModules.size(); i++) {
+		if (mModules[i]->handle) {
+			mModules[i]->api.finalize(mModules[i]->state);
+			mModules[i]->state = nullptr;
+			dlclose(mModules[i]->handle);
+			mModules[i]->handle = 0;
+			mModules[i]->id = 0;
+			delete mModules[i];
+		}
+	}
 }
 
 void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
@@ -69,30 +86,15 @@ void RuntimeModuleManager::Update(float dt) {
 	if (CheckModulesChanged()) {
 		std::cout << "Detected module update. Unloading all modules." << std::endl;
 
-		// We unload in reverse order so that dependencies are cleaned
-		// up properly.
-		for (int i = mModules.size() - 1; i >= 0; i--) {
-			if (mModules[i]->handle) {
-				std::cerr << "Unloading module " << mModules[i]->name << std::endl;
-				mModules[i]->api.unload(mModules[i]->state);
-				dlclose(mModules[i]->handle);
-				mModules[i]->handle = 0;
-				mModules[i]->id = 0;
-			}
-		}
-
-		cout << "Writing state to state.lua" << endl;
-		// save state
-		ofstream current_state("state.lua");
-		current_state << (*gSerializer).serialize() << endl;
-		current_state.close();
+		UnloadModules();
 
 		// We need to sleep to make sure we load the new files
 		usleep(200000);
+
+		LoadModules();
 	}
 
-	for (int i = 0; i < mModules.size(); i++) {
-		LoadModule(mModules[i]);
+	for (int i = mModules.size() - 1; i >= 0; i--) {
 		if (mModules[i]->handle) {
 			mModules[i]->api.step(mModules[i]->state, dt);
 		}
@@ -117,15 +119,27 @@ bool RuntimeModuleManager::CheckModulesChanged() {
 }
 
 void RuntimeModuleManager::UnloadModules() {
-	for (int i = 0; i < mModules.size(); i++) {
+	gWriteSerializer->Open(state_file);
+
+	for (int i = mModules.size() - 1; i >= 0 ; i--) {
 		if (mModules[i]->handle) {
-			mModules[i]->api.finalize(mModules[i]->state);
+			mModules[i]->api.unload(mModules[i]->state);
 			mModules[i]->state = nullptr;
 			dlclose(mModules[i]->handle);
 			mModules[i]->handle = 0;
 			mModules[i]->id = 0;
-			delete mModules[i];
 		}
 	}
+
+	std::cout << "Writing state to file " << state_file << std::endl;
+	gWriteSerializer->Close();
 }
 
+void RuntimeModuleManager::LoadModules() {
+	std::cout << "Reading state from file " << state_file << std::endl;
+	gReadSerializer->Open(state_file);
+	for (int i = 0; i < mModules.size(); i++) {
+		LoadModule(mModules[i]);
+	}
+	gReadSerializer->Close();
+}

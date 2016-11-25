@@ -14,13 +14,16 @@
 #include "bx/timer.h"
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
-#include "luatables.h"
 
 #include "Globals.h"
+#include "Serializer.h"
+
+
 Renderer* gRenderer = nullptr;
 GLFWwindow* gWindow = nullptr;
 RuntimeModuleManager* gModuleManager = nullptr;
-LuaTable* gSerializer = nullptr;
+WriteSerializer* gWriteSerializer = nullptr;
+ReadSerializer* gReadSerializer = nullptr;
 
 using namespace std;
 
@@ -60,6 +63,9 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 int main(void)
 {
+	WriteSerializer out_serializer;
+	ReadSerializer in_serializer;
+
 	// Initialize GLFW
 	glfwSetErrorCallback(error_callback);
 	glfwInit();
@@ -95,12 +101,13 @@ int main(void)
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
 	module_manager.RegisterModule("src/modules/libTestModule.so");
 
-	printf("Loading state from state.lua");
-	LuaTable serializer = LuaTable::fromFile("state.lua");
-
 	// Setup global variables
 	gModuleManager = &module_manager;
-	gSerializer = &serializer;
+	gWriteSerializer = &out_serializer;
+	gReadSerializer = &in_serializer;
+
+	// Load modules
+	module_manager.LoadModules();
 
 	glfwSetKeyCallback(gWindow, key_callback);
 	int64_t time_offset = bx::getHPCounter();
@@ -122,7 +129,7 @@ int main(void)
     usleep(16000);
 	}
 
-	module_manager.UnloadModules();
+	module_manager.UnregisterModules();
 
 	gRenderer = nullptr;
 

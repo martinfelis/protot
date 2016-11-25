@@ -83,8 +83,8 @@ static void module_reload(struct module_state *state) {
 	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 	assert (camera != nullptr);
 
-	camera->eye = (*gSerializer)["protot"]["RenderModule"]["camera"]["eye"].getDefault(camera->eye);
-	camera->poi = (*gSerializer)["protot"]["RenderModule"]["camera"]["poi"].getDefault(camera->poi);
+	SerializeVec3 (*gReadSerializer, "protot.RenderModule,camera.eye", camera->eye);
+	SerializeVec3 (*gReadSerializer, "protot.RenderModule,camera.poi", camera->poi);
 
 	camera->updateMatrices();
 }
@@ -92,10 +92,11 @@ static void module_reload(struct module_state *state) {
 static void module_unload(struct module_state *state) {
 	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 
-	(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
+	//(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
 
-	(*gSerializer)["protot"]["RenderModule"]["camera"]["eye"] = camera->eye;
-	(*gSerializer)["protot"]["RenderModule"]["camera"]["poi"] = camera->poi;
+	SerializeVec3 (*gWriteSerializer, "protot.RenderModule,camera.eye", camera->eye);
+	SerializeVec3 (*gWriteSerializer, "protot.RenderModule,camera.poi", camera->poi);
+
 
 	gRenderer = nullptr;
 	state->renderer->shutdown();

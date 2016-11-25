@@ -22,8 +22,11 @@ struct RuntimeModuleManager {
 	std::vector<RuntimeModule*> mModules;
 
 	void RegisterModule(const char* name);
+	void UnregisterModules();
+
 	void LoadModule(RuntimeModule* module);
 	bool CheckModulesChanged();
 	void UnloadModules();
+	void LoadModules();
 	void Update(float dt);
 };

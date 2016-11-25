@@ -278,8 +278,7 @@ static void module_reload(struct module_state *state) {
 	cout << "Creating render entity mesh ... success!" << endl;
 
 	// load the state of the entity
-	state->character->position = 
-		(*gSerializer)["protot"]["TestModule"]["entity"]["position"].getDefault(state->character->position);
+	SerializeVec3(*gReadSerializer, "protot.TestModule.entity.position", state->character->position);
 
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
@@ -288,7 +287,7 @@ static void module_unload(struct module_state *state) {
 	glfwSetScrollCallback (gWindow, nullptr);
 
 	// serialize the state of the entity
-	(*gSerializer)["protot"]["TestModule"]["entity"]["position"] = state->character->position;
+	SerializeVec3(*gWriteSerializer, "protot.TestModule.entity.position", state->character->position);
 
 	// clean up
 	cout << "destroying render entity " << state->character->entity << endl;
@@ -301,10 +300,6 @@ static void module_unload(struct module_state *state) {
 	state->character->entity = nullptr;
 
 	Vector3f bla (1.2f, 1.3f, 1.6f);
-
-	(*gSerializer)["protot"]["TestModule"]["blaa"] = 123.0f;
-	(*gSerializer)["protot"]["TestModule"]["blaabl"] = 12.50f;
-	(*gSerializer)["protot"]["TestModule"]["myvec"] = bla;
 
 	std::cout << "TestModule unloaded. State: " << state << std::endl;
 }
