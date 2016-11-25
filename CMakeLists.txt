@@ -69,7 +69,6 @@ SET ( protot_SRCS
 	src/shaderc_hlsl.cpp
 
 	src/RuntimeModuleManager.cc
-	#	src/Serializer.cc
 
 	3rdparty/glfw/deps/glad.c
 	)

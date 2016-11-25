@@ -5,7 +5,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <cstring>
-
+#include <sys/stat.h>
 
 struct WriteSerializer {
 	enum { IsReading = 0 };
@@ -71,13 +71,19 @@ struct ReadSerializer {
 	}
 
 	void Open(const char* filename) {
+		// early out if file does not (yet) exist
+		struct stat fstat;
+		if (stat(filename, &fstat) == -1) {
+			return;
+		}
+
 		std::ifstream stream(filename, std::ios::binary);
+
 
 		size_t key_size;
 		size_t block_size;
 
 		while (!stream.eof()) {
-
 			// read key size
 			stream.read(reinterpret_cast<char*>(&key_size), sizeof(size_t));
 			std::cout << "read key size " << key_size << std::endl;
