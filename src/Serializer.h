@@ -114,6 +114,11 @@ struct ReadSerializer {
 };
 
 template <typename Serializer>
+bool SerializeBool (Serializer &serializer, const std::string &key, bool& value) {
+	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(bool));
+}
+
+template <typename Serializer>
 bool SerializeInt (Serializer &serializer, const std::string &key, int& value) {
 	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(int));
 }

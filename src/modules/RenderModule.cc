@@ -83,8 +83,9 @@ static void module_reload(struct module_state *state) {
 	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 	assert (camera != nullptr);
 
-	SerializeVec3 (*gReadSerializer, "protot.RenderModule,camera.eye", camera->eye);
-	SerializeVec3 (*gReadSerializer, "protot.RenderModule,camera.poi", camera->poi);
+	SerializeBool (*gReadSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
+	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.eye", camera->eye);
+	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.poi", camera->poi);
 
 	camera->updateMatrices();
 }
@@ -94,8 +95,9 @@ static void module_unload(struct module_state *state) {
 
 	//(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
 
-	SerializeVec3 (*gWriteSerializer, "protot.RenderModule,camera.eye", camera->eye);
-	SerializeVec3 (*gWriteSerializer, "protot.RenderModule,camera.poi", camera->poi);
+	SerializeBool (*gWriteSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
+	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.eye", camera->eye);
+	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.poi", camera->poi);
 
 
 	gRenderer = nullptr;
@@ -131,12 +133,14 @@ const struct module_api MODULE_API = {
 }
 
 // BGFX globals
-
 bgfx::VertexBufferHandle cube_vbh;
 bgfx::IndexBufferHandle cube_ibh;
 bgfx::IndexBufferHandle cube_edges_ibh;
 bgfx::VertexBufferHandle plane_vbh;
 bgfx::IndexBufferHandle plane_ibh;
+bgfx::DynamicVertexBufferHandle debug_lines_vbh;
+bgfx::DynamicIndexBufferHandle debug_lines_ibh;
+
 bgfx::UniformHandle u_time;
 bgfx::UniformHandle u_color;
 
@@ -676,6 +680,18 @@ void Renderer::createGeometries() {
 	cube_edges_ibh = bgfx::createIndexBuffer(
 			// Static data can be passed with bgfx::makeRef
 			bgfx::makeRef(s_cubeEdgeIndices, sizeof(s_cubeEdgeIndices) )
+			);
+
+	// Create dynamic debug line buffer
+	debug_lines_vbh = bgfx::createDynamicVertexBuffer(
+			(uint32_t) 10,
+			PosColorVertex::ms_decl,
+			BGFX_BUFFER_ALLOW_RESIZE
+			);
+
+	debug_lines_ibh = bgfx::createDynamicIndexBuffer(
+			(uint32_t) 10,
+			BGFX_BUFFER_ALLOW_RESIZE
 			);
 
 	plane_vbh = bgfx::createVertexBuffer(
@@ -1277,6 +1293,75 @@ void Renderer::paintGL() {
 			bgfx::setState(st.m_state);
 			bgfx::submit(st.m_viewId, st.m_program);
 		}
+
+		// debug commands
+		bgfx::setUniform(u_color, Vector4f(1.0f, 1.0f, 1.0f, 1.f).data(), 4);
+
+		// assemble lines for alls debug lines
+		uint32_t line_count = 0;
+		for (uint32_t i = 0; i < debugCommands.size(); i++) {
+			if (debugCommands[i].type == DebugCommand::Line) {
+				line_count++;
+			}
+		}
+
+		// create buffer data for the lines
+		uint16_t* line_idx_buf = new uint16_t[line_count * 2];
+		PosColorVertex *line_vert_buf = new PosColorVertex[line_count * 2];
+		for (uint32_t i = 0; i < debugCommands.size(); i++) {
+			if (debugCommands[i].type == DebugCommand::Line) {
+				// from coordinates
+				line_vert_buf[2 * i].m_x = debugCommands[i].from[0];
+				line_vert_buf[2 * i].m_y = debugCommands[i].from[1];
+				line_vert_buf[2 * i].m_z = debugCommands[i].from[2];
+
+				uint32_t color =
+					(0xff << 24)
+					+ (static_cast<char>(debugCommands[i].color[0]) * 255 << 0)
+					+ (static_cast<char>(debugCommands[i].color[1]) * 255 << 8)
+					+ (static_cast<char>(debugCommands[i].color[2]) * 255 << 16);
+
+				// from color
+				line_vert_buf[2 * i].m_abgr = color;
+
+				// from index
+				line_idx_buf[2 * i] = 2 * i;
+
+				// to coordinates
+				line_vert_buf[2 * i + 1].m_x = debugCommands[i].to[0];
+				line_vert_buf[2 * i + 1].m_y = debugCommands[i].to[1];
+				line_vert_buf[2 * i + 1].m_z = debugCommands[i].to[2];
+
+				// to color
+				line_vert_buf[2 * i + 1].m_abgr = color;
+
+				// to index
+				line_idx_buf[2 * i + 1] = 2 * i + 1;
+			}
+		}
+
+		// update buffer from buffer data
+		bgfx::updateDynamicVertexBuffer (debug_lines_vbh,
+			0,
+			bgfx::copy(line_vert_buf, sizeof(PosColorVertex) * line_count * 2)
+			);
+
+		bgfx::updateDynamicIndexBuffer (debug_lines_ibh,
+			0,
+			bgfx::copy(line_idx_buf, sizeof(uint16_t) * line_count * 2)
+			);
+
+		// submit data
+		const RenderState& st = s_renderStates[RenderState::Debug];
+
+		bgfx::setIndexBuffer(debug_lines_ibh);
+		bgfx::setVertexBuffer(debug_lines_vbh);
+		bgfx::setState(st.m_state);
+		bgfx::submit(st.m_viewId, st.m_program);
+
+		// free buffer data
+		delete[] line_vert_buf;
+		delete[] line_idx_buf; 
 	}
 
 
@@ -1308,6 +1393,9 @@ void Renderer::paintGL() {
 	}
 
 	ImGui::End();
+
+	// clear debug commands as they have to be issued every frame
+	debugCommands.clear();
 }
 
 Entity* Renderer::createEntity() {
@@ -1370,4 +1458,19 @@ bgfxutils::Mesh* Renderer::loadMesh(const char* filename) {
 
 	return result;
 }
+
+// debug commands
+void Renderer::drawDebugLine (
+		const SimpleMath::Vector3f &from,
+		const SimpleMath::Vector3f &to,
+		const SimpleMath::Vector3f &color) {
+	DebugCommand cmd;
+	cmd.type = DebugCommand::Line;
+	cmd.from = from;
+	cmd.to = to;
+	cmd.color = color;
+
+	debugCommands.push_back(cmd);
+}
+
 

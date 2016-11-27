@@ -176,7 +176,18 @@ struct LightProbe
 	bgfx::TextureHandle m_texIrr;
 };
 
+struct DebugCommand {
+	enum CommandType {
+		Line,
+		Arrow
+	};
 
+	CommandType type;
+
+	SimpleMath::Vector3f from;
+	SimpleMath::Vector3f to;
+	SimpleMath::Vector3f color;
+};
 
 struct Renderer {
 	bool initialized;
@@ -198,6 +209,7 @@ struct Renderer {
 
 	std::vector<Camera> cameras;
 	std::vector<Light> lights;
+	std::vector<DebugCommand> debugCommands;
 
 	uint16_t activeCameraIndex;
 
@@ -228,6 +240,12 @@ struct Renderer {
 	bool destroyEntity (Entity* entity);
 
 	bgfxutils::Mesh* loadMesh(const char* filename);
+
+	// debug commands
+	void drawDebugLine (
+			const SimpleMath::Vector3f &from,
+			const SimpleMath::Vector3f &to,
+			const SimpleMath::Vector3f &color);
 };
 
 struct RenderState {
