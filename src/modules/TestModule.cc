@@ -275,6 +275,7 @@ static void module_reload(struct module_state *state) {
 
 	cout << "Creating render entity mesh ..." << endl;
 	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
+//	state->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
 
 	// load the state of the entity

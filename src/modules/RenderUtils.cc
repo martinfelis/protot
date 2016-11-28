@@ -937,6 +937,165 @@ void mesh_load(Mesh* mesh, const void* _vertices, uint32_t _numVertices, const b
 // 	return result;
 // }
 
+Mesh *createMeshFromStdVectors (
+		const std::vector<Vector4f> &vertices,
+		const std::vector<Vector3f> &normals,
+		const std::vector<Vector4f> &colors
+		) {
+	// create and copy the data into the actual mesh
+ 	Mesh* result = new Mesh();
+	PosNormalColorVertex::init();
+	bool have_normals = normals.size() > 0;
+ 	bool have_colors = colors.size() > 0;
+ 
+ 	uint16_t stride = PosNormalColorVertex::ms_decl.getStride();
+ 	const bgfx::Memory* vb_mem = bgfx::alloc (vertices.size() * stride);
+ 	PosNormalColorVertex* mesh_vb = (PosNormalColorVertex*) vb_mem;
+ 
+ 	const bgfx::Memory* ib_mem = bgfx::alloc (sizeof(uint16_t) * vertices.size());
+ 	uint16_t* mesh_ib = (uint16_t*) ib_mem;
+ 
+ 	for (unsigned int i = 0; i < vertices.size(); i++) {
+ 		mesh_vb[i].m_x = vertices[i][0];
+ 		mesh_vb[i].m_y = vertices[i][1];
+ 		mesh_vb[i].m_z = vertices[i][2];
+ 
+ 		if (have_normals) {
+ 			mesh_vb[i].m_normal = packF4u (-normals[i][0], -normals[i][1], -normals[i][2]);
+ 		} else {
+ 			mesh_vb[i].m_normal = 0;
+ 		}
+ 
+ 		if (have_colors) {
+ 			mesh_vb[i].m_rgba = packF4u (colors[i][0], colors[i][1], colors[i][2], colors[i][3]);
+ 		} else {
+ 			mesh_vb[i].m_rgba = packF4u (1.f, 1.f, 1.f, 1.f);
+ 		}
+ 
+ 		mesh_ib[i] = i;
+ 	}
+ 
+ 	mesh_load(result, mesh_vb, vertices.size(), PosNormalColorVertex::ms_decl, mesh_ib, vertices.size());
+ 
+ 	return result;
+}
+
+Mesh *createCuboid (float width, float height, float depth) {
+	// work arrays that we fill with data
+ 	std::vector<Vector4f> vertices;
+ 	std::vector<Vector3f> normals;
+ 	std::vector<Vector4f> colors;
+
+	Vector4f v0 (  0.5 * width, -0.5 * height,  0.5 * depth, 1.f);
+	Vector4f v1 (  0.5 * width, -0.5 * height, -0.5 * depth, 1.f);
+	Vector4f v2 (  0.5 * width,  0.5 * height, -0.5 * depth, 1.f);
+	Vector4f v3 (  0.5 * width,  0.5 * height,  0.5 * depth, 1.f);
+
+	Vector4f v4 ( -0.5 * width, -0.5 * height,  0.5 * depth, 1.f);
+	Vector4f v5 ( -0.5 * width, -0.5 * height, -0.5 * depth, 1.f);
+	Vector4f v6 ( -0.5 * width,  0.5 * height, -0.5 * depth, 1.f);
+	Vector4f v7 ( -0.5 * width,  0.5 * height,  0.5 * depth, 1.f);
+
+	Vector3f normal;
+	// +x
+	normal = Vector3f (1., 0., 0.);
+	vertices.push_back(v0);
+	normals.push_back(normal);
+	vertices.push_back(v1);
+	normals.push_back(normal);
+	vertices.push_back(v2);
+	normals.push_back(normal);
+
+	vertices.push_back(v2);
+	normals.push_back(normal);
+	vertices.push_back(v3);
+	normals.push_back(normal);
+	vertices.push_back(v0);
+	normals.push_back(normal);
+
+	// +y
+	normal = Vector3f (0., 1., 0.);
+	vertices.push_back(v3);
+	normals.push_back(normal);
+	vertices.push_back(v2);
+	normals.push_back(normal);
+	vertices.push_back(v6);
+	normals.push_back(normal);
+
+	vertices.push_back(v6);
+	normals.push_back(normal);
+	vertices.push_back(v7);
+	normals.push_back(normal);
+	vertices.push_back(v3);
+	normals.push_back(normal);
+
+	// +z
+	normal = Vector3f (0., 0., 1.);
+	vertices.push_back(v4);
+	normals.push_back(normal);
+	vertices.push_back(v0);
+	normals.push_back(normal);
+	vertices.push_back(v3);
+	normals.push_back(normal);
+
+	vertices.push_back(v3);
+	normals.push_back(normal);
+	vertices.push_back(v7);
+	normals.push_back(normal);
+	vertices.push_back(v4);
+	normals.push_back(normal);
+
+	// -x
+	normal = Vector3f (-1., 0., 0.);
+	vertices.push_back(v5);
+	normals.push_back(normal);
+	vertices.push_back(v4);
+	normals.push_back(normal);
+	vertices.push_back(v7);
+	normals.push_back(normal);
+
+	vertices.push_back(v7);
+	normals.push_back(normal);
+	vertices.push_back(v6);
+	normals.push_back(normal);
+	vertices.push_back(v5);
+	normals.push_back(normal);
+
+	// -y
+	normal = Vector3f (0., -1., 0.);
+	vertices.push_back(v0);
+	normals.push_back(normal);
+	vertices.push_back(v4);
+	normals.push_back(normal);
+	vertices.push_back(v5);
+	normals.push_back(normal);
+
+	vertices.push_back(v5);
+	normals.push_back(normal);
+	vertices.push_back(v1);
+	normals.push_back(normal);
+	vertices.push_back(v0);
+	normals.push_back(normal);
+
+	// -z
+	normal = Vector3f (0., 0., -1.);
+	vertices.push_back(v1);
+	normals.push_back(normal);
+	vertices.push_back(v5);
+	normals.push_back(normal);
+	vertices.push_back(v6);
+	normals.push_back(normal);
+
+	vertices.push_back(v6);
+	normals.push_back(normal);
+	vertices.push_back(v2);
+	normals.push_back(normal);
+	vertices.push_back(v1);
+	normals.push_back(normal);
+
+	return createMeshFromStdVectors (vertices, normals, colors);
+}
+
 Mesh *createUVSphere (int rows, int segments) {
 	// work arrays that we fill with data
  	std::vector<Vector4f> vertices;
@@ -987,42 +1146,83 @@ Mesh *createUVSphere (int rows, int segments) {
 		}
 	}
 	
-	// create and copy the data into the actual mesh
- 	Mesh* result = new Mesh();
-	PosNormalColorVertex::init();
-	bool have_normals = normals.size() > 0;
- 	bool have_colors = colors.size() > 0;
- 
- 	uint16_t stride = PosNormalColorVertex::ms_decl.getStride();
- 	const bgfx::Memory* vb_mem = bgfx::alloc (vertices.size() * stride);
- 	PosNormalColorVertex* mesh_vb = (PosNormalColorVertex*) vb_mem;
- 
- 	const bgfx::Memory* ib_mem = bgfx::alloc (sizeof(uint16_t) * vertices.size());
- 	uint16_t* mesh_ib = (uint16_t*) ib_mem;
- 
- 	for (unsigned int i = 0; i < vertices.size(); i++) {
- 		mesh_vb[i].m_x = vertices[i][0];
- 		mesh_vb[i].m_y = vertices[i][1];
- 		mesh_vb[i].m_z = vertices[i][2];
- 
- 		if (have_normals) {
- 			mesh_vb[i].m_normal = packF4u (-normals[i][0], -normals[i][1], -normals[i][2]);
- 		} else {
- 			mesh_vb[i].m_normal = 0;
- 		}
- 
- 		if (have_colors) {
- 			mesh_vb[i].m_rgba = packF4u (colors[i][0], colors[i][1], colors[i][2], colors[i][3]);
- 		} else {
- 			mesh_vb[i].m_rgba = packF4u (1.f, 1.f, 1.f, 1.f);
- 		}
- 
- 		mesh_ib[i] = i;
- 	}
- 
- 	mesh_load(result, mesh_vb, vertices.size(), PosNormalColorVertex::ms_decl, mesh_ib, vertices.size());
- 
- 	return result;
+	return createMeshFromStdVectors (vertices, normals, colors);
+}
+
+Mesh *createCylinder (int segments) {
+	// work arrays that we fill with data
+ 	std::vector<Vector4f> vertices;
+ 	std::vector<Vector3f> normals;
+ 	std::vector<Vector4f> colors;
+
+	float delta = 2. * M_PI / static_cast<float>(segments);
+	for (unsigned int i = 0; i < segments; i++) {
+		float r0 = (i - 0.5) * delta;
+		float r1 = (i + 0.5) * delta;
+
+		float c0 = cos (r0); 
+		float s0 = sin (r0); 
+
+		float c1 = cos (r1); 
+		float s1 = sin (r1); 
+
+		Vector3f normal0 (-c0, -s0, 0.f);
+		Vector3f normal1 (-c1, -s1, 0.f);
+
+		Vector4f normal0_4 (-c0, -s0, 0.f, 0.f);
+		Vector4f normal1_4 (-c1, -s1, 0.f, 0.f);
+
+		Vector4f p0 = normal0_4 + Vector4f (0., 0.,  0.5f, 1.0f);
+		Vector4f p1 = normal0_4 + Vector4f (0., 0., -0.5f, 1.0f);
+		Vector4f p2 = normal1_4 + Vector4f (0., 0.,  0.5f, 1.0f);
+		Vector4f p3 = normal1_4 + Vector4f (0., 0., -0.5f, 1.0f);
+
+    // side triangle 1
+		vertices.push_back(p0);
+		normals.push_back(normal0);
+
+		vertices.push_back(p1);
+		normals.push_back(normal0);
+
+		vertices.push_back(p2);
+		normals.push_back(normal1);
+
+		// side triangle 2
+		vertices.push_back(p2);
+		normals.push_back(normal1);
+
+		vertices.push_back(p1);
+		normals.push_back(normal0);
+
+		vertices.push_back(p3);
+		normals.push_back(normal1);
+
+		// upper end triangle
+		Vector3f normal (0.f, 0.f, 1.f);
+
+		vertices.push_back(p0);
+		normals.push_back(normal);
+
+		vertices.push_back(p2);
+		normals.push_back(normal);
+
+		vertices.push_back(Vector4f (0.f, 0.f, 0.5f, 1.0f));
+		normals.push_back(normal);
+
+		// lower end triangle
+		normal = Vector3f(0.f, 0.f, -1.f);
+
+		vertices.push_back(p3);
+		normals.push_back(normal);
+
+		vertices.push_back(p1);
+		normals.push_back(normal);
+
+		vertices.push_back(Vector4f (0.f, 0.f, -0.5f, 1.0f));
+		normals.push_back(normal);
+	}
+
+	return createMeshFromStdVectors (vertices, normals, colors);
 }
 
 }

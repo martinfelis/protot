@@ -55,7 +55,9 @@ namespace bgfxutils {
 	// Loads the mesh data from a VBO into a bgfx Mesh
 //	Mesh *createMeshFromVBO (const MeshVBO& mesh_buffer);
 
+	Mesh *createCuboid (float width, float height, float depth);
 	Mesh *createUVSphere (int rows, int segments);
+	Mesh *createCylinder (int segments);
 }
 
 #endif
