@@ -684,13 +684,13 @@ void Renderer::createGeometries() {
 
 	// Create dynamic debug line buffer
 	debug_lines_vbh = bgfx::createDynamicVertexBuffer(
-			(uint32_t) 10,
+			(uint32_t) 1,
 			PosColorVertex::ms_decl,
 			BGFX_BUFFER_ALLOW_RESIZE
 			);
 
 	debug_lines_ibh = bgfx::createDynamicIndexBuffer(
-			(uint32_t) 10,
+			(uint32_t) 1,
 			BGFX_BUFFER_ALLOW_RESIZE
 			);
 
@@ -965,6 +965,9 @@ void Renderer::initialize(int width, int height) {
 }
 
 void Renderer::shutdown() {
+	bgfx::destroyDynamicVertexBuffer(debug_lines_vbh);
+	bgfx::destroyDynamicIndexBuffer(debug_lines_ibh);
+
 	bgfx::destroyIndexBuffer(cube_ibh);
 	bgfx::destroyIndexBuffer(cube_edges_ibh);
 	bgfx::destroyVertexBuffer(cube_vbh);
@@ -1158,7 +1161,7 @@ void Renderer::paintGL() {
 	bx::mtxSRT(mtxFloor
 			, 10.0f, 10.0f, 10.0f
 			, 0.0f, 0.0f, 0.0f
-			, 0.0f, 0.0f, 0.0f
+			, 0.0f, -0.001f, 0.0f
 			);
 
 	float lightMtx[16];
@@ -1471,6 +1474,16 @@ void Renderer::drawDebugLine (
 	cmd.color = color;
 
 	debugCommands.push_back(cmd);
+}
+
+void Renderer::drawDebugAxes (
+		const SimpleMath::Vector3f &pos,
+		const SimpleMath::Matrix33f &orientation,
+		const float &scale) {
+
+	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,0)) * scale, Vector3f (1.f, 0.f, 0.f));
+	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,1)) * scale, Vector3f (0.f, 1.f, 0.f));
+	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,2)) * scale, Vector3f (0.f, 0.f, 1.f));
 }
 
 

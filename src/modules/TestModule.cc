@@ -389,11 +389,10 @@ static bool module_step(struct module_state *state, float dt) {
 	handle_keyboard(state, dt);
 	update_character(state, dt);
 
-	gRenderer->drawDebugLine (
+	gRenderer->drawDebugAxes (
 			Vector3f (0.f, 0.f, 0.f),
-			Vector3f (5.f, 3.f, 2.f),
-			Vector3f (0.f, 1.f, 0.f)
-			);
+			Matrix33f::Identity(),
+			1.0f);
 
 	return true;
 }

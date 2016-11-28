@@ -179,6 +179,7 @@ struct LightProbe
 struct DebugCommand {
 	enum CommandType {
 		Line,
+		Axes,
 		Arrow
 	};
 
@@ -246,6 +247,11 @@ struct Renderer {
 			const SimpleMath::Vector3f &from,
 			const SimpleMath::Vector3f &to,
 			const SimpleMath::Vector3f &color);
+
+	void drawDebugAxes (
+			const SimpleMath::Vector3f &pos,
+			const SimpleMath::Matrix33f &orientation,
+			const float &scale);
 };
 
 struct RenderState {
