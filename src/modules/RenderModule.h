@@ -53,7 +53,7 @@ struct Camera {
 		up  {0.f, 1.f, 0.f},
 		near (0.1f),
 		far (150.f),
-		fov (70.f),
+		fov (60.f),
 		orthographic (false),
 		width (-1.f),
 		height (-1.f),
@@ -86,7 +86,7 @@ struct Light {
 
 	bgfx::TextureHandle shadowMapTexture;
 	bgfx::FrameBufferHandle shadowMapFB;
-	float pos[3];
+	float pos[4];
 	float dir[3];
 
 	float mtxView[16];
@@ -108,7 +108,7 @@ struct Light {
 		u_lightMtx (BGFX_INVALID_HANDLE),
 		shadowMapTexture (BGFX_INVALID_HANDLE),
 		shadowMapFB (BGFX_INVALID_HANDLE),
-		pos {10.f, 10.f, 10.f},
+		pos {0.f, 10.f, 10.f, 1.0f},
 		dir {-1.f, -1.f, -1.f},
 		mtxView {
 			1.f, 0.f, 0.f, 0.f,

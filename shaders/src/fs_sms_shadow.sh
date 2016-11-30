@@ -101,13 +101,15 @@ void main()
 	vec2 texelSize = vec2_splat(1.0/u_shadowMapSize);
 	float visibility = PCF(u_shadowMap, v_shadowcoord, u_shadowMapBias, texelSize);	
 
-	vec3 ambient = 0.1 * color;
-	vec3 brdf = color * visibility;
+	vec3 ambient = 0.05 * color;
+	vec3 brdf = (lc.x + lc.y) * color * visibility;
 
 #if TEXTURED
   vec4 texcolor = toLinear (texture2D(sceneDefaultTexture, v_texcoord0) );
 	brdf = brdf * texcolor.xyz;
+	ambient = ambient * texcolor.xyz;
 #endif
 	vec3 final = toGamma(abs(ambient + brdf) );
+
 	gl_FragColor = vec4(final, 1.0);
 }

@@ -275,11 +275,14 @@ static void module_reload(struct module_state *state) {
 
 	cout << "Creating render entity mesh ..." << endl;
 	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
+//	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 //	state->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
 
 	// load the state of the entity
 	SerializeVec3(*gReadSerializer, "protot.TestModule.entity.position", state->character->position);
+	SerializeBool(*gReadSerializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
+	SerializeInt(*gReadSerializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
 
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
@@ -289,6 +292,8 @@ static void module_unload(struct module_state *state) {
 
 	// serialize the state of the entity
 	SerializeVec3(*gWriteSerializer, "protot.TestModule.entity.position", state->character->position);
+	SerializeBool(*gWriteSerializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
+	SerializeInt(*gWriteSerializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
 
 	// clean up
 	cout << "destroying render entity " << state->character->entity << endl;

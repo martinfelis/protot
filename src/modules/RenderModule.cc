@@ -466,10 +466,10 @@ bgfx::VertexDecl PosColorTexCoord0Vertex::ms_decl;
 // Plane
 PosNormalColorTexcoordVertex s_hplaneVertices[] =
 {
-	{ -1.0f, 0.0f,  1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),      0.f,      0.f },
-	{  1.0f, 0.0f,  1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,      0.f },
-	{ -1.0f, 0.0f, -1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),     0.f,  10.f},
-	{  1.0f, 0.0f, -1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,  10.f },
+	{ -1.0f, 0.0f,  1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),      0.f,      0.f },
+	{  1.0f, 0.0f,  1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,      0.f },
+	{ -1.0f, 0.0f, -1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),     0.f,  10.f},
+	{  1.0f, 0.0f, -1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,  10.f },
 };
 
 const uint16_t s_planeIndices[] =
@@ -755,7 +755,7 @@ void Renderer::setupShaders() {
 	std::cout << "Creating light uniforms..." << std::endl;
 	lights[0].u_shadowMap = bgfx::createUniform("u_shadowMap", bgfx::UniformType::Int1);
 	lights[0].u_shadowMapParams = bgfx::createUniform("u_shadowMapParams", bgfx::UniformType::Vec4);
-	lights[0].u_lightPos  = bgfx::createUniform("u_lightPos", bgfx::UniformType::Int1);
+	lights[0].u_lightPos  = bgfx::createUniform("u_lightPos", bgfx::UniformType::Vec4);
 	lights[0].u_lightMtx  = bgfx::createUniform("u_lightMtx", bgfx::UniformType::Int1);
 
 	// Setup the light probe pass
@@ -1103,7 +1103,7 @@ void Renderer::paintGL() {
 		float eye[3];
 		eye[0] = lights[i].pos[0];
 		eye[1] = lights[i].pos[1];
-		eye[2] = lights[0].pos[2];
+		eye[2] = lights[i].pos[2];
 
 		float at[3];
 		at[0] = - lights[i].pos[0] + lights[i].dir[0];
@@ -1168,6 +1168,7 @@ void Renderer::paintGL() {
 	// Floor.
 	bx::mtxMul(lightMtx, mtxFloor, lights[0].mtxShadow);
 	bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+	bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 
 	// Clear backbuffer and shadowmap framebuffer at beginning.
 	bgfx::setViewClear(RenderState::Skybox
@@ -1237,6 +1238,7 @@ void Renderer::paintGL() {
 		}
 		
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, Vector4f(1.f, 1.f, 1.f, 1.f).data(), 4);
 		bgfx::setIndexBuffer(plane_ibh);
 		bgfx::setVertexBuffer(plane_vbh);
@@ -1246,15 +1248,19 @@ void Renderer::paintGL() {
 
 	// render entities
 	for (size_t i = 0; i < entities.size(); i++) {
+		float mtxLightViewProjInv[16];
+		float light_pos_world[3];
 		// shadow map pass
 		bx::mtxMul(lightMtx, entities[i]->transform, lights[0].mtxShadow);
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, entities[i]->color, 4);
 		meshSubmit(entities[i]->mesh, &s_renderStates[RenderState::ShadowMap], 1, entities[i]->transform);
 
 		// scene pass
 		bx::mtxMul(lightMtx, entities[i]->transform, lights[0].mtxShadow);
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, entities[i]->color, 4);
 		meshSubmit(entities[i]->mesh, &s_renderStates[RenderState::Scene], 1, entities[i]->transform);
 	}
@@ -1384,6 +1390,25 @@ void Renderer::paintGL() {
 	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
 
 	ImGui::Begin("Render Settings");
+
+	if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos, 1.0f, -10.0f, 10.0f)) {
+	}
+
+	if(ImGui::DragFloat3 ("Light0 Dir", lights[0].dir, 1.0f, -10.0f, 10.0f)) {
+	}
+
+	float light_at[3];
+	light_at[0] = lights[0].dir[0] - lights[0].pos[0];
+	light_at[1] = lights[0].dir[1] - lights[0].pos[1];
+	light_at[2] = lights[0].dir[2] - lights[0].pos[2];
+
+	if(ImGui::DragFloat3 ("Light0 At", light_at, 1.0f, -10.0f, 10.0f)) {
+		lights[0].dir[0] =  lights[0].pos[0]- light_at[0];
+		lights[0].dir[1] =  lights[0].pos[1]- light_at[1];
+		lights[0].dir[2] =  lights[0].pos[2]- light_at[2];
+	}
+
+	assert (lights.size() == 1);
 
 	ImGui::Checkbox("Draw Debug", &drawDebug);
 
