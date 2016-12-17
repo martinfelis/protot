@@ -83,6 +83,7 @@ static void module_reload(struct module_state *state) {
 	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 	assert (camera != nullptr);
 
+	SerializeBool (*gReadSerializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
 	SerializeBool (*gReadSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
 	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.eye", camera->eye);
 	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.poi", camera->poi);
@@ -95,6 +96,7 @@ static void module_unload(struct module_state *state) {
 
 	//(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
 
+	SerializeBool (*gWriteSerializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
 	SerializeBool (*gWriteSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
 	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.eye", camera->eye);
 	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.poi", camera->poi);
@@ -114,6 +116,7 @@ static bool module_step(struct module_state *state, float dt) {
 	int width, height;
 	assert (gWindow != nullptr);
 	glfwGetWindowSize(gWindow, &width, &height);
+	state->renderer->updateShaders();
 	state->renderer->resize (width, height);
 
 	state->renderer->paintGL();
@@ -138,11 +141,15 @@ bgfx::IndexBufferHandle cube_ibh;
 bgfx::IndexBufferHandle cube_edges_ibh;
 bgfx::VertexBufferHandle plane_vbh;
 bgfx::IndexBufferHandle plane_ibh;
+bgfx::DynamicVertexBufferHandle path_lines_vbh;
+bgfx::DynamicIndexBufferHandle path_lines_ibh;
+
 bgfx::DynamicVertexBufferHandle debug_lines_vbh;
 bgfx::DynamicIndexBufferHandle debug_lines_ibh;
 
 bgfx::UniformHandle u_time;
 bgfx::UniformHandle u_color;
+bgfx::UniformHandle u_lineparams;
 
 bgfx::UniformHandle u_mtx;
 bgfx::UniformHandle u_exposure;
@@ -295,6 +302,78 @@ uint32_t packF4u(float _x, float _y = 0.0f, float _z = 0.0f, float _w = 0.0f)
 	return packUint32(xx, yy, zz, ww);
 }
 
+//
+// Render programs
+//
+bool RenderProgram::checkModified() const {
+	// early out if we don't have filenames
+	if (vertexShaderFileName == ""
+			|| fragmentShaderFileName == "") {
+		return false;
+	}
+
+	struct stat attr;
+	bool stat_result = false;
+
+	// check mtime of vertex shader
+	stat_result = stat(vertexShaderFileName.c_str(), &attr);
+	if (stat_result == 0
+			&& attr.st_mtime != vertexShaderFileModTime) {
+		return true;
+	}
+
+	// check mtime of fragment shader
+	stat_result = stat(fragmentShaderFileName.c_str(), &attr);
+	if (stat_result == 0
+			&& attr.st_mtime != fragmentShaderFileModTime) {
+		return true;
+	}
+
+	return false;
+}
+
+bool RenderProgram::reload() {
+	int vertex_mtime = -1;
+	int fragment_mtime = -1;
+	struct stat attr;
+	bool stat_result = false;
+
+	// get mtime of vertex shader
+	stat_result = stat(vertexShaderFileName.c_str(), &attr);
+	if (stat_result == 0)
+		vertex_mtime = attr.st_mtime;
+
+	stat_result = stat(fragmentShaderFileName.c_str(), &attr);
+	if (stat_result == 0)
+		fragment_mtime = attr.st_mtime;
+
+	// we need to update the mod times, otherwise we keep reloading
+	// the same faulty files again and again.
+	vertexShaderFileModTime = vertex_mtime;
+	fragmentShaderFileModTime = fragment_mtime;
+
+	bgfx::ProgramHandle new_handle = 
+		bgfxutils::loadProgramFromFiles (
+				vertexShaderFileName.c_str(),
+				fragmentShaderFileName.c_str()
+				);
+
+	if (bgfx::isValid(new_handle)) {
+		if (bgfx::isValid(program)) {
+			bgfx::destroyProgram(program);
+		}
+
+		cout << "Reload of shaders " << vertexShaderFileName << " and " << fragmentShaderFileName << " success!" << endl;
+
+		program = new_handle;
+		return true;
+	} else {
+		cout << "Reload of shaders " << vertexShaderFileName << " and " << fragmentShaderFileName << " failed!" << endl;
+	}
+
+	return false;
+}
+
 // 
 // Render states
 //
@@ -309,7 +388,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		bgfx::invalidHandle,
+		RenderProgram(),
 		RenderState::Skybox
 	},
 	{ // ShadowMap
@@ -321,7 +400,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		bgfx::invalidHandle,
+		RenderProgram(),
 		RenderState::ShadowMap
 	},
 	{ // Scene
@@ -333,7 +412,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		bgfx::invalidHandle,
+		RenderProgram(),	
 		RenderState::Scene
 	},
 	{ // SceneTextured
@@ -345,9 +424,23 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_MSAA,
 		0,
-		bgfx::invalidHandle,
+		RenderProgram(),
 		RenderState::SceneTextured
 	},
+	{ // Lines
+		0
+		| BGFX_STATE_RGB_WRITE
+		| BGFX_STATE_ALPHA_WRITE
+		| BGFX_STATE_DEPTH_WRITE
+		| BGFX_STATE_DEPTH_TEST_LESS
+//		| BGFX_STATE_CULL_CCW
+//		| BGFX_STATE_PT_LINESTRIP
+		| BGFX_STATE_MSAA,
+		0,
+		RenderProgram(),
+		RenderState::Lines
+	},
+
 	{ // Debug
 		0	
 		| BGFX_STATE_RGB_WRITE
@@ -358,7 +451,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_PT_LINES
 		| BGFX_STATE_MSAA,
 		0,
-		bgfx::invalidHandle,
+		RenderProgram(),
 		RenderState::Debug
 	}
 };
@@ -715,7 +808,7 @@ void Renderer::setupShaders() {
 
 	int grid_size = 1024;
 	int grid_border = 12;
-	uint8_t grid_color_border [4] = {255, 255, 255, 255};
+	uint8_t grid_color_border [4] = {32, 32, 32, 255};
 //	uint8_t grid_color_border [4] = {0, 0, 0, 0};
 	uint8_t grid_color_0[4] = {192, 192, 192, 255};
 	uint8_t grid_color_1[4] = {128, 128, 128, 255};
@@ -748,6 +841,7 @@ void Renderer::setupShaders() {
 
 	u_time = bgfx::createUniform("u_time", bgfx::UniformType::Vec4);
 	u_color = bgfx::createUniform("u_color", bgfx::UniformType::Vec4);
+	u_lineparams = bgfx::createUniform("u_lineparams", bgfx::UniformType::Vec4);
 
 	m_timeOffset = bx::getHPCounter();
 
@@ -774,7 +868,7 @@ void Renderer::setupShaders() {
 	memcpy(IBL::uniforms.m_lightDir, IBL::settings.m_lightDir, 3*sizeof(float) );
 	memcpy(IBL::uniforms.m_lightCol, IBL::settings.m_lightCol, 3*sizeof(float) );
 
-	s_renderStates[RenderState::Skybox].m_program = bgfxutils::loadProgramFromFiles("shaders/src/vs_ibl_skybox.sc", "shaders/src/fs_ibl_skybox.sc");
+	s_renderStates[RenderState::Skybox].m_program = RenderProgram("shaders/src/vs_ibl_skybox.sc", "shaders/src/fs_ibl_skybox.sc");
 
 	// Get renderer capabilities info.
 	const bgfx::Caps* caps = bgfx::getCaps();
@@ -785,9 +879,9 @@ void Renderer::setupShaders() {
 	if (shadowSamplerSupported)
 	{
 		// Depth textures and shadow samplers are supported.
-		s_renderStates[RenderState::ShadowMap].m_program = bgfxutils::loadProgramFromFiles("shaders/src/vs_sms_mesh.sc", "shaders/src/fs_sms_shadow.sc");
-		s_renderStates[RenderState::Scene].m_program = bgfxutils::loadProgramFromFiles("shaders/src/vs_sms_mesh.sc",   "shaders/src/fs_sms_mesh.sc");
-		s_renderStates[RenderState::SceneTextured].m_program = bgfxutils::loadProgramFromFiles("shaders/src/vs_sms_mesh_textured.sc",   "shaders/src/fs_sms_mesh_textured.sc");
+		s_renderStates[RenderState::ShadowMap].m_program = RenderProgram("shaders/src/vs_sms_mesh.sc", "shaders/src/fs_sms_shadow.sc");
+		s_renderStates[RenderState::Scene].m_program = RenderProgram("shaders/src/vs_sms_mesh.sc",   "shaders/src/fs_sms_mesh.sc");
+		s_renderStates[RenderState::SceneTextured].m_program = RenderProgram("shaders/src/vs_sms_mesh_textured.sc",   "shaders/src/fs_sms_mesh_textured.sc");
 
 		lights[0].shadowMapTexture= bgfx::createTexture2D(lights[0].shadowMapSize, lights[0].shadowMapSize, false, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_COMPARE_LEQUAL);
 		bgfx::TextureHandle fbtextures[] = { lights[0].shadowMapTexture };
@@ -797,9 +891,9 @@ void Renderer::setupShaders() {
 	{
 		// Depth textures and shadow samplers are not supported. Use float
 		// depth packing into color buffer instead.
-		s_renderStates[RenderState::ShadowMap].m_program = bgfxutils::loadProgram("vs_sms_shadow_pd", "fs_sms_shadow_pd");
-		s_renderStates[RenderState::Scene].m_program = bgfxutils::loadProgram("vs_sms_mesh",      "fs_sms_mesh_pd");
-		s_renderStates[RenderState::SceneTextured].m_program = bgfxutils::loadProgram("vs_sms_mesh_textured",      "fs_sms_mesh_pd_textured");
+		s_renderStates[RenderState::ShadowMap].m_program.program = bgfxutils::loadProgram("vs_sms_shadow_pd", "fs_sms_shadow_pd");
+		s_renderStates[RenderState::Scene].m_program.program = bgfxutils::loadProgram("vs_sms_mesh",      "fs_sms_mesh_pd");
+		s_renderStates[RenderState::SceneTextured].m_program.program = bgfxutils::loadProgram("vs_sms_mesh_textured",      "fs_sms_mesh_pd_textured");
 
 		lights[0].shadowMapTexture = bgfx::createTexture2D(lights[0].shadowMapSize, lights[0].shadowMapSize, false, 1, bgfx::TextureFormat::BGRA8, BGFX_TEXTURE_RT);
 		bgfx::TextureHandle fbtextures[] =
@@ -810,7 +904,9 @@ void Renderer::setupShaders() {
 		lights[0].shadowMapFB = bgfx::createFrameBuffer(BX_COUNTOF(fbtextures), fbtextures, true);
 	}
 
-	s_renderStates[RenderState::Debug].m_program = bgfxutils::loadProgramFromFiles("shaders/src/vs_debug.sc", "shaders/src/fs_debug.sc");
+	s_renderStates[RenderState::Lines].m_program = RenderProgram("shaders/src/vs_lines.sc", "shaders/src/fs_lines.sc");
+
+	s_renderStates[RenderState::Debug].m_program = RenderProgram("shaders/src/vs_debug.sc", "shaders/src/fs_debug.sc");
 }
 
 void Renderer::setupRenderPasses() {
@@ -840,6 +936,9 @@ void Renderer::setupRenderPasses() {
 	s_renderStates[RenderState::SceneTextured].m_textures[1].m_stage = 1;
 	s_renderStates[RenderState::SceneTextured].m_textures[1].m_sampler = sceneDefaultTextureSampler;
 	s_renderStates[RenderState::SceneTextured].m_textures[1].m_texture = sceneDefaultTexture;
+
+	// Lines
+	s_renderStates[RenderState::Debug].m_viewId = RenderState::Lines;
 
 	// Debug
 	s_renderStates[RenderState::Debug].m_viewId = RenderState::Debug;
@@ -968,6 +1067,9 @@ void Renderer::shutdown() {
 	bgfx::destroyDynamicVertexBuffer(debug_lines_vbh);
 	bgfx::destroyDynamicIndexBuffer(debug_lines_ibh);
 
+	bgfx::destroyDynamicVertexBuffer(path_lines_vbh);
+	bgfx::destroyDynamicIndexBuffer(path_lines_ibh);
+
 	bgfx::destroyIndexBuffer(cube_ibh);
 	bgfx::destroyIndexBuffer(cube_edges_ibh);
 	bgfx::destroyVertexBuffer(cube_vbh);
@@ -985,10 +1087,11 @@ void Renderer::shutdown() {
 
 	bgfx::destroyUniform(u_time);
 	bgfx::destroyUniform(u_color);
+	bgfx::destroyUniform(u_lineparams);
 
 	for (uint8_t ii = 0; ii < RenderState::Count; ++ii) {
-		if (bgfx::isValid(s_renderStates[ii].m_program)) {
-			bgfx::destroyProgram(s_renderStates[ii].m_program);
+		if (bgfx::isValid(s_renderStates[ii].m_program.program)) {
+			bgfx::destroyProgram(s_renderStates[ii].m_program.program);
 		}
 	}
 
@@ -1153,6 +1256,9 @@ void Renderer::paintGL() {
 	bgfx::setViewRect(RenderState::SceneTextured, 0, 0, width, height);
 	bgfx::setViewTransform(RenderState::SceneTextured, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
+	bgfx::setViewRect(RenderState::Lines, 0, 0, width, height);
+	bgfx::setViewTransform(RenderState::Lines, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
+
 	bgfx::setViewRect(RenderState::Debug, 0, 0, width, height);
 	bgfx::setViewTransform(RenderState::Debug, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
@@ -1211,39 +1317,42 @@ void Renderer::paintGL() {
 			(float)cameras[activeCameraIndex].height, true);
 
 	IBL::uniforms.submit();
-	bgfx::submit(RenderState::Skybox, s_renderStates[RenderState::Skybox].m_program);
+	bgfx::submit(RenderState::Skybox, s_renderStates[RenderState::Skybox].m_program.program);
 
-	// render the plane
-	uint32_t cached = bgfx::setTransform(mtxFloor);
-	for (uint32_t pass = 0; pass < RenderState::Count; ++pass) {
-		// Only draw plane textured or during the shadow map passes
-		if (pass != RenderState::SceneTextured
-				&& pass != RenderState::ShadowMap)
-			continue;
+	if (drawFloor)
+	{
+		// render the plane
+		uint32_t cached = bgfx::setTransform(mtxFloor);
+		for (uint32_t pass = 0; pass < RenderState::Count; ++pass) {
+			// Only draw plane textured or during the shadow map passes
+			if (pass != RenderState::SceneTextured
+					&& pass != RenderState::ShadowMap)
+				continue;
 
-		const RenderState& st = s_renderStates[pass];
-		if (!isValid(st.m_program)) {
-			continue;
+			const RenderState& st = s_renderStates[pass];
+			if (!isValid(st.m_program.program)) {
+				continue;
+			}
+
+			bgfx::setTransform(cached);
+			for (uint8_t tex = 0; tex < st.m_numTextures; ++tex)
+			{
+				const RenderState::Texture& texture = st.m_textures[tex];
+				bgfx::setTexture(texture.m_stage
+						, texture.m_sampler
+						, texture.m_texture
+						, texture.m_flags
+						);
+			}
+
+			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+			bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
+			bgfx::setUniform(u_color, Vector4f(1.f, 1.f, 1.f, 1.f).data(), 4);
+			bgfx::setIndexBuffer(plane_ibh);
+			bgfx::setVertexBuffer(plane_vbh);
+			bgfx::setState(st.m_state);
+			bgfx::submit(st.m_viewId, st.m_program.program);
 		}
-
-		bgfx::setTransform(cached);
-		for (uint8_t tex = 0; tex < st.m_numTextures; ++tex)
-		{
-			const RenderState::Texture& texture = st.m_textures[tex];
-			bgfx::setTexture(texture.m_stage
-					, texture.m_sampler
-					, texture.m_texture
-					, texture.m_flags
-					);
-		}
-		
-		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
-		bgfx::setUniform(u_color, Vector4f(1.f, 1.f, 1.f, 1.f).data(), 4);
-		bgfx::setIndexBuffer(plane_ibh);
-		bgfx::setVertexBuffer(plane_vbh);
-		bgfx::setState(st.m_state);
-		bgfx::submit(st.m_viewId, st.m_program);
 	}
 
 	// render entities
@@ -1283,7 +1392,7 @@ void Renderer::paintGL() {
 			bgfx::setIndexBuffer(cube_edges_ibh);
 			bgfx::setVertexBuffer(cube_vbh);
 			bgfx::setState(st.m_state);
-			bgfx::submit(st.m_viewId, st.m_program);
+			bgfx::submit(st.m_viewId, st.m_program.program);
 		}
 
 		// render camera frustums 
@@ -1300,7 +1409,7 @@ void Renderer::paintGL() {
 			bgfx::setIndexBuffer(cube_edges_ibh);
 			bgfx::setVertexBuffer(cube_vbh);
 			bgfx::setState(st.m_state);
-			bgfx::submit(st.m_viewId, st.m_program);
+			bgfx::submit(st.m_viewId, st.m_program.program);
 		}
 
 		// debug commands
@@ -1366,7 +1475,7 @@ void Renderer::paintGL() {
 		bgfx::setIndexBuffer(debug_lines_ibh);
 		bgfx::setVertexBuffer(debug_lines_vbh);
 		bgfx::setState(st.m_state);
-		bgfx::submit(st.m_viewId, st.m_program);
+		bgfx::submit(st.m_viewId, st.m_program.program);
 
 		// free buffer data
 		delete[] line_vert_buf;
@@ -1386,7 +1495,7 @@ void Renderer::paintGL() {
 			width,
 			height);
 
-	ImGui::SetNextWindowSize (ImVec2(400.f, 100.0f), ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize (ImVec2(400.f, 200.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
 
 	ImGui::Begin("Render Settings");
@@ -1410,6 +1519,7 @@ void Renderer::paintGL() {
 
 	assert (lights.size() == 1);
 
+	ImGui::Checkbox("Draw Floor", &drawFloor);
 	ImGui::Checkbox("Draw Debug", &drawDebug);
 
 	for (int i = 0; i < lights.size(); i++) {
@@ -1424,6 +1534,28 @@ void Renderer::paintGL() {
 
 	// clear debug commands as they have to be issued every frame
 	debugCommands.clear();
+}
+
+bool Renderer::updateShaders() {
+	bool result = true;
+	for (int i = 0; i < RenderState::Count; i++) {
+		RenderState& st = s_renderStates[i];
+
+		if (st.m_program.vertexShaderFileName != ""
+				&& st.m_program.fragmentShaderFileName!= ""
+			 ) {
+			if (st.m_program.checkModified()) {
+				bool load_success = st.m_program.reload();
+
+				// if so far everything was successful but this one failed
+				// make sure to set the return value to false
+				if (result == true && ! load_success)
+					result = false;
+			}
+		}
+	}
+
+	return true;
 }
 
 Entity* Renderer::createEntity() {

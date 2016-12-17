@@ -193,6 +193,7 @@ struct DebugCommand {
 struct Renderer {
 	bool initialized;
 	bool drawDebug;
+	bool drawFloor = true;
 	uint32_t width;
 	uint32_t height;
 
@@ -237,6 +238,10 @@ struct Renderer {
 	void paintGLSimple();
 	void resize (int width, int height);
 
+	// check whether shader files were modified and reload them. Returns
+	// true on success, otherwise false
+	bool updateShaders();
+
 	Entity* createEntity();
 	bool destroyEntity (Entity* entity);
 
@@ -254,12 +259,49 @@ struct Renderer {
 			const float &scale);
 };
 
+struct RenderProgram {
+	bgfx::ProgramHandle program;
+	std::string vertexShaderFileName;
+	int vertexShaderFileModTime;
+	std::string fragmentShaderFileName;
+	int fragmentShaderFileModTime;
+
+	RenderProgram () :
+		vertexShaderFileName(""),
+		vertexShaderFileModTime(-1),
+		fragmentShaderFileName(""),
+		fragmentShaderFileModTime(-1)
+	{
+		program = BGFX_INVALID_HANDLE;
+	}
+
+	RenderProgram (
+			const char* vertex_shader_file_name,
+			const char* fragment_shader_file_name
+			)
+		: 
+			vertexShaderFileName(vertex_shader_file_name),
+			vertexShaderFileModTime(-1),
+			fragmentShaderFileName(fragment_shader_file_name),
+			fragmentShaderFileModTime(-1)
+	{
+		program = BGFX_INVALID_HANDLE;
+	}
+
+	bool reload();
+	bool checkModified() const;
+	bool valid() const {
+		return bgfx::isValid(program);
+	}
+};
+
 struct RenderState {
 	enum  {
 		Skybox,
 		ShadowMap,
 		Scene,
 		SceneTextured,
+		Lines,
 		Debug,
 		Count
 	};
@@ -273,7 +315,7 @@ struct RenderState {
 
 	uint64_t m_state;
 	uint8_t m_numTextures;
-	bgfx::ProgramHandle m_program;
+	RenderProgram m_program;
 	uint8_t m_viewId;
 	Texture m_textures[4];
 };

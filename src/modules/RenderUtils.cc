@@ -240,7 +240,7 @@ bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_f
 	int result = compileShader (cmdLine, vs_source_reader, vs_compiled_writer);
 	if (result != EXIT_SUCCESS) {
 		std::cerr << "Error compiling shader " << _vsFileName << std::endl;
-		abort();
+		return BGFX_INVALID_HANDLE;
 	}
 
 	uint32_t size = vs_compiled_writer->seek(0, bx::Whence::End);
@@ -269,7 +269,7 @@ bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_f
 		result = compileShader (cmdLine, fs_source_reader, fs_compiled_writer);
 		if (result != EXIT_SUCCESS) {
 			std::cerr << "Error compiling shader " << _fsFileName << std::endl;
-			abort();
+			return BGFX_INVALID_HANDLE;
 		}
 
 		uint32_t size = fs_compiled_writer->seek(0, bx::Whence::End);
@@ -713,7 +713,7 @@ struct Mesh
 				bgfx::setIndexBuffer(group.m_ibh);
 				bgfx::setVertexBuffer(group.m_vbh);
 				bgfx::setState(state.m_state);
-				bgfx::submit(state.m_viewId, state.m_program);
+				bgfx::submit(state.m_viewId, state.m_program.program);
 			}
 		}
 	}
