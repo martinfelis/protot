@@ -176,6 +176,10 @@ struct LightProbe
 	bgfx::TextureHandle m_texIrr;
 };
 
+struct Path {
+	std::vector<SimpleMath::Vector3f> points;
+};
+
 struct DebugCommand {
 	enum CommandType {
 		Line,
@@ -194,6 +198,7 @@ struct Renderer {
 	bool initialized;
 	bool drawDebug;
 	bool drawFloor = true;
+	bool drawSkybox = true;
 	uint32_t width;
 	uint32_t height;
 

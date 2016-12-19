@@ -84,6 +84,7 @@ static void module_reload(struct module_state *state) {
 	assert (camera != nullptr);
 
 	SerializeBool (*gReadSerializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
+	SerializeBool (*gReadSerializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
 	SerializeBool (*gReadSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
 	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.eye", camera->eye);
 	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.poi", camera->poi);
@@ -97,6 +98,7 @@ static void module_unload(struct module_state *state) {
 	//(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
 
 	SerializeBool (*gWriteSerializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
+	SerializeBool (*gWriteSerializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
 	SerializeBool (*gWriteSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
 	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.eye", camera->eye);
 	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.poi", camera->poi);
@@ -149,7 +151,7 @@ bgfx::DynamicIndexBufferHandle debug_lines_ibh;
 
 bgfx::UniformHandle u_time;
 bgfx::UniformHandle u_color;
-bgfx::UniformHandle u_lineparams;
+bgfx::UniformHandle u_line_params;
 
 bgfx::UniformHandle u_mtx;
 bgfx::UniformHandle u_exposure;
@@ -432,9 +434,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_RGB_WRITE
 		| BGFX_STATE_ALPHA_WRITE
 		| BGFX_STATE_DEPTH_WRITE
-		| BGFX_STATE_DEPTH_TEST_LESS
-//		| BGFX_STATE_CULL_CCW
-//		| BGFX_STATE_PT_LINESTRIP
+		| BGFX_STATE_DEPTH_TEST_ALWAYS
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
@@ -449,6 +449,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_DEPTH_TEST_LESS
 		| BGFX_STATE_CULL_CCW
 		| BGFX_STATE_PT_LINES
+//		| BGFX_STATE_PT_POINTS
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
@@ -551,6 +552,32 @@ struct PosColorTexCoord0Vertex
 };
 
 bgfx::VertexDecl PosColorTexCoord0Vertex::ms_decl;
+
+// Used for lines
+struct PathVertex
+{
+	float position[3];
+	float prev[3];
+	float next[3];
+	// TODO: use an int for the direction
+	float direction;
+
+	static void init()
+	{
+		ms_decl
+			.begin()
+			.add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::TexCoord1, 3, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::TexCoord2, 1, bgfx::AttribType::Float)
+			.end();
+	}
+
+	static bgfx::VertexDecl ms_decl;
+};
+bgfx::VertexDecl PathVertex::ms_decl;
+
+
 
 // 
 // Static geometries
@@ -755,6 +782,7 @@ void Renderer::createGeometries() {
 	PosNormalVertex::init();
 	PosNormalColorTexcoordVertex::init();
 	PosColorTexCoord0Vertex::init();
+	PathVertex::init();
 
 	// Create static vertex buffer.
 	cube_vbh = bgfx::createVertexBuffer(
@@ -773,6 +801,18 @@ void Renderer::createGeometries() {
 	cube_edges_ibh = bgfx::createIndexBuffer(
 			// Static data can be passed with bgfx::makeRef
 			bgfx::makeRef(s_cubeEdgeIndices, sizeof(s_cubeEdgeIndices) )
+			);
+
+	// Create dynamic debug line buffer
+	path_lines_vbh = bgfx::createDynamicVertexBuffer(
+			(uint32_t) 1,
+			PathVertex::ms_decl,
+			BGFX_BUFFER_ALLOW_RESIZE
+			);
+
+	path_lines_ibh= bgfx::createDynamicIndexBuffer(
+			(uint32_t) 1,
+			BGFX_BUFFER_ALLOW_RESIZE
 			);
 
 	// Create dynamic debug line buffer
@@ -841,7 +881,7 @@ void Renderer::setupShaders() {
 
 	u_time = bgfx::createUniform("u_time", bgfx::UniformType::Vec4);
 	u_color = bgfx::createUniform("u_color", bgfx::UniformType::Vec4);
-	u_lineparams = bgfx::createUniform("u_lineparams", bgfx::UniformType::Vec4);
+	u_line_params = bgfx::createUniform("u_line_params", bgfx::UniformType::Vec4);
 
 	m_timeOffset = bx::getHPCounter();
 
@@ -904,7 +944,7 @@ void Renderer::setupShaders() {
 		lights[0].shadowMapFB = bgfx::createFrameBuffer(BX_COUNTOF(fbtextures), fbtextures, true);
 	}
 
-	s_renderStates[RenderState::Lines].m_program = RenderProgram("shaders/src/vs_lines.sc", "shaders/src/fs_lines.sc");
+	s_renderStates[RenderState::Lines].m_program = RenderProgram("shaders/lines/vs_lines.sc", "shaders/lines/fs_lines.sc");
 
 	s_renderStates[RenderState::Debug].m_program = RenderProgram("shaders/src/vs_debug.sc", "shaders/src/fs_debug.sc");
 }
@@ -1087,7 +1127,7 @@ void Renderer::shutdown() {
 
 	bgfx::destroyUniform(u_time);
 	bgfx::destroyUniform(u_color);
-	bgfx::destroyUniform(u_lineparams);
+	bgfx::destroyUniform(u_line_params);
 
 	for (uint8_t ii = 0; ii < RenderState::Count; ++ii) {
 		if (bgfx::isValid(s_renderStates[ii].m_program.program)) {
@@ -1279,7 +1319,7 @@ void Renderer::paintGL() {
 	// Clear backbuffer and shadowmap framebuffer at beginning.
 	bgfx::setViewClear(RenderState::Skybox
 			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
-			, 0xf03030ff, 1.0f, 0
+			, 0x000000ff, 1.0f, 0
 			);
 
 	bgfx::setViewClear(RenderState::ShadowMap
@@ -1295,29 +1335,31 @@ void Renderer::paintGL() {
 	bgfx::touch(RenderState::Scene);
 	bgfx::touch(RenderState::Skybox);
 
-	// Skybox pass
-	memcpy (IBL::uniforms.m_cameraPos, cameras[activeCameraIndex].eye.data(), 3 * sizeof(float));
+	if (drawSkybox) {
+		// Skybox pass
+		memcpy (IBL::uniforms.m_cameraPos, cameras[activeCameraIndex].eye.data(), 3 * sizeof(float));
 
-	const float amount = bx::fmin(0.012/0.12f, 1.0f);
-	IBL::settings.m_envRotCurr = bx::flerp(IBL::settings.m_envRotCurr, IBL::settings.m_envRotDest, amount);
+		const float amount = bx::fmin(0.012/0.12f, 1.0f);
+		IBL::settings.m_envRotCurr = bx::flerp(IBL::settings.m_envRotCurr, IBL::settings.m_envRotDest, amount);
 
 
-	float mtxEnvRot[16];
-	float env_rot_cur = 0.0f;
-	float mtx_u_mtx[16];
+		float mtxEnvRot[16];
+		float env_rot_cur = 0.0f;
+		float mtx_u_mtx[16];
 
-	bx::mtxRotateY(mtxEnvRot, env_rot_cur);
-	bx::mtxMul(IBL::uniforms.m_mtx, cameras[activeCameraIndex].mtxEnv, mtxEnvRot); // Used for Skybox.
+		bx::mtxRotateY(mtxEnvRot, env_rot_cur);
+		bx::mtxMul(IBL::uniforms.m_mtx, cameras[activeCameraIndex].mtxEnv, mtxEnvRot); // Used for Skybox.
 
-	bgfx::setTexture(0, s_texCube, mLightProbes[mCurrentLightProbe].m_tex);
-	bgfx::setTexture(1, s_texCubeIrr, mLightProbes[mCurrentLightProbe].m_texIrr);
-	bgfx::setState(BGFX_STATE_RGB_WRITE|BGFX_STATE_ALPHA_WRITE);
-	screenSpaceQuad( 
-			(float)cameras[activeCameraIndex].width,
-			(float)cameras[activeCameraIndex].height, true);
+		bgfx::setTexture(0, s_texCube, mLightProbes[mCurrentLightProbe].m_tex);
+		bgfx::setTexture(1, s_texCubeIrr, mLightProbes[mCurrentLightProbe].m_texIrr);
+		bgfx::setState(BGFX_STATE_RGB_WRITE|BGFX_STATE_ALPHA_WRITE);
+		screenSpaceQuad( 
+				(float)cameras[activeCameraIndex].width,
+				(float)cameras[activeCameraIndex].height, true);
 
-	IBL::uniforms.submit();
-	bgfx::submit(RenderState::Skybox, s_renderStates[RenderState::Skybox].m_program.program);
+		IBL::uniforms.submit();
+		bgfx::submit(RenderState::Skybox, s_renderStates[RenderState::Skybox].m_program.program);
+	}
 
 	if (drawFloor)
 	{
@@ -1372,6 +1414,109 @@ void Renderer::paintGL() {
 		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, entities[i]->color, 4);
 		meshSubmit(entities[i]->mesh, &s_renderStates[RenderState::Scene], 1, entities[i]->transform);
+	}
+
+	// drawLinesHere
+	{
+		Path test_path;
+
+		test_path.points.push_back(Vector3f (0.f, -1.f, 0.f));
+		test_path.points.push_back(Vector3f (1.f, -1.f, 0.f));
+		test_path.points.push_back(Vector3f (0.f,  0.f, 0.f));
+		test_path.points.push_back(Vector3f (1.f,  0.f, 0.f));
+		test_path.points.push_back(Vector3f (0.25f, -0.75f, 0.f));
+
+		// create an array for the actual buffer
+		std::vector<PathVertex> path_vertices;
+
+		// note: we submit each vertex twice
+		for (int i = 0; i < test_path.points.size(); i++) {
+			PathVertex vertex;
+			memcpy (vertex.position, test_path.points[i].data(), sizeof(float) * 3);
+			if (i == 0) {
+				assert (test_path.points.size() > 1);
+				memcpy (vertex.prev, test_path.points[i].data(), sizeof(float) * 3);
+				memcpy (vertex.next, test_path.points[i + 1].data(), sizeof(float) * 3);
+			} else if (i == test_path.points.size() - 1) {
+				memcpy (vertex.next, test_path.points[i].data(), sizeof(float) * 3);
+				memcpy (vertex.prev, test_path.points[i - 1].data(), sizeof(float) * 3);
+			} else { 
+				memcpy (vertex.prev, test_path.points[i - 1].data(), sizeof(float) * 3);
+				memcpy (vertex.next, test_path.points[i + 1].data(), sizeof(float) * 3);
+			}
+			vertex.direction = -1.0f;
+			path_vertices.push_back(vertex);
+			vertex.direction =  1.0f;
+			path_vertices.push_back(vertex);
+		}
+
+//		PathVertex* v = (PathVertex*) path_vertices.data();
+//		int vi = 0;
+//		while (vi < path_vertices.size()) {
+//			cout << vi << ": v=" << v->position[0] << ", " << v->position[1] << ", " << v->position[2]
+//				<< " p=" << v->prev[0] << ", " << v->prev[1] << ", " << v->prev[2] << ", "
+//				<< " n=" << v->next[0] << ", " << v->next[1] << ", " << v->next[2] << ", "
+//				<< " d=" << v->direction << endl;
+//
+//			v++;
+//			vi++;
+//		}
+
+		// update buffer from buffer data
+		bgfx::updateDynamicVertexBuffer (path_lines_vbh,
+			0,
+			bgfx::copy(path_vertices.data(), sizeof(PathVertex) * path_vertices.size())
+			);
+
+		std::vector<uint16_t> line_indices;
+		int index = 0;
+		for (int i = 0; i < test_path.points.size() - 1; i++) {
+			int j = index;
+			line_indices.push_back(j + 0);
+			line_indices.push_back(j + 1);
+			line_indices.push_back(j + 2);
+			line_indices.push_back(j + 2);
+			line_indices.push_back(j + 1);
+			line_indices.push_back(j + 3);
+			index += 2;
+		}
+
+//		for (int i = 0; i < line_indices.size(); i++) {
+//			cout << line_indices[i] << ", ";
+//		}
+//		cout << endl;
+//
+//		cout << "points: " << test_path.points.size()
+//			<< ", line indices: " << line_indices.size()
+//			<< ", path_vertices: " << path_vertices.size() 
+//			<< ", last line index: " << line_indices[line_indices.size() -1] 
+//			<< ", width = " << width << ", height = " << height
+//			<< endl;
+
+//		assert (line_indices[line_indices.size() -1] < path_vertices.size());
+//		assert (line_indices.size() == test_path.points.size() * 3);
+
+		bgfx::updateDynamicIndexBuffer (path_lines_ibh,
+			0,
+			bgfx::copy(line_indices.data(), sizeof(uint16_t) * line_indices.size())
+			);
+
+		// submit data
+		const RenderState& st = s_renderStates[RenderState::Lines];
+
+		float thickness = 0.1f;
+		float miter = 1.f;
+		float aspect = width / height;
+
+		Vector4f params (thickness, miter, width, height);
+
+		Camera &active_camera = cameras[activeCameraIndex];
+
+		bgfx::setUniform(u_line_params, params.data(), 1);
+		bgfx::setIndexBuffer(path_lines_ibh);
+		bgfx::setVertexBuffer(path_lines_vbh);
+		bgfx::setState(st.m_state);
+		bgfx::submit(st.m_viewId, st.m_program.program);
 	}
 
 	// render debug information
@@ -1495,7 +1640,7 @@ void Renderer::paintGL() {
 			width,
 			height);
 
-	ImGui::SetNextWindowSize (ImVec2(400.f, 200.0f), ImGuiSetCond_Once);
+	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
 
 	ImGui::Begin("Render Settings");
@@ -1520,6 +1665,7 @@ void Renderer::paintGL() {
 	assert (lights.size() == 1);
 
 	ImGui::Checkbox("Draw Floor", &drawFloor);
+	ImGui::Checkbox("Draw Skybox", &drawSkybox);
 	ImGui::Checkbox("Draw Debug", &drawDebug);
 
 	for (int i = 0; i < lights.size(); i++) {

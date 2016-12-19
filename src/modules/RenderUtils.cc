@@ -215,20 +215,25 @@ bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName)
 
 bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_fsFileName) {
 	std::cout << "Loading shader " << _vsFileName << std::endl;
-	const char* argv[11];
+	const char* argv[10];
 	argv[0] = "--type";
 	argv[1] = "vertex";
 	argv[2] = "--platform";
 	argv[3] = "linux";
 	argv[4] = "-i";
 	argv[5] = "shaders/common";
-	argv[6] = "--varyingdef";
-	argv[7] = "-p";
-	argv[8] = "120";
-	argv[9] = "-f";
-	argv[10] = _vsFileName;
+	argv[6] = "-p";
+	argv[7] = "120";
+	argv[8] = "-f";
+	argv[9] = _vsFileName;
 	
-	bx::CommandLine cmdLine (11, argv);
+//	argv[6] = "--varyingdef";
+//	argv[7] = "-p";
+//	argv[8] = "120";
+//	argv[9] = "-f";
+//	argv[10] = _vsFileName;
+
+	bx::CommandLine cmdLine (10, argv);
 
 	const bgfx::Memory* vs_source_memory = loadMem(entry::getFileReader(), _vsFileName);
 	bx::ReaderSeekerI* vs_source_reader = new bx::MemoryReader (vs_source_memory->data, vs_source_memory->size);
