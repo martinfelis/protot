@@ -387,7 +387,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_ALPHA_WRITE
 		| BGFX_STATE_DEPTH_WRITE
 		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_CULL_CCW
+		| BGFX_STATE_CULL_CW
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
@@ -399,7 +399,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_ALPHA_WRITE
 		| BGFX_STATE_DEPTH_WRITE
 		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_CULL_CCW
+		| BGFX_STATE_CULL_CW
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
@@ -411,7 +411,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_ALPHA_WRITE
 		| BGFX_STATE_DEPTH_WRITE
 		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_CULL_CCW
+		| BGFX_STATE_CULL_CW
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),	
@@ -423,7 +423,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_ALPHA_WRITE
 		| BGFX_STATE_DEPTH_WRITE
 		| BGFX_STATE_DEPTH_TEST_LESS
-		| BGFX_STATE_CULL_CCW
+		| BGFX_STATE_CULL_CW
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
@@ -435,6 +435,7 @@ RenderState s_renderStates[RenderState::Count] = {
 		| BGFX_STATE_ALPHA_WRITE
 		| BGFX_STATE_DEPTH_WRITE
 		| BGFX_STATE_DEPTH_TEST_ALWAYS
+//		| BGFX_STATE_PT_LINES
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
@@ -586,10 +587,10 @@ bgfx::VertexDecl PathVertex::ms_decl;
 // Plane
 PosNormalColorTexcoordVertex s_hplaneVertices[] =
 {
-	{ -1.0f, 0.0f,  1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),      0.f,      0.f },
-	{  1.0f, 0.0f,  1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,      0.f },
-	{ -1.0f, 0.0f, -1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),     0.f,  10.f},
-	{  1.0f, 0.0f, -1.0f, packF4u(0.0f, -1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,  10.f },
+	{ -1.0f, 0.0f,  1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),      0.f,      0.f },
+	{  1.0f, 0.0f,  1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,      0.f },
+	{ -1.0f, 0.0f, -1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f),     0.f,  10.f},
+	{  1.0f, 0.0f, -1.0f, packF4u(0.0f, 1.0f, 0.0f), packF4u(1.0f, 1.0f, 1.0f), 10.f,  10.f },
 };
 
 const uint16_t s_planeIndices[] =
@@ -707,17 +708,18 @@ void Camera::updateMatrices() {
 	assert (width != -1.f && height != -1.f);
 
 	// view matrix
-	bx::mtxLookAt (mtxView, eye.data(), poi.data(), up.data());
+	bx::mtxLookAtRh (mtxView, eye.data(), poi.data(), up.data());
 
 	// projection matrix
 	if (orthographic) {
-		bx::mtxOrtho(mtxProj, 
+		bx::mtxOrthoRh(mtxProj, 
 				-width * 0.5f, width * 0.5f,
 				-height * 0.5f, height * 0.5f, 
 				near, far);
 	} else {
 		float aspect = width / height;
-		bx::mtxProj(mtxProj, fov, aspect, near, far);
+		float mtx_proj[16];
+		bx::mtxProjRh(mtxProj, fov, aspect, near, far);
 	}
 
 	// environment matrix
@@ -1253,7 +1255,7 @@ void Renderer::paintGL() {
 		at[1] = - lights[i].pos[1] + lights[i].dir[1];
 		at[2] = - lights[i].pos[2] + lights[i].dir[2];
 
-		bx::mtxLookAt(lights[i].mtxView, eye, at);
+		bx::mtxLookAtRh(lights[i].mtxView, eye, at);
 
 		lights[i].area = 20.0f;
 		lights[i].near = 0.f;
@@ -1261,7 +1263,7 @@ void Renderer::paintGL() {
 
 		//	bx::mtxProj(lightProj, 20.0f, 1., 5.f, 10.0f);
 
-		bx::mtxOrtho(lights[i].mtxProj, -lights[i].area, lights[i].area, -lights[i].area, lights[i].area, lights[i].near, lights[i].far);
+		bx::mtxOrthoRh(lights[i].mtxProj, -lights[i].area, lights[i].area, -lights[i].area, lights[i].area, lights[i].near, lights[i].far);
 
 		// lights: shadow matrix
 		const float sy = flipV ? 0.5f : -0.5f;
@@ -1282,7 +1284,7 @@ void Renderer::paintGL() {
 	float view[16];
 	float proj[16];
 	bx::mtxIdentity(view);
-	bx::mtxOrtho(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f);
+	bx::mtxOrthoRh(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f);
 	bgfx::setViewRect(RenderState::Skybox, 0, 0, width, height);
 	bgfx::setViewTransform(RenderState::Skybox, view, proj);
 	
@@ -1307,7 +1309,7 @@ void Renderer::paintGL() {
 	bx::mtxSRT(mtxFloor
 			, 10.0f, 10.0f, 10.0f
 			, 0.0f, 0.0f, 0.0f
-			, 0.0f, -0.001f, 0.0f
+			, 0.0f, 0.001f, 0.0f
 			);
 
 	float lightMtx[16];
@@ -1423,8 +1425,8 @@ void Renderer::paintGL() {
 		test_path.points.push_back(Vector3f (0.f, -1.f, 0.f));
 		test_path.points.push_back(Vector3f (1.f, -1.f, 0.f));
 		test_path.points.push_back(Vector3f (0.f,  0.f, 0.f));
-		test_path.points.push_back(Vector3f (1.f,  0.f, 0.f));
-		test_path.points.push_back(Vector3f (0.25f, -0.75f, 0.f));
+//		test_path.points.push_back(Vector3f (1.f,  0.f, 0.f));
+//		test_path.points.push_back(Vector3f (0.25f, -0.75f, 0.f));
 
 		// create an array for the actual buffer
 		std::vector<PathVertex> path_vertices;

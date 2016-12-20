@@ -144,7 +144,7 @@ void handle_mouse (struct module_state *state) {
 				gRenderer->inputState.mousedY * 0.4f,
 				right[0], right[1], right[2]);
 		Matrix33f rot_matrix_x = SimpleMath::GL::RotateMat33(
-				gRenderer->inputState.mousedX * -0.4f,
+				gRenderer->inputState.mousedX * 0.4f,
 				0.f, 1.f, 0.f);
 		poi = eye + rot_matrix_x * rot_matrix_y * view_dir;
 
@@ -181,11 +181,11 @@ void handle_keyboard (struct module_state *state, float dt) {
 		Vector3f direction (0.f, 0.f, 0.f);
 
 		if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
-			direction += forward;
+			direction -= forward;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
-			direction -= forward;
+			direction += forward;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
@@ -274,8 +274,8 @@ static void module_reload(struct module_state *state) {
 	cout << "Creating render entity ... success!" << endl;
 
 	cout << "Creating render entity mesh ..." << endl;
-	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
-//	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
+//	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
+	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 //	state->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
 

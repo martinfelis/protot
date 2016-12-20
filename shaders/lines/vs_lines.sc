@@ -49,7 +49,7 @@ void main()
       vec2 perp = vec2(-dirA.y, dirA.x);
       vec2 miter_vec = vec2(-tangent.y, tangent.x);
       dir = tangent;
-      len = thickness / dot(miter_vec, perp);
+      len = min (2.5 * thickness, thickness / dot(miter_vec, perp));
 		} else {
 			dir = dirA;
 		}

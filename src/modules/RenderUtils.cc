@@ -966,7 +966,7 @@ Mesh *createMeshFromStdVectors (
  		mesh_vb[i].m_z = vertices[i][2];
  
  		if (have_normals) {
- 			mesh_vb[i].m_normal = packF4u (-normals[i][0], -normals[i][1], -normals[i][2]);
+ 			mesh_vb[i].m_normal = packF4u (normals[i][0], normals[i][1], normals[i][2]);
  		} else {
  			mesh_vb[i].m_normal = 0;
  		}

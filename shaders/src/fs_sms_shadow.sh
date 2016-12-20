@@ -94,7 +94,7 @@ void main()
 	vec3 vd = -normalize(v);
 	vec3 n  = v_normal;
 	vec3 l  = u_lightPos.xyz;
-	vec3 ld = -normalize(l);
+	vec3 ld = normalize(l);
 
 	vec2 lc = lit(ld, n, vd, 1.0);
 
