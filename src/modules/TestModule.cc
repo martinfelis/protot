@@ -57,32 +57,51 @@ struct CharacterEntity {
 	/// Render entity
 	Entity *entity;
 	Vector3f position;
+	Vector3f velocity;
 	CharacterController controller;
 
 	void update(float dt) {
-		Vector3f local_velocity (Vector3f::Zero());
+		Vector3f controller_velocity (Vector3f::Zero());
 
 		if (controller.state[CharacterController::ControlForward]) {
-			local_velocity += Vector3f (1.f, 0.f, 0.f);
+			controller_velocity += Vector3f (1.f, 0.f, 0.f);
 		}
 
 		if (controller.state[CharacterController::ControlBack]) {
-			local_velocity -= Vector3f (1.f, 0.f, 0.f);
+			controller_velocity -= Vector3f (1.f, 0.f, 0.f);
 		}
 
 		if (controller.state[CharacterController::ControlRight]) {
-			local_velocity += Vector3f (0.f, 0.f, 1.f);
+			controller_velocity += Vector3f (0.f, 0.f, 1.f);
 		}
 
 		if (controller.state[CharacterController::ControlLeft]) {
-			local_velocity -= Vector3f (0.f, 0.f, 1.f);
+			controller_velocity -= Vector3f (0.f, 0.f, 1.f);
+		}
+		
+		if (position[1] == 0.0f && controller.state[CharacterController::ControlJump]) {
+			controller_velocity += Vector3f (0.f, 20.f, 0.f);
 		}
 
+		float vel_damping = 2.0;
+		Vector3f acceleration(
+				-velocity[0] * vel_damping,
+				-29.81f,
+				-velocity[2] * vel_damping
+				);
+		acceleration = acceleration + controller_velocity * 30.0f;
+	
+		velocity = velocity + acceleration * dt;
+
 		// integrate position
-		position += local_velocity * 5 * dt;
+		position += velocity * dt;
+
+		if (position[1] < 0.f) {
+			position[1] = 0.f;
+		}
 
 		// apply transformation
-		bx::mtxTranslate(entity->transform, position[0], position[1], position[2]);
+		bx::mtxTranslate(entity->transform, position[0], position[1] + 1.0f, position[2]);
 	}
 };
 
@@ -274,8 +293,8 @@ static void module_reload(struct module_state *state) {
 	cout << "Creating render entity ... success!" << endl;
 
 	cout << "Creating render entity mesh ..." << endl;
-//	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
-	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
+	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
+//	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 //	state->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
 

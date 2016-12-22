@@ -178,6 +178,9 @@ struct LightProbe
 
 struct Path {
 	std::vector<SimpleMath::Vector3f> points;
+	float thickness = 0.1f;
+	float miter = 0.0f;
+	SimpleMath::Vector4f color = SimpleMath::Vector4f (1.0f, 1.0f, 1.0f, 1.0f);
 };
 
 struct DebugCommand {
@@ -191,7 +194,7 @@ struct DebugCommand {
 
 	SimpleMath::Vector3f from;
 	SimpleMath::Vector3f to;
-	SimpleMath::Vector3f color;
+	SimpleMath::Vector4f color = SimpleMath::Vector4f(1.f, 1.f, 1.f, 1.f);
 };
 
 struct Renderer {
@@ -216,6 +219,7 @@ struct Renderer {
 
 	std::vector<Camera> cameras;
 	std::vector<Light> lights;
+	std::vector<Path> debugPaths;
 	std::vector<DebugCommand> debugCommands;
 
 	uint16_t activeCameraIndex;

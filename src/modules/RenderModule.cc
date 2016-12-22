@@ -562,6 +562,7 @@ struct PathVertex
 	float next[3];
 	// TODO: use an int for the direction
 	float direction;
+	float color[4];
 
 	static void init()
 	{
@@ -571,6 +572,7 @@ struct PathVertex
 			.add(bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float)
 			.add(bgfx::Attrib::TexCoord1, 3, bgfx::AttribType::Float)
 			.add(bgfx::Attrib::TexCoord2, 1, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Float)
 			.end();
 	}
 
@@ -1418,109 +1420,6 @@ void Renderer::paintGL() {
 		meshSubmit(entities[i]->mesh, &s_renderStates[RenderState::Scene], 1, entities[i]->transform);
 	}
 
-	// drawLinesHere
-	{
-		Path test_path;
-
-		test_path.points.push_back(Vector3f (0.f, -1.f, 0.f));
-		test_path.points.push_back(Vector3f (1.f, -1.f, 0.f));
-		test_path.points.push_back(Vector3f (0.f,  0.f, 0.f));
-//		test_path.points.push_back(Vector3f (1.f,  0.f, 0.f));
-//		test_path.points.push_back(Vector3f (0.25f, -0.75f, 0.f));
-
-		// create an array for the actual buffer
-		std::vector<PathVertex> path_vertices;
-
-		// note: we submit each vertex twice
-		for (int i = 0; i < test_path.points.size(); i++) {
-			PathVertex vertex;
-			memcpy (vertex.position, test_path.points[i].data(), sizeof(float) * 3);
-			if (i == 0) {
-				assert (test_path.points.size() > 1);
-				memcpy (vertex.prev, test_path.points[i].data(), sizeof(float) * 3);
-				memcpy (vertex.next, test_path.points[i + 1].data(), sizeof(float) * 3);
-			} else if (i == test_path.points.size() - 1) {
-				memcpy (vertex.next, test_path.points[i].data(), sizeof(float) * 3);
-				memcpy (vertex.prev, test_path.points[i - 1].data(), sizeof(float) * 3);
-			} else { 
-				memcpy (vertex.prev, test_path.points[i - 1].data(), sizeof(float) * 3);
-				memcpy (vertex.next, test_path.points[i + 1].data(), sizeof(float) * 3);
-			}
-			vertex.direction = -1.0f;
-			path_vertices.push_back(vertex);
-			vertex.direction =  1.0f;
-			path_vertices.push_back(vertex);
-		}
-
-//		PathVertex* v = (PathVertex*) path_vertices.data();
-//		int vi = 0;
-//		while (vi < path_vertices.size()) {
-//			cout << vi << ": v=" << v->position[0] << ", " << v->position[1] << ", " << v->position[2]
-//				<< " p=" << v->prev[0] << ", " << v->prev[1] << ", " << v->prev[2] << ", "
-//				<< " n=" << v->next[0] << ", " << v->next[1] << ", " << v->next[2] << ", "
-//				<< " d=" << v->direction << endl;
-//
-//			v++;
-//			vi++;
-//		}
-
-		// update buffer from buffer data
-		bgfx::updateDynamicVertexBuffer (path_lines_vbh,
-			0,
-			bgfx::copy(path_vertices.data(), sizeof(PathVertex) * path_vertices.size())
-			);
-
-		std::vector<uint16_t> line_indices;
-		int index = 0;
-		for (int i = 0; i < test_path.points.size() - 1; i++) {
-			int j = index;
-			line_indices.push_back(j + 0);
-			line_indices.push_back(j + 1);
-			line_indices.push_back(j + 2);
-			line_indices.push_back(j + 2);
-			line_indices.push_back(j + 1);
-			line_indices.push_back(j + 3);
-			index += 2;
-		}
-
-//		for (int i = 0; i < line_indices.size(); i++) {
-//			cout << line_indices[i] << ", ";
-//		}
-//		cout << endl;
-//
-//		cout << "points: " << test_path.points.size()
-//			<< ", line indices: " << line_indices.size()
-//			<< ", path_vertices: " << path_vertices.size() 
-//			<< ", last line index: " << line_indices[line_indices.size() -1] 
-//			<< ", width = " << width << ", height = " << height
-//			<< endl;
-
-//		assert (line_indices[line_indices.size() -1] < path_vertices.size());
-//		assert (line_indices.size() == test_path.points.size() * 3);
-
-		bgfx::updateDynamicIndexBuffer (path_lines_ibh,
-			0,
-			bgfx::copy(line_indices.data(), sizeof(uint16_t) * line_indices.size())
-			);
-
-		// submit data
-		const RenderState& st = s_renderStates[RenderState::Lines];
-
-		float thickness = 0.1f;
-		float miter = 1.f;
-		float aspect = width / height;
-
-		Vector4f params (thickness, miter, width, height);
-
-		Camera &active_camera = cameras[activeCameraIndex];
-
-		bgfx::setUniform(u_line_params, params.data(), 1);
-		bgfx::setIndexBuffer(path_lines_ibh);
-		bgfx::setVertexBuffer(path_lines_vbh);
-		bgfx::setState(st.m_state);
-		bgfx::submit(st.m_viewId, st.m_program.program);
-	}
-
 	// render debug information
 	if (drawDebug) {
 		float tmp[16];
@@ -1570,38 +1469,24 @@ void Renderer::paintGL() {
 			}
 		}
 
-		// create buffer data for the lines
+		// clear and create buffer data for the lines
+		debugPaths.clear();
 		uint16_t* line_idx_buf = new uint16_t[line_count * 2];
 		PosColorVertex *line_vert_buf = new PosColorVertex[line_count * 2];
 		for (uint32_t i = 0; i < debugCommands.size(); i++) {
 			if (debugCommands[i].type == DebugCommand::Line) {
-				// from coordinates
-				line_vert_buf[2 * i].m_x = debugCommands[i].from[0];
-				line_vert_buf[2 * i].m_y = debugCommands[i].from[1];
-				line_vert_buf[2 * i].m_z = debugCommands[i].from[2];
+				Path line;
 
-				uint32_t color =
-					(0xff << 24)
-					+ (static_cast<char>(debugCommands[i].color[0]) * 255 << 0)
-					+ (static_cast<char>(debugCommands[i].color[1]) * 255 << 8)
-					+ (static_cast<char>(debugCommands[i].color[2]) * 255 << 16);
-
-				// from color
-				line_vert_buf[2 * i].m_abgr = color;
-
-				// from index
-				line_idx_buf[2 * i] = 2 * i;
-
-				// to coordinates
-				line_vert_buf[2 * i + 1].m_x = debugCommands[i].to[0];
-				line_vert_buf[2 * i + 1].m_y = debugCommands[i].to[1];
-				line_vert_buf[2 * i + 1].m_z = debugCommands[i].to[2];
-
-				// to color
-				line_vert_buf[2 * i + 1].m_abgr = color;
-
-				// to index
-				line_idx_buf[2 * i + 1] = 2 * i + 1;
+				// TODO: we submit start and end twice to make sure 
+				// we have no color blending triangles when extruding
+				// the lines using triangles. Should be improved.
+				line.points.push_back(debugCommands[i].from);
+				line.points.push_back(debugCommands[i].from);
+				line.points.push_back(debugCommands[i].to);
+				line.points.push_back(debugCommands[i].to);
+				line.color = debugCommands[i].color;
+				line.miter = 0.0f;
+				debugPaths.push_back(line);
 			}
 		}
 
@@ -1629,6 +1514,102 @@ void Renderer::paintGL() {
 		delete[] line_idx_buf; 
 	}
 
+	// create an array for the actual buffer
+	std::vector<PathVertex> path_vertices;
+
+	// Rendering of debug lines and paths
+	for (Path &path : debugPaths) {
+		// note: we submit each vertex twice so that any two points are
+		// extruded by a quad made of two triangles (hence four points)
+		for (int i = 0; i < path.points.size(); i++) {
+			PathVertex vertex;
+			memcpy (vertex.position, path.points[i].data(), sizeof(float) * 3);
+			memcpy (vertex.color, path.color.data(), sizeof(float) * 4);
+			if (i == 0) {
+				assert (path.points.size() > 1);
+				memcpy (vertex.prev, path.points[i].data(), sizeof(float) * 3);
+				memcpy (vertex.next, path.points[i + 1].data(), sizeof(float) * 3);
+			} else if (i == path.points.size() - 1) {
+				memcpy (vertex.next, path.points[i].data(), sizeof(float) * 3);
+				memcpy (vertex.prev, path.points[i - 1].data(), sizeof(float) * 3);
+			} else { 
+				memcpy (vertex.prev, path.points[i - 1].data(), sizeof(float) * 3);
+				memcpy (vertex.next, path.points[i + 1].data(), sizeof(float) * 3);
+			}
+			vertex.direction = -1.0f;
+			path_vertices.push_back(vertex);
+			vertex.direction =  1.0f;
+			path_vertices.push_back(vertex);
+		}
+
+		//		PathVertex* v = (PathVertex*) path_vertices.data();
+		//		int vi = 0;
+		//		while (vi < path_vertices.size()) {
+		//			cout << vi << ": v=" << v->position[0] << ", " << v->position[1] << ", " << v->position[2]
+		//				<< " p=" << v->prev[0] << ", " << v->prev[1] << ", " << v->prev[2] << ", "
+		//				<< " n=" << v->next[0] << ", " << v->next[1] << ", " << v->next[2] << ", "
+		//				<< " d=" << v->direction << endl;
+		//
+		//			v++;
+		//			vi++;
+		//		}
+
+	}
+	
+	// update buffer from buffer data
+		bgfx::updateDynamicVertexBuffer (path_lines_vbh,
+				0,
+				bgfx::copy(path_vertices.data(), sizeof(PathVertex) * path_vertices.size())
+				);
+
+		std::vector<uint16_t> line_indices;
+		int index = 0;
+		for (int i = 0; i < (path_vertices.size() / 2) - 1; i++) {
+			int j = index;
+			line_indices.push_back(j + 0);
+			line_indices.push_back(j + 1);
+			line_indices.push_back(j + 2);
+			line_indices.push_back(j + 2);
+			line_indices.push_back(j + 1);
+			line_indices.push_back(j + 3);
+			index += 2;
+		}
+
+		//		for (int i = 0; i < line_indices.size(); i++) {
+		//			cout << line_indices[i] << ", ";
+		//		}
+		//		cout << endl;
+		//
+		//		cout << "points: " << path.points.size()
+		//			<< ", line indices: " << line_indices.size()
+		//			<< ", path_vertices: " << path_vertices.size() 
+		//			<< ", last line index: " << line_indices[line_indices.size() -1] 
+		//			<< ", width = " << width << ", height = " << height
+		//			<< endl;
+
+		//		assert (line_indices[line_indices.size() -1] < path_vertices.size());
+		//		assert (line_indices.size() == path.points.size() * 3);
+
+		bgfx::updateDynamicIndexBuffer (path_lines_ibh,
+				0,
+				bgfx::copy(line_indices.data(), sizeof(uint16_t) * line_indices.size())
+				);
+
+		// submit data
+		const RenderState& st = s_renderStates[RenderState::Lines];
+
+		float thickness = 0.05f;
+		float miter = 0.0f;
+
+		Vector4f params (thickness, miter, width / height, 0.0f);
+
+		Camera &active_camera = cameras[activeCameraIndex];
+
+		bgfx::setUniform(u_line_params, params.data(), 1);
+		bgfx::setIndexBuffer(path_lines_ibh);
+		bgfx::setVertexBuffer(path_lines_vbh);
+		bgfx::setState(st.m_state);
+		bgfx::submit(st.m_viewId, st.m_program.program);
 
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.
@@ -1776,7 +1757,7 @@ void Renderer::drawDebugLine (
 	cmd.type = DebugCommand::Line;
 	cmd.from = from;
 	cmd.to = to;
-	cmd.color = color;
+	cmd.color = SimpleMath::Vector4f (color[0], color[1], color[2], 1.0f);
 
 	debugCommands.push_back(cmd);
 }
