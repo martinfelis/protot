@@ -1492,14 +1492,14 @@ void Renderer::paintGL() {
 
 		// update buffer from buffer data
 		bgfx::updateDynamicVertexBuffer (debug_lines_vbh,
-			0,
-			bgfx::copy(line_vert_buf, sizeof(PosColorVertex) * line_count * 2)
-			);
+				0,
+				bgfx::copy(line_vert_buf, sizeof(PosColorVertex) * line_count * 2)
+				);
 
 		bgfx::updateDynamicIndexBuffer (debug_lines_ibh,
-			0,
-			bgfx::copy(line_idx_buf, sizeof(uint16_t) * line_count * 2)
-			);
+				0,
+				bgfx::copy(line_idx_buf, sizeof(uint16_t) * line_count * 2)
+				);
 
 		// submit data
 		const RenderState& st = s_renderStates[RenderState::Debug];
@@ -1555,13 +1555,16 @@ void Renderer::paintGL() {
 		//		}
 
 	}
-	
-	// update buffer from buffer data
-		bgfx::updateDynamicVertexBuffer (path_lines_vbh,
-				0,
-				bgfx::copy(path_vertices.data(), sizeof(PathVertex) * path_vertices.size())
-				);
 
+	// update buffer from buffer data
+	bgfx::updateDynamicVertexBuffer (path_lines_vbh,
+			0,
+			bgfx::copy(path_vertices.data(), sizeof(PathVertex) * path_vertices.size())
+			);
+
+	// only render if we actually have lines to draw
+	if (path_vertices.size() > 0)
+	{
 		std::vector<uint16_t> line_indices;
 		int index = 0;
 		for (int i = 0; i < (path_vertices.size() / 2) - 1; i++) {
@@ -1610,6 +1613,7 @@ void Renderer::paintGL() {
 		bgfx::setVertexBuffer(path_lines_vbh);
 		bgfx::setState(st.m_state);
 		bgfx::submit(st.m_viewId, st.m_program.program);
+	}
 
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.
