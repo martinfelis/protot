@@ -6,6 +6,12 @@
 
 namespace SimpleMath {
 
+typedef SimpleMath::Fixed::Matrix<float, 3, 1> Vector3f;
+typedef SimpleMath::Fixed::Matrix<float, 3, 3> Matrix33f;
+
+typedef SimpleMath::Fixed::Matrix<float, 4, 1> Vector4f;
+typedef SimpleMath::Fixed::Matrix<float, 4, 4> Matrix44f;
+
 namespace GL {
 
 inline Matrix33f RotateMat33 (float rot_deg, float x, float y, float z) {
@@ -87,18 +93,18 @@ class Quaternion : public Vector4f {
 		/** This function is equivalent to multiplicate their corresponding rotation matrices */
 		Quaternion operator* (const Quaternion &q) const {
 			return Quaternion (
-					q[3] * (*this)[0] + q[0] * (*this)[3] + q[1] * (*this)[2] - q[2] * (*this)[1],
-					q[3] * (*this)[1] + q[1] * (*this)[3] + q[2] * (*this)[0] - q[0] * (*this)[2],
-					q[3] * (*this)[2] + q[2] * (*this)[3] + q[0] * (*this)[1] - q[1] * (*this)[0],
-					q[3] * (*this)[3] - q[0] * (*this)[0] - q[1] * (*this)[1] - q[2] * (*this)[2]
+					(*this)[3] * q[0] + (*this)[0] * q[3] + (*this)[1] * q[2] - (*this)[2] * q[1],
+					(*this)[3] * q[1] + (*this)[1] * q[3] + (*this)[2] * q[0] - (*this)[0] * q[2],
+					(*this)[3] * q[2] + (*this)[2] * q[3] + (*this)[0] * q[1] - (*this)[1] * q[0],
+					(*this)[3] * q[3] - (*this)[0] * q[0] - (*this)[1] * q[1] - (*this)[2] * q[2]
 					);
 		}
 		Quaternion& operator*=(const Quaternion &q) {
 			set (
-					q[3] * (*this)[0] + q[0] * (*this)[3] + q[1] * (*this)[2] - q[2] * (*this)[1],
-					q[3] * (*this)[1] + q[1] * (*this)[3] + q[2] * (*this)[0] - q[0] * (*this)[2],
-					q[3] * (*this)[2] + q[2] * (*this)[3] + q[0] * (*this)[1] - q[1] * (*this)[0],
-					q[3] * (*this)[3] - q[0] * (*this)[0] - q[1] * (*this)[1] - q[2] * (*this)[2]
+					(*this)[3] * q[0] + (*this)[0] * q[3] + (*this)[1] * q[2] - (*this)[2] * q[1],
+					(*this)[3] * q[1] + (*this)[1] * q[3] + (*this)[2] * q[0] - (*this)[0] * q[2],
+					(*this)[3] * q[2] + (*this)[2] * q[3] + (*this)[0] * q[1] - (*this)[1] * q[0],
+					(*this)[3] * q[3] - (*this)[0] * q[0] - (*this)[1] * q[1] - (*this)[2] * q[2]
 					);
 			return *this;
 		}
@@ -185,39 +191,55 @@ class Quaternion : public Vector4f {
 					w);
 		}
 
-		static Quaternion fromEulerZYX (const Vector3f &zyx_euler) {
-			return Quaternion::fromGLRotate (zyx_euler[0] * 180.f / M_PI, 0.f, 0.f, 1.f)
-				* Quaternion::fromGLRotate (zyx_euler[1] * 180.f / M_PI, 0.f, 1.f, 0.f)
-				* Quaternion::fromGLRotate (zyx_euler[2] * 180.f / M_PI, 1.f, 0.f, 0.f);
+		static Quaternion fromAxisAngle (const Vector3f &axis, double angle_rad) {
+			double d = axis.norm();
+			double s2 = std::sin (angle_rad * 0.5) / d;
+			return Quaternion (
+					axis[0] * s2,
+					axis[1] * s2,
+					axis[2] * s2,
+					std::cos(angle_rad * 0.5)
+					);
 		}
 
+		static Quaternion fromEulerZYX (const Vector3f &zyx_angles) {
+			return Quaternion::fromAxisAngle (Vector3f (0., 0., 1.), zyx_angles[0])
+				* Quaternion::fromAxisAngle (Vector3f (0., 1., 0.), zyx_angles[1])
+				* Quaternion::fromAxisAngle (Vector3f (1., 0., 0.), zyx_angles[2]); 
+		}
+
+		static Quaternion fromEulerYXZ (const Vector3f &yxz_angles) {
+			return Quaternion::fromAxisAngle (Vector3f (0., 1., 0.), yxz_angles[0])
+				* Quaternion::fromAxisAngle (Vector3f (1., 0., 0.), yxz_angles[1])
+				* Quaternion::fromAxisAngle (Vector3f (0., 0., 1.), yxz_angles[2]);
+		}
+
+		static Quaternion fromEulerXYZ (const Vector3f &xyz_angles) {
+			return Quaternion::fromAxisAngle (Vector3f (0., 0., 01.), xyz_angles[2]) 
+				* Quaternion::fromAxisAngle (Vector3f (0., 1., 0.), xyz_angles[1])
+				* Quaternion::fromAxisAngle (Vector3f (1., 0., 0.), xyz_angles[0]);
+		}
+ 
 		Vector3f toEulerZYX () const {
 			return Vector3f (
-					atan2 (-2.f * (*this)[0] * (*this)[1] +  2.f * (*this)[3] * (*this)[2],
+					atan2 (-2.f * (*this)[0] * (*this)[1] + 2.f * (*this)[3] * (*this)[2],
 						(*this)[0] * (*this)[0] + (*this)[3] * (*this)[3]
 						-(*this)[2] * (*this)[2] - (*this)[1] * (*this)[1]),
 					asin (2.f * (*this)[0] * (*this)[2] + 2.f * (*this)[3] * (*this)[1]),
-					atan2 (-2.f * (*this)[1] * (*this)[2] +  2.f * (*this)[3] * (*this)[0],
+					atan2 (-2.f * (*this)[1] * (*this)[2] + 2.f * (*this)[3] * (*this)[0],
 						(*this)[2] * (*this)[2] - (*this)[1] * (*this)[1]
 						-(*this)[0] * (*this)[0] + (*this)[3] * (*this)[3]
 						)
 					);
 		}
 
-
-		static Quaternion fromEulerYXZ (const Vector3f &yxz_euler) {
-			return Quaternion::fromGLRotate (yxz_euler[0] * 180.f / M_PI, 0.f, 1.f, 0.f)
-				* Quaternion::fromGLRotate (yxz_euler[1] * 180.f / M_PI, 1.f, 0.f, 0.f)
-				* Quaternion::fromGLRotate (yxz_euler[2] * 180.f / M_PI, 0.f, 0.f, 1.f);
-		}
-
 		Vector3f toEulerYXZ() const {
 			return Vector3f (
-					atan2 (-2.f * (*this)[0] * (*this)[2] +  2.f * (*this)[3] * (*this)[1],
+					atan2 (-2.f * (*this)[0] * (*this)[2] + 2.f * (*this)[3] * (*this)[1],
 						(*this)[2] * (*this)[2] - (*this)[1] * (*this)[1]
 						-(*this)[0] * (*this)[0] + (*this)[3] * (*this)[3]),
 					asin (2.f * (*this)[1] * (*this)[2] + 2.f * (*this)[3] * (*this)[0]),
-					atan2 (-2.f * (*this)[0] * (*this)[1] +  2.f * (*this)[3] * (*this)[2],
+					atan2 (-2.f * (*this)[0] * (*this)[1] + 2.f * (*this)[3] * (*this)[2],
 						(*this)[1] * (*this)[1] - (*this)[2] * (*this)[2]
 						+(*this)[3] * (*this)[3] - (*this)[0] * (*this)[0]
 						)
@@ -256,8 +278,8 @@ class Quaternion : public Vector4f {
 			Vector3f vn (vec);
 			Quaternion vec_quat (vn[0], vn[1], vn[2], 0.f), res_quat;
 
-			res_quat = vec_quat * (*this);
-			res_quat = conjugate() * res_quat;
+			res_quat = (*this) * vec_quat;
+			res_quat = res_quat * conjugate();
 
 			return Vector3f (res_quat[0], res_quat[1], res_quat[2]);
 		}

@@ -310,7 +310,7 @@ namespace SimpleMath {
 				value_type abs_threshold = fabs(mR(0,0)) * mThreshold;
 
 				for (unsigned int i = 1; i < mR.cols(); i++) {
-					if (fabs(mR(i,i) < abs_threshold))
+					if (fabs(mR(i,i)) < abs_threshold)
 						return i;
 				}
 
