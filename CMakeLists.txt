@@ -57,10 +57,12 @@ INCLUDE_DIRECTORIES (
 	)
 
 SUBDIRS ( 
-	#	tests/ 
 	src/modules
+	tests/
+
 	3rdparty/glfw
 	3rdparty/bgfx
+	3rdparty/googletest
 	)
 
 SET ( protot_SRCS

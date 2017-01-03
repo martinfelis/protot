@@ -35,12 +35,12 @@
 
 using namespace std;
 
-typedef SimpleMath::Matrix44f Matrix44f;
-typedef SimpleMath::Vector4f Vector4f;
-typedef SimpleMath::Matrix33f Matrix33f;
-typedef SimpleMath::Vector3f Vector3f;
-typedef SimpleMath::MatrixNNf MatrixNNf;
-typedef SimpleMath::VectorNf VectorNf;
+typedef Matrix44f Matrix44f;
+typedef Vector4f Vector4f;
+typedef Matrix33f Matrix33f;
+typedef Vector3f Vector3f;
+typedef MatrixNNf MatrixNNf;
+typedef VectorNf VectorNf;
 
 struct Renderer;
 
@@ -136,6 +136,23 @@ const struct module_api MODULE_API = {
 	.finalize = module_finalize
 };
 }
+
+void MeshHierarchy::updateMatrices(const Matrix44f &world_transform) {
+	for (uint32_t i = 0; i < meshes.size(); ++i) {
+		Matrix44f parent_matrix (world_transform);
+		if (parent[i] != -1) {
+			parent_matrix = meshMatrices[parent[i]];
+		}
+
+		meshMatrices[i] = localTransforms[i].toMatrix() * parent_matrix;
+	}
+}
+
+void MeshHierarchy::submit(const RenderState *state) {
+	for (uint32_t i = 0; i < meshes.size(); ++i) {
+		bgfxutils::meshSubmit (meshes[i], state, 1, meshMatrices[i].data());
+	}
+};
 
 // BGFX globals
 bgfx::VertexBufferHandle cube_vbh;
@@ -1401,23 +1418,27 @@ void Renderer::paintGL() {
 		}
 	}
 
+	//
+	// Shadow map and scene pass
+	//
+		
 	// render entities
 	for (size_t i = 0; i < entities.size(); i++) {
 		float mtxLightViewProjInv[16];
 		float light_pos_world[3];
 		// shadow map pass
-		bx::mtxMul(lightMtx, entities[i]->transform, lights[0].mtxShadow);
+		bx::mtxMul(lightMtx, entities[i]->transform.toMatrix().data(), lights[0].mtxShadow);
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, entities[i]->color, 4);
-		meshSubmit(entities[i]->mesh, &s_renderStates[RenderState::ShadowMap], 1, entities[i]->transform);
+		entities[i]->mesh.submit (&s_renderStates[RenderState::ShadowMap]);
 
 		// scene pass
-		bx::mtxMul(lightMtx, entities[i]->transform, lights[0].mtxShadow);
+		bx::mtxMul(lightMtx, entities[i]->transform.toMatrix().data(), lights[0].mtxShadow);
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, entities[i]->color, 4);
-		meshSubmit(entities[i]->mesh, &s_renderStates[RenderState::Scene], 1, entities[i]->transform);
+		entities[i]->mesh.submit (&s_renderStates[RenderState::Scene]);
 	}
 
 	// render debug information
@@ -1707,11 +1728,6 @@ bool Renderer::destroyEntity(Entity* entity) {
 	}
 
 	if (i != entities.size()) {
-		if (entity->mesh != nullptr) {
-			meshUnload (entity->mesh);
-			entity->mesh = nullptr;
-		}
-		
 		delete entity;
 
 		entities.erase(entities.begin() + i);
@@ -1754,21 +1770,21 @@ bgfxutils::Mesh* Renderer::loadMesh(const char* filename) {
 
 // debug commands
 void Renderer::drawDebugLine (
-		const SimpleMath::Vector3f &from,
-		const SimpleMath::Vector3f &to,
-		const SimpleMath::Vector3f &color) {
+		const Vector3f &from,
+		const Vector3f &to,
+		const Vector3f &color) {
 	DebugCommand cmd;
 	cmd.type = DebugCommand::Line;
 	cmd.from = from;
 	cmd.to = to;
-	cmd.color = SimpleMath::Vector4f (color[0], color[1], color[2], 1.0f);
+	cmd.color = Vector4f (color[0], color[1], color[2], 1.0f);
 
 	debugCommands.push_back(cmd);
 }
 
 void Renderer::drawDebugAxes (
-		const SimpleMath::Vector3f &pos,
-		const SimpleMath::Matrix33f &orientation,
+		const Vector3f &pos,
+		const Matrix33f &orientation,
 		const float &scale) {
 
 	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,0)) * scale, Vector3f (1.f, 0.f, 0.f));

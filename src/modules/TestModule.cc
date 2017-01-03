@@ -17,13 +17,6 @@
 
 using namespace std;
 
-typedef SimpleMath::Matrix44f Matrix44f;
-typedef SimpleMath::Vector4f Vector4f;
-typedef SimpleMath::Matrix33f Matrix33f;
-typedef SimpleMath::Vector3f Vector3f;
-typedef SimpleMath::MatrixNNf MatrixNNf;
-typedef SimpleMath::VectorNf VectorNf;
-
 double mouse_scroll_x = 0.;
 double mouse_scroll_y = 0.;
 bool fps_camera = true;
@@ -32,20 +25,20 @@ bool fps_camera = true;
 
 struct CharacterController {
 	enum ControllerState {
-		ControlForward = 1,
-		ControlLeft,
-		ControlRight,
-		ControlBack,
 		ControlJump,
 		ControlStateLast
 	};
 
 	bool state[ControlStateLast];
 
+	Vector3f direction = Vector3f::Zero();
+
 	void reset() {
 		for (int i = 0; i < ControlStateLast; i++) {
 			state[i] = false;
 		}
+
+		direction.setZero();
 	}
 
 	CharacterController() {
@@ -60,38 +53,33 @@ struct CharacterEntity {
 	Vector3f velocity;
 	CharacterController controller;
 
+	float cJumpVelocity = 20.0f;
+	float cVelocityDamping = 2.0f;
+	float cGravity = 30.0f;
+	float cGroundAcceleration = 30.0f;
+
 	void update(float dt) {
-		Vector3f controller_velocity (Vector3f::Zero());
-
-		if (controller.state[CharacterController::ControlForward]) {
-			controller_velocity += Vector3f (1.f, 0.f, 0.f);
-		}
-
-		if (controller.state[CharacterController::ControlBack]) {
-			controller_velocity -= Vector3f (1.f, 0.f, 0.f);
-		}
-
-		if (controller.state[CharacterController::ControlRight]) {
-			controller_velocity += Vector3f (0.f, 0.f, 1.f);
-		}
-
-		if (controller.state[CharacterController::ControlLeft]) {
-			controller_velocity -= Vector3f (0.f, 0.f, 1.f);
-		}
-		
-		if (position[1] == 0.0f && controller.state[CharacterController::ControlJump]) {
-			controller_velocity += Vector3f (0.f, 20.f, 0.f);
-		}
-
-		float vel_damping = 2.0;
-		Vector3f acceleration(
-				-velocity[0] * vel_damping,
-				-29.81f,
-				-velocity[2] * vel_damping
+		Vector3f controller_acceleration (
+				controller.direction[0] * cGroundAcceleration,
+				controller.direction[1] * cGroundAcceleration,
+				controller.direction[2] * cGroundAcceleration
 				);
-		acceleration = acceleration + controller_velocity * 30.0f;
+		
+		Vector3f gravity (0.0f, -cGravity, 0.0f);
+		Vector3f damping (
+				-velocity[0] * cVelocityDamping,
+				0.0f,
+				-velocity[2] * cVelocityDamping
+				);
+
+		Vector3f acceleration = controller_acceleration + gravity + damping;
 	
 		velocity = velocity + acceleration * dt;
+
+		if (position[1] == 0.0f 
+				&& controller.state[CharacterController::ControlJump]) {
+			velocity[1] += cJumpVelocity;	
+		}
 
 		// integrate position
 		position += velocity * dt;
@@ -101,7 +89,12 @@ struct CharacterEntity {
 		}
 
 		// apply transformation
-		bx::mtxTranslate(entity->transform, position[0], position[1] + 1.0f, position[2]);
+		entity->transform.translation.set(
+				position[0],
+				position[1] + 1.0f,
+				position[2]);
+
+		entity->mesh.updateMatrices(entity->transform.toMatrix());
 	}
 };
 
@@ -111,6 +104,7 @@ struct module_state {
 	float camera_phi;
 	bool modules_window_visible = false;
 	bool imgui_demo_window_visible = false;
+	bool character_properties_window_visible = false;
 	int modules_window_selected_index = -1;
 
 	CharacterEntity* character = nullptr;
@@ -189,11 +183,11 @@ void handle_keyboard (struct module_state *state, float dt) {
 	Matrix44f camera_view_matrix = SimpleMath::Map<Matrix44f>(active_camera->mtxView, 4, 4);
 	Matrix33f camera_rot_inv = camera_view_matrix.block<3,3>(0,0).transpose();
 
+	Vector3f forward = camera_rot_inv.transpose() * Vector3f (0.f, 0.f, 1.f);
+	Vector3f right = camera_rot_inv.transpose() * Vector3f (1.f, 0.f, 0.f);
+
 	if (glfwGetMouseButton(gWindow, 1)) {
 		// Right mouse button pressed, move the camera
-		Vector3f forward = camera_rot_inv.transpose() * Vector3f (0.f, 0.f, 1.f);
-		Vector3f right = camera_rot_inv.transpose() * Vector3f (1.f, 0.f, 0.f);
-
 		Vector3f eye = active_camera->eye;
 		Vector3f poi = active_camera->poi;
 
@@ -234,21 +228,23 @@ void handle_keyboard (struct module_state *state, float dt) {
 
 		controller.reset();
 
+		Vector3f forward_plane = Vector3f (0.0f, 1.0f, 0.0f).cross(right);
+
 		// Reset the character control state:
 		if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlForward] = true;	
+			controller.direction += forward_plane;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlBack] = true;	
+			controller.direction -= forward_plane;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlRight] = true;	
+			controller.direction += right;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlLeft] = true;	
+			controller.direction -= right;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
@@ -293,13 +289,18 @@ static void module_reload(struct module_state *state) {
 	cout << "Creating render entity ... success!" << endl;
 
 	cout << "Creating render entity mesh ..." << endl;
-	state->character->entity->mesh = bgfxutils::createUVSphere (45, 45);
+	state->character->entity->mesh.addMesh(
+			-1,
+			Transform(),
+			bgfxutils::createUVSphere (45, 45)
+			);
 //	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 //	state->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
 
 	// load the state of the entity
 	SerializeVec3(*gReadSerializer, "protot.TestModule.entity.position", state->character->position);
+	SerializeBool(*gReadSerializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
 	SerializeBool(*gReadSerializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
 	SerializeInt(*gReadSerializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
 
@@ -311,6 +312,7 @@ static void module_unload(struct module_state *state) {
 
 	// serialize the state of the entity
 	SerializeVec3(*gWriteSerializer, "protot.TestModule.entity.position", state->character->position);
+	SerializeBool(*gWriteSerializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
 	SerializeBool(*gWriteSerializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
 	SerializeInt(*gWriteSerializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
 
@@ -383,6 +385,17 @@ void ShowModulesWindow(struct module_state *state) {
 	ImGui::End();
 }
 
+void ShowCharacterPropertiesWindow (CharacterEntity* character) {
+	assert (character != nullptr);
+	ImGui::SetNextWindowSize (ImVec2(600.f, 300.0f), ImGuiSetCond_Once);
+	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
+	ImGui::Begin("Character");
+
+	ImGui::DragFloat3 ("Position", character->position.data(), 0.01, -10.0f, 10.0f);
+
+	ImGui::End();
+}
+
 static bool module_step(struct module_state *state, float dt) {
 	if (gRenderer == nullptr)
 		return false;
@@ -396,6 +409,7 @@ static bool module_step(struct module_state *state, float dt) {
 	{
 		ImGui::Checkbox("Modules", &state->modules_window_visible);
 		ImGui::Checkbox("ImGui Demo", &state->imgui_demo_window_visible);
+		ImGui::Checkbox("Character", &state->character_properties_window_visible);
 		
 		ImGui::EndMenu();
 	}
@@ -404,6 +418,10 @@ static bool module_step(struct module_state *state, float dt) {
 
 	if (state->modules_window_visible) {
 		ShowModulesWindow(state);
+	}
+
+	if (state->character_properties_window_visible && state->character != nullptr) {
+		ShowCharacterPropertiesWindow(state->character);
 	}
 
 	if (state->imgui_demo_window_visible) {

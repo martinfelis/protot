@@ -221,15 +221,7 @@ class Quaternion : public Vector4f {
 		}
  
 		Vector3f toEulerZYX () const {
-			return Vector3f (
-					atan2 (-2.f * (*this)[0] * (*this)[1] + 2.f * (*this)[3] * (*this)[2],
-						(*this)[0] * (*this)[0] + (*this)[3] * (*this)[3]
-						-(*this)[2] * (*this)[2] - (*this)[1] * (*this)[1]),
-					asin (2.f * (*this)[0] * (*this)[2] + 2.f * (*this)[3] * (*this)[1]),
-					atan2 (-2.f * (*this)[1] * (*this)[2] + 2.f * (*this)[3] * (*this)[0],
-						(*this)[2] * (*this)[2] - (*this)[1] * (*this)[1]
-						-(*this)[0] * (*this)[0] + (*this)[3] * (*this)[3]
-						)
+			return Vector3f (1.0f, 2.0f, 3.0f
 					);
 		}
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "math_types.h"
+
 struct Renderer;
 extern Renderer* gRenderer;
 
