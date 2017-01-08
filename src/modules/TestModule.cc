@@ -46,6 +46,13 @@ struct CharacterController {
 	};
 };
 
+const float cJumpVelocity = 4.0f;
+const float cVelocityDamping = 4.0f;
+const float cGravity = 9.81f;
+const float cGroundAcceleration = 30.0f;
+const float cCharacterHeight = 1.8f;
+const float cCharacterWidth = 1.f;
+
 struct CharacterEntity {
 	/// Render entity
 	Entity *entity;
@@ -53,10 +60,11 @@ struct CharacterEntity {
 	Vector3f velocity;
 	CharacterController controller;
 
-	float cJumpVelocity = 20.0f;
-	float cVelocityDamping = 2.0f;
-	float cGravity = 30.0f;
-	float cGroundAcceleration = 30.0f;
+	void reset() {
+		position.setZero();
+		velocity.setZero();
+		controller.reset();
+	}
 
 	void update(float dt) {
 		Vector3f controller_acceleration (
@@ -78,7 +86,7 @@ struct CharacterEntity {
 
 		if (position[1] == 0.0f 
 				&& controller.state[CharacterController::ControlJump]) {
-			velocity[1] += cJumpVelocity;	
+			velocity[1] = cJumpVelocity;	
 		}
 
 		// integrate position
@@ -86,12 +94,13 @@ struct CharacterEntity {
 
 		if (position[1] < 0.f) {
 			position[1] = 0.f;
+			velocity[1] = 0.0f;
 		}
 
 		// apply transformation
 		entity->transform.translation.set(
 				position[0],
-				position[1] + 1.0f,
+				position[1],
 				position[2]);
 
 		entity->mesh.updateMatrices(entity->transform.toMatrix());
@@ -285,15 +294,30 @@ static void module_reload(struct module_state *state) {
 
 	cout << "Creating render entity ..." << endl;
 	state->character->entity = gRenderer->createEntity();
-	state->character->position = Vector3f (0.f, 0.74f, 0.0f);
+	state->character->position = Vector3f (0.f, 0.0f, 0.0f);
 	cout << "Creating render entity ... success!" << endl;
 
 	cout << "Creating render entity mesh ..." << endl;
-	state->character->entity->mesh.addMesh(
-			-1,
-			Transform(),
-			bgfxutils::createUVSphere (45, 45)
-			);
+
+	Vector3f snowman_offsets (0.45f, 0.35f, 0.25f);
+	float height_offset = 0.0f;
+	for (int i = 0; i < 3; i++) {
+		float radius = cCharacterHeight * snowman_offsets[i];
+		Transform transform = Transform::fromTransRotScale(
+				Vector3f(0.f, height_offset + radius * 0.5f, 0.0f),
+				Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+				Vector3f(radius, radius, radius)
+				);
+
+		state->character->entity->mesh.addMesh(
+				-1,
+				transform,
+				bgfxutils::createUVSphere (45, 45)
+				);
+
+		height_offset += radius * 0.8;
+	}
+
 //	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 //	state->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
@@ -385,13 +409,96 @@ void ShowModulesWindow(struct module_state *state) {
 	ImGui::End();
 }
 
+// Returns a normalized vector where the value at the modified index
+// is kept and only the other values are being modified so that the
+// resulting vector is normalized.
+bool DragFloat4Normalized(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* display_format = "%.3f", float power = 1.0f)
+{
+	float old_values[4];
+	memcpy (old_values, v, sizeof(float) * 4);
+
+	bool modified = ImGui::DragFloat4(label, v, v_speed, v_min, v_max, display_format, power);
+	if (modified) {
+		int mod_index = -1;
+		Vector3f other_values;
+		int other_index = 0;
+
+		// determine the modified index and copy the unmodified values to
+		// other_values
+		for (int i = 0; i < 4; ++i) {
+			if (old_values[i] != v[i]) {
+				mod_index = i;
+			} else {
+				other_values[other_index] = v[i];
+				other_index++;
+			}
+		}
+
+		// normalize, but take zero length of other values into account and
+		// also modification of vectors with a single 1.
+		float other_length = other_values.norm();
+		if (fabs(v[mod_index]) >= 1.0f - 1.0e-6f || other_length == 0.0f) {
+			other_values.setZero();
+			v[mod_index] = 1.0f * v[mod_index] < 0.0f ? -1.0f : 1.0f; 
+		} else {
+			// normalize other_values to have the remaining length
+			other_values = other_values * (1.f / other_length) * (sqrt(1.0f - v[mod_index] * v[mod_index]));
+		}
+
+		// construct the new vector
+		other_index = 0;
+		for (int i = 0; i < 4; ++i) {
+			if (i != mod_index) {
+				v[i] = other_values[other_index];
+				other_index++;
+			}
+		}
+	}
+
+	return modified;
+}
+
+
+
 void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	assert (character != nullptr);
 	ImGui::SetNextWindowSize (ImVec2(600.f, 300.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
 	ImGui::Begin("Character");
 
+	if (ImGui::Button ("Reset")) {
+		character->reset();
+	}
+	
 	ImGui::DragFloat3 ("Position", character->position.data(), 0.01, -10.0f, 10.0f);
+	ImGui::DragFloat3 ("Velocity", character->velocity.data(), 0.01, -10.0f, 10.0f);
+
+
+	for (int i = 0; i < character->entity->mesh.meshes.size(); ++i) {
+		char buf[32];
+		snprintf (buf, 32, "Mesh %d", i);
+
+		ImGuiTreeNodeFlags node_flags = 0;
+
+		bool node_open = ImGui::TreeNodeEx(
+				buf,
+				node_flags);
+
+		if (node_open) {
+			Transform &transform = character->entity->mesh.localTransforms[i];
+
+			ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
+			if (DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
+				if (isnan(transform.rotation.squaredNorm())) {
+					cout << "nan! " << transform.rotation.transpose() << endl;
+					abort();
+				}
+			}
+			ImGui::DragFloat3 ("Scale", transform.scale.data(), 0.01, 0.001f, 10.0f);
+
+			ImGui::TreePop();
+		}
+	}
 
 	ImGui::End();
 }

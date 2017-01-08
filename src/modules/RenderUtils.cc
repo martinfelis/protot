@@ -1115,11 +1115,11 @@ Mesh *createUVSphere (int rows, int segments) {
 		float alpha0 = j * row_d * M_PI;
 		float alpha1 = (j + 1) * row_d * M_PI;
 
-		float r0 = sin (alpha0);
-		float r1 = sin (alpha1);
+		float r0 = sin (alpha0) * 0.5f;
+		float r1 = sin (alpha1) * 0.5f;
 
-		float h0 = cos (alpha0);
-		float h1 = cos (alpha1);
+		float h0 = cos (alpha0) * 0.5f;
+		float h1 = cos (alpha1) * 0.5f;
 
 		for (unsigned int i = 0; i < segments; i++) {
 			Vector3f v0, v1, v2, v3;
@@ -1131,22 +1131,22 @@ Mesh *createUVSphere (int rows, int segments) {
 	    v2 = Vector3f (r0 * cos(a1), h0, r0 * sin (a1));
 	    v3 = Vector3f (r0 * cos(a0), h0, r0 * sin (a0));
 
-			vertices.push_back (Vector4f(v0[0], v0[1], v0[2], 0.f));
+			vertices.push_back (Vector4f(v0[0], v0[1], v0[2], 1.f));
 			normals.push_back (v0 * 1.f/ v0.norm());
 
-			vertices.push_back (Vector4f(v2[0], v2[1], v2[2], 0.f));
+			vertices.push_back (Vector4f(v2[0], v2[1], v2[2], 1.f));
 			normals.push_back (v2 * 1.f/ v2.norm());
 
-			vertices.push_back (Vector4f(v1[0], v1[1], v1[2], 0.f));
+			vertices.push_back (Vector4f(v1[0], v1[1], v1[2], 1.f));
 			normals.push_back (v1 * 1.f/ v1.norm());
 
-			vertices.push_back (Vector4f(v0[0], v0[1], v0[2], 0.f));
+			vertices.push_back (Vector4f(v0[0], v0[1], v0[2], 1.f));
 			normals.push_back (v0 * 1.f/ v0.norm());
 
-			vertices.push_back (Vector4f(v3[0], v3[1], v3[2], 0.f));
+			vertices.push_back (Vector4f(v3[0], v3[1], v3[2], 1.f));
 			normals.push_back (v3 * 1.f/ v3.norm());
 
-			vertices.push_back (Vector4f(v2[0], v2[1], v2[2], 0.f));
+			vertices.push_back (Vector4f(v2[0], v2[1], v2[2], 1.f));
 			normals.push_back (v2 * 1.f/ v2.norm());
 		}
 	}

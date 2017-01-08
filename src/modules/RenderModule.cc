@@ -769,9 +769,9 @@ void Camera::updateMatrices() {
 	bx::vec3Cross(tmp, dirNorm, right);
 	bx::vec3Norm(up, tmp);
 
-	mtxEnv[ 0] = right[0];
-	mtxEnv[ 1] = right[1];
-	mtxEnv[ 2] = right[2];
+	mtxEnv[ 0] = -right[0];
+	mtxEnv[ 1] = -right[1];
+	mtxEnv[ 2] = -right[2];
 	mtxEnv[ 3] = 0.0f;
 	mtxEnv[ 4] = up[0];
 	mtxEnv[ 5] = up[1];
@@ -1276,13 +1276,16 @@ void Renderer::paintGL() {
 
 		bx::mtxLookAtRh(lights[i].mtxView, eye, at);
 
-		lights[i].area = 20.0f;
-		lights[i].near = 0.f;
-		lights[i].far = 40.f;
+		lights[i].area = 10.0f;
+		lights[i].near = 10.f;
+		lights[i].far = 20.f;
 
 		//	bx::mtxProj(lightProj, 20.0f, 1., 5.f, 10.0f);
 
-		bx::mtxOrthoRh(lights[i].mtxProj, -lights[i].area, lights[i].area, -lights[i].area, lights[i].area, lights[i].near, lights[i].far);
+		bx::mtxOrthoRh(lights[i].mtxProj, 
+				lights[i].area, -lights[i].area, 
+				lights[i].area, -lights[i].area, 
+				lights[i].near, lights[i].far);
 
 		// lights: shadow matrix
 		const float sy = flipV ? 0.5f : -0.5f;
@@ -1323,6 +1326,11 @@ void Renderer::paintGL() {
 	bgfx::setViewRect(RenderState::Debug, 0, 0, width, height);
 	bgfx::setViewTransform(RenderState::Debug, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
+
+	//
+	// Pass: floor
+	//
+
 	// setup floor
 	float mtxFloor[16];
 	bx::mtxSRT(mtxFloor
@@ -1355,6 +1363,10 @@ void Renderer::paintGL() {
 
 	bgfx::touch(RenderState::Scene);
 	bgfx::touch(RenderState::Skybox);
+
+	//
+	// Pass: skybox
+	//
 
 	if (drawSkybox) {
 		// Skybox pass
@@ -1419,7 +1431,7 @@ void Renderer::paintGL() {
 	}
 
 	//
-	// Shadow map and scene pass
+	// Pass: shadow map and scene pass
 	//
 		
 	// render entities
@@ -1429,14 +1441,11 @@ void Renderer::paintGL() {
 		// shadow map pass
 		bx::mtxMul(lightMtx, entities[i]->transform.toMatrix().data(), lights[0].mtxShadow);
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
-		bgfx::setUniform(u_color, entities[i]->color, 4);
 		entities[i]->mesh.submit (&s_renderStates[RenderState::ShadowMap]);
 
 		// scene pass
 		bx::mtxMul(lightMtx, entities[i]->transform.toMatrix().data(), lights[0].mtxShadow);
 		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-		bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
 		bgfx::setUniform(u_color, entities[i]->color, 4);
 		entities[i]->mesh.submit (&s_renderStates[RenderState::Scene]);
 	}
