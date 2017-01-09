@@ -65,7 +65,7 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 					module->state = module->api.init();
 				}
 				std::cout << "Reloading module " << module->name << std::endl;
-				module->api.reload(module->state);
+				module->api.reload(module->state, gReadSerializer);
 			} else {
 				std::cerr << "Error: could not find API for module " << module->name << std::endl;
 				dlclose(module->handle);
@@ -123,7 +123,7 @@ void RuntimeModuleManager::UnloadModules() {
 
 	for (int i = mModules.size() - 1; i >= 0 ; i--) {
 		if (mModules[i]->handle) {
-			mModules[i]->api.unload(mModules[i]->state);
+			mModules[i]->api.unload(mModules[i]->state, gWriteSerializer);
 			mModules[i]->state = nullptr;
 			dlclose(mModules[i]->handle);
 			mModules[i]->handle = 0;

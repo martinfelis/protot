@@ -79,7 +79,6 @@ struct ReadSerializer {
 
 		std::ifstream stream(filename, std::ios::binary);
 
-
 		size_t key_size;
 		size_t block_size;
 

@@ -59,6 +59,21 @@ static struct module_state *module_init() {
 	return state;
 }
 
+template <typename Serializer>
+static void module_serialize (
+		struct module_state *state,
+		Serializer* serializer) {
+	// get the state from the serializer
+	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+	assert (camera != nullptr);
+
+	SerializeBool (*serializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
+	SerializeBool (*serializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
+	SerializeBool (*serializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
+	SerializeVec3 (*serializer, "protot.RenderModule.camera.eye", camera->eye);
+	SerializeVec3 (*serializer, "protot.RenderModule.camera.poi", camera->poi);
+}
+
 static void module_finalize(struct module_state *state) {
 	std::cout << "RenderModule finalize called" << std::endl;
 
@@ -68,7 +83,7 @@ static void module_finalize(struct module_state *state) {
 	free(state);
 }
 
-static void module_reload(struct module_state *state) {
+static void module_reload(struct module_state *state, void *read_serializer) {
 	std::cout << "RenderModule reload called" << std::endl;
 	assert (gWindow != nullptr);
 	int width, height;
@@ -79,30 +94,23 @@ static void module_reload(struct module_state *state) {
 	state->renderer->initialize(width, height);
 	gRenderer = state->renderer;
 
+	// load the state of the module
+	if (read_serializer != nullptr) {
+		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));
+	}
+
 	// get the state from the serializer
 	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 	assert (camera != nullptr);
 
-	SerializeBool (*gReadSerializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
-	SerializeBool (*gReadSerializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
-	SerializeBool (*gReadSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
-	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.eye", camera->eye);
-	SerializeVec3 (*gReadSerializer, "protot.RenderModule.camera.poi", camera->poi);
-
 	camera->updateMatrices();
 }
 
-static void module_unload(struct module_state *state) {
-	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
-
-	//(*gSerializer)["protot"]["RenderModule"]["active_camera"] = (double)gRenderer->activeCameraIndex;
-
-	SerializeBool (*gWriteSerializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
-	SerializeBool (*gWriteSerializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
-	SerializeBool (*gWriteSerializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
-	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.eye", camera->eye);
-	SerializeVec3 (*gWriteSerializer, "protot.RenderModule.camera.poi", camera->poi);
-
+static void module_unload(struct module_state *state, void* write_serializer) {
+	// serialize the state of the module
+	if (write_serializer != nullptr) {
+		module_serialize(state, static_cast<WriteSerializer*>(write_serializer));
+	}
 
 	gRenderer = nullptr;
 	state->renderer->shutdown();

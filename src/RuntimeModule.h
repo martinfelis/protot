@@ -18,12 +18,12 @@ struct module_api {
     /**
      * Called exactly once when the module code is reloaded.
      */
-    void (*reload)(struct module_state *state);
+    void (*reload)(struct module_state *state, void* read_serializer);
 
     /**
      * Called exactly once when the module code is about to be reloaded.
      */
-    void (*unload)(struct module_state *state);
+    void (*unload)(struct module_state *state, void* write_serializer);
 
     /**
      * Called at a regular interval by the main program.

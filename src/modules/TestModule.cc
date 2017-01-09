@@ -280,12 +280,22 @@ static struct module_state *module_init() {
 	return state;
 }
 
+template <typename Serializer>
+static void module_serialize (
+		struct module_state *state,
+		Serializer* serializer) {
+	SerializeVec3(*serializer, "protot.TestModule.entity.position", state->character->position);
+	SerializeBool(*serializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
+	SerializeBool(*serializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
+	SerializeInt(*serializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
+}
+
 static void module_finalize(struct module_state *state) {
 	std::cout << "Module finalize called" << std::endl;
 	free(state);
 }
 
-static void module_reload(struct module_state *state) {
+static void module_reload(struct module_state *state, void* read_serializer) {
 	std::cout << "Module reload called. State: " << state << std::endl;
 
 	// reset mouse scrolling state
@@ -323,22 +333,20 @@ static void module_reload(struct module_state *state) {
 	cout << "Creating render entity mesh ... success!" << endl;
 
 	// load the state of the entity
-	SerializeVec3(*gReadSerializer, "protot.TestModule.entity.position", state->character->position);
-	SerializeBool(*gReadSerializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
-	SerializeBool(*gReadSerializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
-	SerializeInt(*gReadSerializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
+	if (read_serializer != nullptr) {
+		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));
+	}
 
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
 
-static void module_unload(struct module_state *state) {
+static void module_unload(struct module_state *state, void* write_serializer) {
 	glfwSetScrollCallback (gWindow, nullptr);
 
 	// serialize the state of the entity
-	SerializeVec3(*gWriteSerializer, "protot.TestModule.entity.position", state->character->position);
-	SerializeBool(*gWriteSerializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
-	SerializeBool(*gWriteSerializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
-	SerializeInt(*gWriteSerializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
+	if (write_serializer != nullptr) {
+		module_serialize(state, static_cast<WriteSerializer*>(write_serializer));
+	}
 
 	// clean up
 	cout << "destroying render entity " << state->character->entity << endl;
