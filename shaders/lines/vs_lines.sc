@@ -31,6 +31,10 @@ void main()
 	vec2 next_screen = next_proj.xy / next_proj.w * aspect_vec;
 
 	float len = thickness;
+	// uncomment the following line to get a line width
+	// independent of distance to screen.
+	// len *= current_proj.w;
+
 	float orientation = direction;
 
 	vec2 dir = vec2(0.0);
