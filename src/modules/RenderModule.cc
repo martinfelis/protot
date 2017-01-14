@@ -744,7 +744,7 @@ void Camera::updateMatrices() {
 				-height * 0.5f, height * 0.5f, 
 				near, far);
 	} else {
-		float aspect = width / height;
+		float aspect = static_cast<float>(width) / height;
 		float mtx_proj[16];
 		bx::mtxProjRh(mtxProj, fov, aspect, near, far);
 	}
@@ -1446,16 +1446,39 @@ void Renderer::paintGL() {
 	for (size_t i = 0; i < entities.size(); i++) {
 		float mtxLightViewProjInv[16];
 		float light_pos_world[3];
+		
 		// shadow map pass
-		bx::mtxMul(lightMtx, entities[i]->transform.toMatrix().data(), lights[0].mtxShadow);
-		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-		entities[i]->mesh.submit (&s_renderStates[RenderState::ShadowMap]);
+		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+			bx::mtxMul(
+					lightMtx, 
+					entities[i]->mesh.meshMatrices[j].data(), 
+					lights[0].mtxShadow
+					);
+			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+			bgfxutils::meshSubmit (
+					entities[i]->mesh.meshes[j], 
+					&s_renderStates[RenderState::ShadowMap],
+					1,
+					entities[i]->mesh.meshMatrices[j].data()
+					);
+		}
 
 		// scene pass
-		bx::mtxMul(lightMtx, entities[i]->transform.toMatrix().data(), lights[0].mtxShadow);
-		bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-		bgfx::setUniform(u_color, entities[i]->color, 4);
-		entities[i]->mesh.submit (&s_renderStates[RenderState::Scene]);
+		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+			bx::mtxMul(
+					lightMtx, 
+					entities[i]->mesh.meshMatrices[j].data(), 
+					lights[0].mtxShadow
+					);
+			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+			bgfx::setUniform(u_color, entities[i]->color, 4);
+			bgfxutils::meshSubmit (
+					entities[i]->mesh.meshes[j], 
+					&s_renderStates[RenderState::Scene],
+					1,
+					entities[i]->mesh.meshMatrices[j].data()
+					);
+		}
 	}
 
 	// render debug information
@@ -1641,8 +1664,9 @@ void Renderer::paintGL() {
 
 		float thickness = 0.05f;
 		float miter = 0.0f;
+		float aspect = static_cast<float>(width) / height;
 
-		Vector4f params (thickness, miter, width / height, 0.0f);
+		Vector4f params (thickness, miter, aspect, 0.0f);
 
 		Camera &active_camera = cameras[activeCameraIndex];
 

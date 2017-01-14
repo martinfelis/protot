@@ -1101,7 +1101,7 @@ Mesh *createCuboid (float width, float height, float depth) {
 	return createMeshFromStdVectors (vertices, normals, colors);
 }
 
-Mesh *createUVSphere (int rows, int segments) {
+Mesh *createUVSphere (int rows, int segments, float radius) {
 	// work arrays that we fill with data
  	std::vector<Vector4f> vertices;
  	std::vector<Vector3f> normals;
@@ -1115,11 +1115,11 @@ Mesh *createUVSphere (int rows, int segments) {
 		float alpha0 = j * row_d * M_PI;
 		float alpha1 = (j + 1) * row_d * M_PI;
 
-		float r0 = sin (alpha0) * 0.5f;
-		float r1 = sin (alpha1) * 0.5f;
+		float r0 = sin (alpha0) * 0.5f * radius;
+		float r1 = sin (alpha1) * 0.5f * radius;
 
-		float h0 = cos (alpha0) * 0.5f;
-		float h1 = cos (alpha1) * 0.5f;
+		float h0 = cos (alpha0) * 0.5f * radius;
+		float h1 = cos (alpha1) * 0.5f * radius;
 
 		for (unsigned int i = 0; i < segments; i++) {
 			Vector3f v0, v1, v2, v3;

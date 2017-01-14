@@ -285,6 +285,7 @@ static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
 	SerializeVec3(*serializer, "protot.TestModule.entity.position", state->character->position);
+	SerializeVec3(*serializer, "protot.TestModule.entity.velocity", state->character->velocity);
 	SerializeBool(*serializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
 	SerializeBool(*serializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
 	SerializeInt(*serializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
@@ -309,24 +310,30 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 
 	cout << "Creating render entity mesh ..." << endl;
 
-	Vector3f snowman_offsets (0.45f, 0.35f, 0.25f);
-	float height_offset = 0.0f;
-	for (int i = 0; i < 3; i++) {
-		float radius = cCharacterHeight * snowman_offsets[i];
-		Transform transform = Transform::fromTransRotScale(
-				Vector3f(0.f, height_offset + radius * 0.5f, 0.0f),
-				Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-				Vector3f(radius, radius, radius)
-				);
+	// Build the snowman
+	state->character->entity->mesh.addMesh(
+			- 1,
+			Transform::fromTrans(
+				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
+				),
+			bgfxutils::createUVSphere (45, 45, 0.9)
+			);
 
-		state->character->entity->mesh.addMesh(
-				-1,
-				transform,
-				bgfxutils::createUVSphere (45, 45)
-				);
+	state->character->entity->mesh.addMesh(
+			0,
+			Transform::fromTrans(
+				Vector3f (0.0f, 0.55f, 0.0f)
+				),
+			bgfxutils::createUVSphere (45, 45, 0.7)
+			);
 
-		height_offset += radius * 0.8;
-	}
+	state->character->entity->mesh.addMesh(
+			1,
+			Transform::fromTrans(
+				Vector3f (0.0f, 0.4f, 0.0f)
+				),
+			bgfxutils::createUVSphere (45, 45, 0.5)
+			);
 
 //	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 //	state->character->entity->mesh = bgfxutils::createCylinder (20);

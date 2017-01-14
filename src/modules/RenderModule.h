@@ -218,6 +218,27 @@ struct Transform {
 		return Vector3f::Zero();
 	}
 
+	static Transform fromTrans(
+			const Vector3f &translation
+			) {
+		return Transform (
+				translation, 
+				Quaternion(0.0f, 0.0f, 0.0f, 1.0f), 
+				Vector3f(1.0f, 1.0f, 1.0f)
+				);
+	}
+
+	static Transform fromTransRot(
+			const Vector3f &translation,
+			const Quaternion &rotation
+			) {
+		return Transform (
+				translation, 
+				rotation, 
+				Vector3f(1.0f, 1.0f, 1.0f)
+				);
+	}
+
 	static Transform fromTransRotScale(
 			const Vector3f &translation,
 			const Quaternion &rotation,
@@ -248,7 +269,7 @@ struct MeshHierarchy {
 			const int parent_idx, 
 			const Transform& transform, 
 			bgfxutils::Mesh* mesh) {
-		assert (parent_idx == -1 || parent_idx < parent.size() - 1);
+		assert (parent_idx == -1 || parent_idx < parent.size());
 		parent.push_back(parent_idx);
 		localTransforms.push_back(transform);
 		meshes.push_back(mesh);
