@@ -80,6 +80,9 @@ int main(void)
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
 
+	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
+	std::cout << "GLSL Version  : " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
+
 	// Initialize Renderer	
 	bgfx::glfwSetWindow(gWindow);
 	bgfx::renderFrame();
@@ -99,6 +102,7 @@ int main(void)
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
+	module_manager.RegisterModule("src/modules/libCharacterModule.so");
 	module_manager.RegisterModule("src/modules/libTestModule.so");
 
 	// Setup global variables

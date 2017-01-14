@@ -1,6 +1,5 @@
 #include "RuntimeModule.h"
 #include "Globals.h"
-#include "modules/RenderModule.h"
 #include "3rdparty/ocornut-imgui/imgui.h"
 #include "imgui/imgui.h"
 #include <bx/fpumath.h>
@@ -12,6 +11,9 @@
 #include "RuntimeModuleManager.h"
 #include "Serializer.h"
 
+#include "modules/RenderModule.h"
+#include "modules/CharacterModule.h"
+
 #include <iostream>
 #include <sstream>
 
@@ -22,90 +24,6 @@ double mouse_scroll_y = 0.;
 bool fps_camera = true;
 
 // Boilerplate for the module reload stuff
-
-struct CharacterController {
-	enum ControllerState {
-		ControlJump,
-		ControlStateLast
-	};
-
-	bool state[ControlStateLast];
-
-	Vector3f direction = Vector3f::Zero();
-
-	void reset() {
-		for (int i = 0; i < ControlStateLast; i++) {
-			state[i] = false;
-		}
-
-		direction.setZero();
-	}
-
-	CharacterController() {
-		reset();
-	};
-};
-
-const float cJumpVelocity = 4.0f;
-const float cVelocityDamping = 4.0f;
-const float cGravity = 9.81f;
-const float cGroundAcceleration = 30.0f;
-const float cCharacterHeight = 1.8f;
-const float cCharacterWidth = 1.f;
-
-struct CharacterEntity {
-	/// Render entity
-	Entity *entity;
-	Vector3f position;
-	Vector3f velocity;
-	CharacterController controller;
-
-	void reset() {
-		position.setZero();
-		velocity.setZero();
-		controller.reset();
-	}
-
-	void update(float dt) {
-		Vector3f controller_acceleration (
-				controller.direction[0] * cGroundAcceleration,
-				controller.direction[1] * cGroundAcceleration,
-				controller.direction[2] * cGroundAcceleration
-				);
-		
-		Vector3f gravity (0.0f, -cGravity, 0.0f);
-		Vector3f damping (
-				-velocity[0] * cVelocityDamping,
-				0.0f,
-				-velocity[2] * cVelocityDamping
-				);
-
-		Vector3f acceleration = controller_acceleration + gravity + damping;
-	
-		velocity = velocity + acceleration * dt;
-
-		if (position[1] == 0.0f 
-				&& controller.state[CharacterController::ControlJump]) {
-			velocity[1] = cJumpVelocity;	
-		}
-
-		// integrate position
-		position += velocity * dt;
-
-		if (position[1] < 0.f) {
-			position[1] = 0.f;
-			velocity[1] = 0.0f;
-		}
-
-		// apply transformation
-		entity->transform.translation.set(
-				position[0],
-				position[1],
-				position[2]);
-
-		entity->mesh.updateMatrices(entity->transform.toMatrix());
-	}
-};
 
 struct module_state {
 	bool fps_camera;
@@ -257,7 +175,7 @@ void handle_keyboard (struct module_state *state, float dt) {
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlJump] = true;	
+			controller.state[CharacterController::ControlStateJump] = true;	
 		}
 	}
 }
@@ -288,6 +206,7 @@ static void module_serialize (
 	SerializeVec3(*serializer, "protot.TestModule.entity.velocity", state->character->velocity);
 	SerializeBool(*serializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
 	SerializeBool(*serializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
+	SerializeBool(*serializer, "protot.TestModule.imgui_demo_window_visible", state->imgui_demo_window_visible);
 	SerializeInt(*serializer, "protot.TestModule.modules_window.selection_index", state->modules_window_selected_index);
 }
 
@@ -304,41 +223,6 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 	mouse_scroll_y = 0;
 
 	cout << "Creating render entity ..." << endl;
-	state->character->entity = gRenderer->createEntity();
-	state->character->position = Vector3f (0.f, 0.0f, 0.0f);
-	cout << "Creating render entity ... success!" << endl;
-
-	cout << "Creating render entity mesh ..." << endl;
-
-	// Build the snowman
-	state->character->entity->mesh.addMesh(
-			- 1,
-			Transform::fromTrans(
-				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
-				),
-			bgfxutils::createUVSphere (45, 45, 0.9)
-			);
-
-	state->character->entity->mesh.addMesh(
-			0,
-			Transform::fromTrans(
-				Vector3f (0.0f, 0.55f, 0.0f)
-				),
-			bgfxutils::createUVSphere (45, 45, 0.7)
-			);
-
-	state->character->entity->mesh.addMesh(
-			1,
-			Transform::fromTrans(
-				Vector3f (0.0f, 0.4f, 0.0f)
-				),
-			bgfxutils::createUVSphere (45, 45, 0.5)
-			);
-
-//	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
-//	state->character->entity->mesh = bgfxutils::createCylinder (20);
-	cout << "Creating render entity mesh ... success!" << endl;
-
 	// load the state of the entity
 	if (read_serializer != nullptr) {
 		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));
@@ -364,8 +248,6 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 
 	}
 	state->character->entity = nullptr;
-
-	Vector3f bla (1.2f, 1.3f, 1.6f);
 
 	std::cout << "TestModule unloaded. State: " << state << std::endl;
 }
@@ -420,100 +302,6 @@ void ShowModulesWindow(struct module_state *state) {
 		if (ImGui::Button ("Force Reload")) {
 			selected_module->mtime = 0;
 			selected_module->id = 0;
-		}
-	}
-
-	ImGui::End();
-}
-
-// Returns a normalized vector where the value at the modified index
-// is kept and only the other values are being modified so that the
-// resulting vector is normalized.
-bool DragFloat4Normalized(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* display_format = "%.3f", float power = 1.0f)
-{
-	float old_values[4];
-	memcpy (old_values, v, sizeof(float) * 4);
-
-	bool modified = ImGui::DragFloat4(label, v, v_speed, v_min, v_max, display_format, power);
-	if (modified) {
-		int mod_index = -1;
-		Vector3f other_values;
-		int other_index = 0;
-
-		// determine the modified index and copy the unmodified values to
-		// other_values
-		for (int i = 0; i < 4; ++i) {
-			if (old_values[i] != v[i]) {
-				mod_index = i;
-			} else {
-				other_values[other_index] = v[i];
-				other_index++;
-			}
-		}
-
-		// normalize, but take zero length of other values into account and
-		// also modification of vectors with a single 1.
-		float other_length = other_values.norm();
-		if (fabs(v[mod_index]) >= 1.0f - 1.0e-6f || other_length == 0.0f) {
-			other_values.setZero();
-			v[mod_index] = 1.0f * v[mod_index] < 0.0f ? -1.0f : 1.0f; 
-		} else {
-			// normalize other_values to have the remaining length
-			other_values = other_values * (1.f / other_length) * (sqrt(1.0f - v[mod_index] * v[mod_index]));
-		}
-
-		// construct the new vector
-		other_index = 0;
-		for (int i = 0; i < 4; ++i) {
-			if (i != mod_index) {
-				v[i] = other_values[other_index];
-				other_index++;
-			}
-		}
-	}
-
-	return modified;
-}
-
-
-
-void ShowCharacterPropertiesWindow (CharacterEntity* character) {
-	assert (character != nullptr);
-	ImGui::SetNextWindowSize (ImVec2(600.f, 300.0f), ImGuiSetCond_Once);
-	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
-	ImGui::Begin("Character");
-
-	if (ImGui::Button ("Reset")) {
-		character->reset();
-	}
-	
-	ImGui::DragFloat3 ("Position", character->position.data(), 0.01, -10.0f, 10.0f);
-	ImGui::DragFloat3 ("Velocity", character->velocity.data(), 0.01, -10.0f, 10.0f);
-
-
-	for (int i = 0; i < character->entity->mesh.meshes.size(); ++i) {
-		char buf[32];
-		snprintf (buf, 32, "Mesh %d", i);
-
-		ImGuiTreeNodeFlags node_flags = 0;
-
-		bool node_open = ImGui::TreeNodeEx(
-				buf,
-				node_flags);
-
-		if (node_open) {
-			Transform &transform = character->entity->mesh.localTransforms[i];
-
-			ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
-			if (DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
-				if (isnan(transform.rotation.squaredNorm())) {
-					cout << "nan! " << transform.rotation.transpose() << endl;
-					abort();
-				}
-			}
-			ImGui::DragFloat3 ("Scale", transform.scale.data(), 0.01, 0.001f, 10.0f);
-
-			ImGui::TreePop();
 		}
 	}
 
