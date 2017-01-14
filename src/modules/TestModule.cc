@@ -411,9 +411,11 @@ void ShowModulesWindow(struct module_state *state) {
 		ImGui::LabelText("File", "%s", selected_module->name.c_str());
 		ImGui::LabelText("Handle", "0x%p", selected_module->handle);
 		ImGui::LabelText("id", "%ld", selected_module->id);
+		ImGui::LabelText("mtime", "%ld", selected_module->mtime);
+		ImGui::LabelText("mtimensec", "%ld", selected_module->mtimensec);
 
-		ctime_r((time_t*)&selected_module->mtime, time_buf);
-		ImGui::LabelText("mtime", "%s", time_buf);
+//		ImGui::LabelText("mtime", "%s", ctime((time_t*)&selected_module->mtime));
+//		cout << "time_buf = " << ctime((time_t*)&selected_module->mtime) << endl;
 
 		if (ImGui::Button ("Force Reload")) {
 			selected_module->mtime = 0;

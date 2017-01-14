@@ -57,6 +57,7 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 			module->handle = handle;
 			module->id = attr.st_ino;
 			module->mtime = attr.st_mtime;
+			module->mtimensec = attr.st_mtim.tv_nsec;
 			const struct module_api *api = (module_api*) dlsym(module->handle, "MODULE_API");
 			if (api != NULL) {
 				module->api = *api;
@@ -83,17 +84,6 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 }
 
 void RuntimeModuleManager::Update(float dt) {
-	if (CheckModulesChanged()) {
-		std::cout << "Detected module update. Unloading all modules." << std::endl;
-
-		UnloadModules();
-
-		// We need to sleep to make sure we load the new files
-		usleep(300000);
-
-		LoadModules();
-	}
-
 	for (int i = mModules.size() - 1; i >= 0; i--) {
 		if (mModules[i]->handle) {
 			mModules[i]->api.step(mModules[i]->state, dt);

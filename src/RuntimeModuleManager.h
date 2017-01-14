@@ -13,6 +13,7 @@ struct RuntimeModule {
 	ino_t id = 0;
 	void *data = nullptr;
 	int mtime = 0;
+	int mtimensec = 0;
 
 	struct module_api api;
 	struct module_state *state = nullptr;

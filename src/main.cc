@@ -122,6 +122,17 @@ int main(void)
 
 		float time = (float)( (now-time_offset)/double(bx::getHPFrequency() ) );
 
+		if (module_manager.CheckModulesChanged()) {
+			std::cout << "Detected module update. Unloading all modules." << std::endl;
+			module_manager.UnloadModules();
+			// We need to sleep to make sure we load the new files
+			usleep(300000);
+			module_manager.LoadModules();
+			// We need to update our last timestamp to ignore the delay due
+			// to reloading of the modules.
+			last = bx::getHPCounter();
+		}
+
 		module_manager.Update((float)(frameTime / freq));
 
 		glfwPollEvents();
