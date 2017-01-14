@@ -24,7 +24,7 @@ struct WriteSerializer {
 	}
 
 	void Open(const char* filename) {
-		stream = std::ofstream(filename, std::ofstream::trunc);
+		stream.open(filename, std::ofstream::trunc);
 	}
 
 	void Close() {
