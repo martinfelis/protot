@@ -168,11 +168,6 @@ bgfx::IndexBufferHandle cube_ibh;
 bgfx::IndexBufferHandle cube_edges_ibh;
 bgfx::VertexBufferHandle plane_vbh;
 bgfx::IndexBufferHandle plane_ibh;
-bgfx::DynamicVertexBufferHandle path_lines_vbh;
-bgfx::DynamicIndexBufferHandle path_lines_ibh;
-
-bgfx::DynamicVertexBufferHandle debug_lines_vbh;
-bgfx::DynamicIndexBufferHandle debug_lines_ibh;
 
 bgfx::UniformHandle u_time;
 bgfx::UniformHandle u_color;
@@ -458,13 +453,24 @@ RenderState s_renderStates[RenderState::Count] = {
 		0
 		| BGFX_STATE_RGB_WRITE
 		| BGFX_STATE_ALPHA_WRITE
-		| BGFX_STATE_DEPTH_WRITE
-		| BGFX_STATE_DEPTH_TEST_ALWAYS
+		| BGFX_STATE_DEPTH_TEST_LESS
+//		| BGFX_STATE_DEPTH_TEST_GREATER
 //		| BGFX_STATE_PT_LINES
 		| BGFX_STATE_MSAA,
 		0,
 		RenderProgram(),
 		RenderState::Lines
+	},
+	{ // LinesOccluded
+		0
+		| BGFX_STATE_RGB_WRITE
+		| BGFX_STATE_ALPHA_WRITE
+		| BGFX_STATE_DEPTH_TEST_GREATER
+//		| BGFX_STATE_PT_LINES
+		| BGFX_STATE_MSAA,
+		0,
+		RenderProgram(),
+		RenderState::LinesOccluded
 	},
 
 	{ // Debug
@@ -586,7 +592,7 @@ struct PathVertex
 	float prev[3];
 	float next[3];
 	// TODO: use an int for the direction
-	float direction;
+	float info[2]; // direction and length in screen space
 	float color[4];
 
 	static void init()
@@ -596,7 +602,7 @@ struct PathVertex
 			.add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
 			.add(bgfx::Attrib::TexCoord0, 3, bgfx::AttribType::Float)
 			.add(bgfx::Attrib::TexCoord1, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::TexCoord2, 1, bgfx::AttribType::Float)
+			.add(bgfx::Attrib::TexCoord2, 2, bgfx::AttribType::Float)
 			.add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Float)
 			.end();
 	}
@@ -832,30 +838,6 @@ void Renderer::createGeometries() {
 			bgfx::makeRef(s_cubeEdgeIndices, sizeof(s_cubeEdgeIndices) )
 			);
 
-	// Create dynamic debug line buffer
-	path_lines_vbh = bgfx::createDynamicVertexBuffer(
-			(uint32_t) 1,
-			PathVertex::ms_decl,
-			BGFX_BUFFER_ALLOW_RESIZE
-			);
-
-	path_lines_ibh= bgfx::createDynamicIndexBuffer(
-			(uint32_t) 1,
-			BGFX_BUFFER_ALLOW_RESIZE
-			);
-
-	// Create dynamic debug line buffer
-	debug_lines_vbh = bgfx::createDynamicVertexBuffer(
-			(uint32_t) 1,
-			PosColorVertex::ms_decl,
-			BGFX_BUFFER_ALLOW_RESIZE
-			);
-
-	debug_lines_ibh = bgfx::createDynamicIndexBuffer(
-			(uint32_t) 1,
-			BGFX_BUFFER_ALLOW_RESIZE
-			);
-
 	plane_vbh = bgfx::createVertexBuffer(
 			bgfx::makeRef(s_hplaneVertices, sizeof(s_hplaneVertices) )
 			, PosNormalColorTexcoordVertex::ms_decl
@@ -864,6 +846,105 @@ void Renderer::createGeometries() {
 	plane_ibh = bgfx::createIndexBuffer(
 			bgfx::makeRef(s_planeIndices, sizeof(s_planeIndices) )
 			);
+}
+
+Path::~Path() {
+	if (bgfx::isValid(mVertexBufferHandle))
+		bgfx::destroyDynamicVertexBuffer(mVertexBufferHandle);
+
+	if (bgfx::isValid(mIndexBufferHandle))
+		bgfx::destroyDynamicIndexBuffer(mIndexBufferHandle);
+}
+
+void Path::UpdateBuffers() {
+	// create an array for the actual buffer
+	std::vector<PathVertex> path_vertices;
+
+
+	float path_length = 0;
+
+	// Copy points to the vertex buffer
+	for (int i = 0; i < points.size(); i++) {
+		PathVertex vertex;
+		memcpy (vertex.position, points[i].data(), sizeof(float) * 3);
+		memcpy (vertex.color, colors[i].data(), sizeof(float) * 4);
+		if (i == 0) {
+			assert (points.size() > 1);
+			memcpy (vertex.prev, points[i].data(), sizeof(float) * 3);
+			memcpy (vertex.next, points[i + 1].data(), sizeof(float) * 3);
+		} else if (i == points.size() - 1) {
+			memcpy (vertex.next, points[i].data(), sizeof(float) * 3);
+			memcpy (vertex.prev, points[i - 1].data(), sizeof(float) * 3);
+		} else { 
+			memcpy (vertex.prev, points[i - 1].data(), sizeof(float) * 3);
+			memcpy (vertex.next, points[i + 1].data(), sizeof(float) * 3);
+		}
+
+		if (i > 0) {
+			path_length += (points[i] - points[i - 1]).norm();
+		}
+		vertex.info[0] = -1.0f;
+		vertex.info[1] = path_length;
+		path_vertices.push_back(vertex);
+		vertex.info[0] =  1.0f;
+		vertex.info[1] = path_length;
+		path_vertices.push_back(vertex);
+
+		PathVertex &last_vertex = path_vertices[path_vertices.size() - 1];
+		assert (last_vertex.color[0] == colors[i][0]);
+		assert (last_vertex.color[1] == colors[i][1]);
+		assert (last_vertex.color[2] == colors[i][2]);
+		assert (last_vertex.color[3] == 1.0f);
+	}
+
+	// Assemble the index buffer (every point is submitted twice
+	// and gets extruded in the vertex shader)
+	std::vector<uint16_t> line_indices;
+	int index = 0;
+	for (int i = 0; i < (path_vertices.size() / 2) - 1; i++) {
+		int j = index;
+		line_indices.push_back(j + 0);
+		line_indices.push_back(j + 1);
+		line_indices.push_back(j + 2);
+		line_indices.push_back(j + 2);
+		line_indices.push_back(j + 1);
+		line_indices.push_back(j + 3);
+		index += 2;
+	}
+
+	// create buffers if they are not yet valid
+	if (!bgfx::isValid(mVertexBufferHandle)) {
+		mVertexBufferHandle = bgfx::createDynamicVertexBuffer(
+				bgfx::copy(
+					path_vertices.data(), 
+					sizeof(PathVertex) * path_vertices.size()
+					),
+				PathVertex::ms_decl
+				);
+
+		mIndexBufferHandle = bgfx::createDynamicIndexBuffer(
+				bgfx::copy(line_indices.data(), sizeof(uint16_t) * line_indices.size())
+				);
+
+	} else {
+		bgfx::updateDynamicVertexBuffer(
+				mVertexBufferHandle,
+				0,
+				bgfx::copy(
+					path_vertices.data(), 
+					sizeof(PathVertex) * path_vertices.size()
+					)
+				);
+
+		bgfx::updateDynamicIndexBuffer(
+				mIndexBufferHandle,
+				0,
+				bgfx::copy(line_indices.data(), sizeof(uint16_t) * line_indices.size())
+				);
+	}
+
+	assert (bgfx::isValid(mVertexBufferHandle));
+	assert (bgfx::isValid(mIndexBufferHandle));
 }
 
 void Renderer::setupShaders() {
@@ -975,6 +1056,8 @@ void Renderer::setupShaders() {
 
 	s_renderStates[RenderState::Lines].m_program = RenderProgram("shaders/lines/vs_lines.sc", "shaders/lines/fs_lines.sc");
 
+	s_renderStates[RenderState::LinesOccluded].m_program = RenderProgram("shaders/lines/vs_lines.sc", "shaders/lines/fs_lines_occluded.sc");
+
 	s_renderStates[RenderState::Debug].m_program = RenderProgram("shaders/src/vs_debug.sc", "shaders/src/fs_debug.sc");
 }
 
@@ -1007,7 +1090,10 @@ void Renderer::setupRenderPasses() {
 	s_renderStates[RenderState::SceneTextured].m_textures[1].m_texture = sceneDefaultTexture;
 
 	// Lines
-	s_renderStates[RenderState::Debug].m_viewId = RenderState::Lines;
+	s_renderStates[RenderState::Lines].m_viewId = RenderState::Lines;
+
+	// Lines
+	s_renderStates[RenderState::LinesOccluded].m_viewId = RenderState::LinesOccluded;
 
 	// Debug
 	s_renderStates[RenderState::Debug].m_viewId = RenderState::Debug;
@@ -1133,12 +1219,6 @@ void Renderer::initialize(int width, int height) {
 }
 
 void Renderer::shutdown() {
-	bgfx::destroyDynamicVertexBuffer(debug_lines_vbh);
-	bgfx::destroyDynamicIndexBuffer(debug_lines_ibh);
-
-	bgfx::destroyDynamicVertexBuffer(path_lines_vbh);
-	bgfx::destroyDynamicIndexBuffer(path_lines_ibh);
-
 	bgfx::destroyIndexBuffer(cube_ibh);
 	bgfx::destroyIndexBuffer(cube_edges_ibh);
 	bgfx::destroyVertexBuffer(cube_vbh);
@@ -1331,6 +1411,9 @@ void Renderer::paintGL() {
 	bgfx::setViewRect(RenderState::Lines, 0, 0, width, height);
 	bgfx::setViewTransform(RenderState::Lines, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
+	bgfx::setViewRect(RenderState::LinesOccluded, 0, 0, width, height);
+	bgfx::setViewTransform(RenderState::LinesOccluded, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
+
 	bgfx::setViewRect(RenderState::Debug, 0, 0, width, height);
 	bgfx::setViewTransform(RenderState::Debug, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
@@ -1344,7 +1427,7 @@ void Renderer::paintGL() {
 	bx::mtxSRT(mtxFloor
 			, 10.0f, 10.0f, 10.0f
 			, 0.0f, 0.0f, 0.0f
-			, 0.0f, 0.001f, 0.0f
+			, 0.0f, -0.009f, 0.0f
 			);
 
 	float lightMtx[16];
@@ -1523,158 +1606,92 @@ void Renderer::paintGL() {
 		bgfx::setUniform(u_color, Vector4f(1.0f, 1.0f, 1.0f, 1.f).data(), 4);
 
 		// assemble lines for alls debug lines
-		uint32_t line_count = 0;
+		debugPaths.resize(debugCommands.size());
 		for (uint32_t i = 0; i < debugCommands.size(); i++) {
+			Path &line = debugPaths[i];
+
 			if (debugCommands[i].type == DebugCommand::Line) {
-				line_count++;
-			}
-		}
+				line.points.clear();
+				line.colors.clear();
 
-		// clear and create buffer data for the lines
-		debugPaths.clear();
-		uint16_t* line_idx_buf = new uint16_t[line_count * 2];
-		PosColorVertex *line_vert_buf = new PosColorVertex[line_count * 2];
-		for (uint32_t i = 0; i < debugCommands.size(); i++) {
-			if (debugCommands[i].type == DebugCommand::Line) {
-				Path line;
-
-				// TODO: we submit start and end twice to make sure 
-				// we have no color blending triangles when extruding
-				// the lines using triangles. Should be improved.
 				line.points.push_back(debugCommands[i].from);
-				line.points.push_back(debugCommands[i].from);
+				line.colors.push_back(debugCommands[i].color);
+
 				line.points.push_back(debugCommands[i].to);
-				line.points.push_back(debugCommands[i].to);
-				line.color = debugCommands[i].color;
-				line.miter = 0.0f;
-				debugPaths.push_back(line);
+				line.colors.push_back(debugCommands[i].color);
+
+				line.UpdateBuffers();
+			} else if (debugCommands[i].type == DebugCommand::Sphere) {
+				line.points.clear();
+				line.colors.clear();
+
+				float radius = debugCommands[i].to[0];
+				float c,s,angle;
+				const int cNumSegments = 64;
+
+				// circle in X-Y plane
+				for (uint32_t j = 0; j < cNumSegments; j++) {
+					angle = M_PI * 0.5f + 2. * M_PI * static_cast<float>(j) / static_cast<float>(cNumSegments - 1);
+
+					s = sin(angle) * radius;
+					c = cos(angle) * radius;
+
+					line.points.push_back(Vector3f(s, c, 0));
+					line.colors.push_back(debugCommands[i].color);
+				}
+
+				// circle in X-Z plane (note: we draw the circle an
+				// additional 90 degrees so that we can directly start
+				// the last circle.
+				for (uint32_t j = 0; j < cNumSegments; j++) {
+					angle = M_PI * 0.5f + 2.5 * M_PI * static_cast<float>(j) / static_cast<float>(cNumSegments - 1);
+
+					s = sin(angle) * radius;
+					c = cos(angle) * radius;
+
+					line.points.push_back(Vector3f(s, 0, c));
+					line.colors.push_back(debugCommands[i].color);
+				}
+
+				// circle in Y-Z plane
+				for (uint32_t j = 0; j < cNumSegments; j++) {
+					angle = M_PI + 2. * M_PI * static_cast<float>(j) / static_cast<float>(cNumSegments - 1);
+
+					s = sin(angle) * radius;
+					c = cos(angle) * radius;
+
+					line.points.push_back(Vector3f(0, s, c));
+					line.colors.push_back(debugCommands[i].color);
+				}
+
+				line.UpdateBuffers();
 			}
+
+			float thickness = 0.05f;
+			float miter = 0.0f;
+			float aspect = static_cast<float>(width) / height;
+
+			Vector4f params (thickness, miter, aspect, 0.0f);
+
+			// submit data to regular lines state
+			const RenderState& st = s_renderStates[RenderState::Lines];
+
+			bgfx::setUniform(u_line_params, params.data(), 1);
+			bgfx::setIndexBuffer(line.mIndexBufferHandle);
+			bgfx::setVertexBuffer(line.mVertexBufferHandle);
+			bgfx::setState(st.m_state);
+			bgfx::submit(st.m_viewId, st.m_program.program);
+
+			// submit data to state LinesOccluded
+			bgfx::setState(s_renderStates[RenderState::LinesOccluded].m_state);
+			bgfx::setUniform(u_line_params, params.data(), 1);
+			bgfx::setIndexBuffer(line.mIndexBufferHandle);
+			bgfx::setVertexBuffer(line.mVertexBufferHandle);
+				bgfx::submit(
+					s_renderStates[RenderState::LinesOccluded].m_viewId,
+					s_renderStates[RenderState::LinesOccluded].m_program.program
+					);
 		}
-
-		// update buffer from buffer data
-		bgfx::updateDynamicVertexBuffer (debug_lines_vbh,
-				0,
-				bgfx::copy(line_vert_buf, sizeof(PosColorVertex) * line_count * 2)
-				);
-
-		bgfx::updateDynamicIndexBuffer (debug_lines_ibh,
-				0,
-				bgfx::copy(line_idx_buf, sizeof(uint16_t) * line_count * 2)
-				);
-
-		// submit data
-		const RenderState& st = s_renderStates[RenderState::Debug];
-
-		bgfx::setIndexBuffer(debug_lines_ibh);
-		bgfx::setVertexBuffer(debug_lines_vbh);
-		bgfx::setState(st.m_state);
-		bgfx::submit(st.m_viewId, st.m_program.program);
-
-		// free buffer data
-		delete[] line_vert_buf;
-		delete[] line_idx_buf; 
-	}
-
-	// create an array for the actual buffer
-	std::vector<PathVertex> path_vertices;
-
-	// Rendering of debug lines and paths
-	for (Path &path : debugPaths) {
-		// note: we submit each vertex twice so that any two points are
-		// extruded by a quad made of two triangles (hence four points)
-		for (int i = 0; i < path.points.size(); i++) {
-			PathVertex vertex;
-			memcpy (vertex.position, path.points[i].data(), sizeof(float) * 3);
-			memcpy (vertex.color, path.color.data(), sizeof(float) * 4);
-			if (i == 0) {
-				assert (path.points.size() > 1);
-				memcpy (vertex.prev, path.points[i].data(), sizeof(float) * 3);
-				memcpy (vertex.next, path.points[i + 1].data(), sizeof(float) * 3);
-			} else if (i == path.points.size() - 1) {
-				memcpy (vertex.next, path.points[i].data(), sizeof(float) * 3);
-				memcpy (vertex.prev, path.points[i - 1].data(), sizeof(float) * 3);
-			} else { 
-				memcpy (vertex.prev, path.points[i - 1].data(), sizeof(float) * 3);
-				memcpy (vertex.next, path.points[i + 1].data(), sizeof(float) * 3);
-			}
-			vertex.direction = -1.0f;
-			path_vertices.push_back(vertex);
-			vertex.direction =  1.0f;
-			path_vertices.push_back(vertex);
-		}
-
-		//		PathVertex* v = (PathVertex*) path_vertices.data();
-		//		int vi = 0;
-		//		while (vi < path_vertices.size()) {
-		//			cout << vi << ": v=" << v->position[0] << ", " << v->position[1] << ", " << v->position[2]
-		//				<< " p=" << v->prev[0] << ", " << v->prev[1] << ", " << v->prev[2] << ", "
-		//				<< " n=" << v->next[0] << ", " << v->next[1] << ", " << v->next[2] << ", "
-		//				<< " d=" << v->direction << endl;
-		//
-		//			v++;
-		//			vi++;
-		//		}
-
-	}
-
-	// update buffer from buffer data
-	bgfx::updateDynamicVertexBuffer (path_lines_vbh,
-			0,
-			bgfx::copy(path_vertices.data(), sizeof(PathVertex) * path_vertices.size())
-			);
-
-	// only render if we actually have lines to draw
-	if (path_vertices.size() > 0)
-	{
-		std::vector<uint16_t> line_indices;
-		int index = 0;
-		for (int i = 0; i < (path_vertices.size() / 2) - 1; i++) {
-			int j = index;
-			line_indices.push_back(j + 0);
-			line_indices.push_back(j + 1);
-			line_indices.push_back(j + 2);
-			line_indices.push_back(j + 2);
-			line_indices.push_back(j + 1);
-			line_indices.push_back(j + 3);
-			index += 2;
-		}
-
-		//		for (int i = 0; i < line_indices.size(); i++) {
-		//			cout << line_indices[i] << ", ";
-		//		}
-		//		cout << endl;
-		//
-		//		cout << "points: " << path.points.size()
-		//			<< ", line indices: " << line_indices.size()
-		//			<< ", path_vertices: " << path_vertices.size() 
-		//			<< ", last line index: " << line_indices[line_indices.size() -1] 
-		//			<< ", width = " << width << ", height = " << height
-		//			<< endl;
-
-		//		assert (line_indices[line_indices.size() -1] < path_vertices.size());
-		//		assert (line_indices.size() == path.points.size() * 3);
-
-		bgfx::updateDynamicIndexBuffer (path_lines_ibh,
-				0,
-				bgfx::copy(line_indices.data(), sizeof(uint16_t) * line_indices.size())
-				);
-
-		// submit data
-		const RenderState& st = s_renderStates[RenderState::Lines];
-
-		float thickness = 0.05f;
-		float miter = 0.0f;
-		float aspect = static_cast<float>(width) / height;
-
-		Vector4f params (thickness, miter, aspect, 0.0f);
-
-		Camera &active_camera = cameras[activeCameraIndex];
-
-		bgfx::setUniform(u_line_params, params.data(), 1);
-		bgfx::setIndexBuffer(path_lines_ibh);
-		bgfx::setVertexBuffer(path_lines_vbh);
-		bgfx::setState(st.m_state);
-		bgfx::submit(st.m_viewId, st.m_program.program);
 	}
 
 	// Advance to next frame. Rendering thread will be kicked to
@@ -1831,6 +1848,19 @@ void Renderer::drawDebugAxes (
 	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,0)) * scale, Vector3f (1.f, 0.f, 0.f));
 	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,1)) * scale, Vector3f (0.f, 1.f, 0.f));
 	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,2)) * scale, Vector3f (0.f, 0.f, 1.f));
+}
+
+void Renderer::drawDebugSphere (
+		const Vector3f &pos,
+		float radius,
+		const Vector4f &color) {
+	DebugCommand cmd;
+	cmd.type = DebugCommand::Sphere;
+	cmd.from = pos;
+	cmd.to[0] = radius;
+	cmd.color = color;
+
+	debugCommands.push_back(cmd);
 }
 
 

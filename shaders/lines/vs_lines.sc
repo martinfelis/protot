@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, a_texcoord1, a_texcoord2, a_color0
-$output v_color0
+$output v_color0, v_path_length
 
 /*
  * Copyright 2011-2015 Branimir Karadzic. All rights reserved.
@@ -16,19 +16,22 @@ uniform vec4 u_line_params;
 #define current_pos a_position
 #define prev_pos a_texcoord0
 #define next_pos a_texcoord1
-#define direction a_texcoord2
+#define direction a_texcoord2.x
+#define path_length a_texcoord2.y
 
 void main()
 {
 	vec2 aspect_vec = vec2(aspect, 1.0);
 
+  // clip space
   vec4 current_proj = mul(u_modelViewProj, vec4(current_pos, 1.0));
   vec4 prev_proj = mul(u_modelViewProj, vec4(prev_pos, 1.0));
   vec4 next_proj = mul(u_modelViewProj, vec4(next_pos, 1.0));
 
-	vec2 current_screen = current_proj.xy / current_proj.w * aspect_vec;
-	vec2 prev_screen = prev_proj.xy / prev_proj.w * aspect_vec;
-	vec2 next_screen = next_proj.xy / next_proj.w * aspect_vec;
+  // normalized device coordinates [-1,1]x[-1,1]
+	vec2 current_screen = current_proj.xy / current_proj.w;
+	vec2 prev_screen = prev_proj.xy / prev_proj.w;
+	vec2 next_screen = next_proj.xy / next_proj.w;
 
 	float len = thickness;
 	// uncomment the following line to get a line width
@@ -64,4 +67,5 @@ void main()
 	vec4 offset = vec4(normal * orientation, 0.0, 0.0);
 	gl_Position = current_proj + offset;
 	v_color0 = a_color0;
+	v_path_length = path_length;
 }

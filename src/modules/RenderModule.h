@@ -319,16 +319,21 @@ struct LightProbe
 
 struct Path {
 	std::vector<Vector3f> points;
+	std::vector<Vector4f> colors;
 	float thickness = 0.1f;
 	float miter = 0.0f;
-	Vector4f color = Vector4f (1.0f, 1.0f, 1.0f, 1.0f);
+	bgfx::DynamicVertexBufferHandle mVertexBufferHandle = BGFX_INVALID_HANDLE;
+	bgfx::DynamicIndexBufferHandle mIndexBufferHandle = BGFX_INVALID_HANDLE;
+
+	~Path();
+	void UpdateBuffers();
 };
 
 struct DebugCommand {
 	enum CommandType {
 		Line,
 		Axes,
-		Arrow
+		Sphere
 	};
 
 	CommandType type;
@@ -407,6 +412,11 @@ struct Renderer {
 			const Vector3f &pos,
 			const Matrix33f &orientation,
 			const float &scale);
+
+	void drawDebugSphere (
+			const Vector3f &pos,
+			float radius,
+			const Vector4f &color = Vector4f(1.f, 1.f, 1.f, 1.f));
 };
 
 struct RenderProgram {
@@ -452,6 +462,7 @@ struct RenderState {
 		Scene,
 		SceneTextured,
 		Lines,
+		LinesOccluded,
 		Debug,
 		Count
 	};

@@ -9,5 +9,8 @@ $input v_color0, v_path_length
 
 void main()
 {
+	if (mod(v_path_length * 20.0, 2) < 1.0)
+		discard;
+
 	gl_FragColor = v_color0;
 }

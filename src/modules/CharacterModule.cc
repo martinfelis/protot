@@ -104,6 +104,8 @@ void CharacterEntity::update(float dt) {
 			position[2]);
 
 	entity->mesh.updateMatrices(entity->transform.toMatrix());
+
+//	gRenderer->drawDebugSphere (Vector3f (0.f, 0.f, 0.f), 0.2f);
 }
 
 void ShowCharacterPropertiesWindow (CharacterEntity* character) {
