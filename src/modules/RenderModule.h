@@ -333,12 +333,14 @@ struct DebugCommand {
 	enum CommandType {
 		Line,
 		Axes,
-		Sphere
+		Circle,
+		Invalid
 	};
 
 	CommandType type;
 
 	Vector3f from;
+	float radius;
 	Vector3f to;
 	Vector4f color = Vector4f(1.f, 1.f, 1.f, 1.f);
 };
@@ -413,9 +415,15 @@ struct Renderer {
 			const Matrix33f &orientation,
 			const float &scale);
 
+	void drawDebugCircle (
+			const Vector3f &pos,
+			const Vector3f &normal,
+			const float radius,
+			const Vector4f &color = Vector4f (1.f, 1.f, 1.f, 1.f));
+
 	void drawDebugSphere (
 			const Vector3f &pos,
-			float radius,
+			const float radius,
 			const Vector4f &color = Vector4f(1.f, 1.f, 1.f, 1.f));
 };
 

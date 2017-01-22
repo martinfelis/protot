@@ -1621,46 +1621,29 @@ void Renderer::paintGL() {
 				line.colors.push_back(debugCommands[i].color);
 
 				line.UpdateBuffers();
-			} else if (debugCommands[i].type == DebugCommand::Sphere) {
+			} else if (debugCommands[i].type == DebugCommand::Circle) {
 				line.points.clear();
 				line.colors.clear();
-
-				float radius = debugCommands[i].to[0];
+				float radius = debugCommands[i].radius;
 				float c,s,angle;
-				const int cNumSegments = 64;
 
-				// circle in X-Y plane
+				// construct an orthogonal vector from the normal.
+				Vector3f plane1 (
+						debugCommands[i].to[1] - debugCommands[i].to[2],
+						debugCommands[i].to[0],
+						-debugCommands[i].to[0]
+						);
+				plane1.normalize();
+				Vector3f plane2 = debugCommands[i].to.cross(plane1);
+
+				const int cNumSegments = 64;
 				for (uint32_t j = 0; j < cNumSegments; j++) {
 					angle = M_PI * 0.5f + 2. * M_PI * static_cast<float>(j) / static_cast<float>(cNumSegments - 1);
 
 					s = sin(angle) * radius;
 					c = cos(angle) * radius;
 
-					line.points.push_back(Vector3f(s, c, 0));
-					line.colors.push_back(debugCommands[i].color);
-				}
-
-				// circle in X-Z plane (note: we draw the circle an
-				// additional 90 degrees so that we can directly start
-				// the last circle.
-				for (uint32_t j = 0; j < cNumSegments; j++) {
-					angle = M_PI * 0.5f + 2.5 * M_PI * static_cast<float>(j) / static_cast<float>(cNumSegments - 1);
-
-					s = sin(angle) * radius;
-					c = cos(angle) * radius;
-
-					line.points.push_back(Vector3f(s, 0, c));
-					line.colors.push_back(debugCommands[i].color);
-				}
-
-				// circle in Y-Z plane
-				for (uint32_t j = 0; j < cNumSegments; j++) {
-					angle = M_PI + 2. * M_PI * static_cast<float>(j) / static_cast<float>(cNumSegments - 1);
-
-					s = sin(angle) * radius;
-					c = cos(angle) * radius;
-
-					line.points.push_back(Vector3f(0, s, c));
+					line.points.push_back(debugCommands[i].from + plane1 * s + plane2 * c);
 					line.colors.push_back(debugCommands[i].color);
 				}
 
@@ -1832,6 +1815,7 @@ void Renderer::drawDebugLine (
 		const Vector3f &to,
 		const Vector3f &color) {
 	DebugCommand cmd;
+
 	cmd.type = DebugCommand::Line;
 	cmd.from = from;
 	cmd.to = to;
@@ -1850,17 +1834,40 @@ void Renderer::drawDebugAxes (
 	drawDebugLine (pos, pos + Vector3f (orientation.block<3,1>(0,2)) * scale, Vector3f (0.f, 0.f, 1.f));
 }
 
+void Renderer::drawDebugCircle (
+		const Vector3f &pos,
+		const Vector3f &normal,
+		const float radius,
+		const Vector4f &color) {
+	DebugCommand cmd;
+	cmd.type = DebugCommand::Circle;
+	cmd.from = pos;
+	cmd.to = normal;
+	cmd.color = color;
+	cmd.radius = radius;
+
+	debugCommands.push_back(cmd);
+}
+
 void Renderer::drawDebugSphere (
 		const Vector3f &pos,
 		float radius,
 		const Vector4f &color) {
-	DebugCommand cmd;
-	cmd.type = DebugCommand::Sphere;
-	cmd.from = pos;
-	cmd.to[0] = radius;
-	cmd.color = color;
-
-	debugCommands.push_back(cmd);
+	drawDebugCircle (
+			pos, 
+			Vector3f (1.0f, 0.0f, 0.0f),
+			radius,
+			color);
+	drawDebugCircle (
+			pos, 
+			Vector3f (0.0f, 1.0f, 0.0f),
+			radius,
+			color);
+	drawDebugCircle (
+			pos, 
+			Vector3f (0.0f, 0.0f, 1.0f),
+			radius,
+			color);
 }
 
 

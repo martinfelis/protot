@@ -66,6 +66,8 @@ CharacterEntity::~CharacterEntity() {
 	entity = nullptr;
 }
 
+static float cur_time = 0.0f;
+
 void CharacterEntity::update(float dt) {
 	Vector3f controller_acceleration (
 			controller.direction[0] * cGroundAcceleration,
@@ -105,7 +107,9 @@ void CharacterEntity::update(float dt) {
 
 	entity->mesh.updateMatrices(entity->transform.toMatrix());
 
-//	gRenderer->drawDebugSphere (Vector3f (0.f, 0.f, 0.f), 0.2f);
+	cur_time += dt;
+
+	gRenderer->drawDebugSphere (Vector3f (0.f, 1.3 + sin(cur_time * 2.f), 0.f), 2.2f);
 }
 
 void ShowCharacterPropertiesWindow (CharacterEntity* character) {
