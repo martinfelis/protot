@@ -12,13 +12,14 @@
 
 #include "bgfx/bgfxplatform.h"
 #include "bx/timer.h"
+#include "Timer.h"
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
 
 #include "Globals.h"
 #include "Serializer.h"
 
-
+Timer* gTimer = nullptr;
 Renderer* gRenderer = nullptr;
 GLFWwindow* gWindow = nullptr;
 RuntimeModuleManager* gModuleManager = nullptr;
@@ -99,6 +100,12 @@ int main(void)
 	// imgui initialization.
 	imguiCreate();
 
+	// Timer
+	Timer timer;
+	gTimer = &timer;
+	timer.mCurrentTime = 0.0f;
+	timer.mDeltaTime = 0.0f;
+
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
@@ -117,14 +124,8 @@ int main(void)
 	int64_t time_offset = bx::getHPCounter();
 
 	while(!glfwWindowShouldClose(gWindow)) {
-		int64_t now = bx::getHPCounter();
-		static int64_t last = now;
-		const int64_t frameTime = now - last;
-		last = now;
-		const double freq = double(bx::getHPFrequency() );
-		const double toMs = 1000.0/freq;
-
-		float time = (float)( (now-time_offset)/double(bx::getHPFrequency() ) );
+		static int64_t last = bx::getHPCounter();
+		int64_t pre_module_check = bx::getHPCounter();
 
 		if (module_manager.CheckModulesChanged()) {
 			std::cout << "Detected module update. Unloading all modules." << std::endl;
@@ -136,8 +137,25 @@ int main(void)
 			// to reloading of the modules.
 			last = bx::getHPCounter();
 		}
+	
+		// update time that was passed without module reloading
+		int64_t now = bx::getHPCounter();
+		int64_t module_update = now - pre_module_check;
 
-		module_manager.Update((float)(frameTime / freq));
+		const int64_t frameTime = (now - last) - module_update;
+		last = now;
+		const double freq = double(bx::getHPFrequency() );
+		const double toMs = 1000.0/freq;
+
+		gTimer->mFrameTime = (float)(frameTime / freq);
+		if (!gTimer->mPaused) {
+			gTimer->mDeltaTime = gTimer->mFrameTime;
+			gTimer->mCurrentTime = gTimer->mCurrentTime + gTimer->mDeltaTime;
+		} else {
+			gTimer->mDeltaTime = 0.0f;
+		}
+
+		module_manager.Update(gTimer->mDeltaTime);
 
 		glfwPollEvents();
 

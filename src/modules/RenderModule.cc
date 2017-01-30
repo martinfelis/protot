@@ -1172,8 +1172,6 @@ void Renderer::initialize(int width, int height) {
 	reset = BGFX_RESET_VSYNC | BGFX_RESET_MAXANISOTROPY | BGFX_RESET_MSAA_X16;
 	bgfx::reset(width, height, reset);
 
-	std::cout << "bla55aa" << std::endl;
-
 	bgfx::setViewClear(0
 			, BGFX_CLEAR_COLOR|BGFX_CLEAR_DEPTH
 			, 0x303030ff

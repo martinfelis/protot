@@ -10,6 +10,7 @@
 
 #include "RuntimeModuleManager.h"
 #include "Serializer.h"
+#include "Timer.h"
 
 #include "modules/RenderModule.h"
 #include "modules/CharacterModule.h"
@@ -144,8 +145,8 @@ void handle_keyboard (struct module_state *state, float dt) {
 			direction += Vector3f (0.f, -1.f, 0.f);
 		}
 
-		eye += direction * 5.f * dt;
-		poi += direction * 5.f * dt;
+		eye += direction * 5.f * gTimer->mFrameTime;
+		poi += direction * 5.f * gTimer->mFrameTime;
 
 		active_camera->eye = eye;
 		active_camera->poi = poi;
@@ -178,6 +179,11 @@ void handle_keyboard (struct module_state *state, float dt) {
 			controller.state[CharacterController::ControlStateJump] = true;	
 		}
 	}
+
+	// handle pause
+	if (glfwGetKey(gWindow, GLFW_KEY_P) == GLFW_PRESS) {
+		gTimer->mPaused = !gTimer->mPaused;	
+	} 
 }
 
 void update_character(module_state* state, float dt) {

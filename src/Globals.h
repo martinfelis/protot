@@ -2,6 +2,9 @@
 
 #include "math_types.h"
 
+struct Timer;
+extern Timer* gTimer;
+
 struct Renderer;
 extern Renderer* gRenderer;
 
