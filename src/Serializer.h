@@ -61,10 +61,10 @@ struct ReadSerializer {
 			return false;
 		}
 
-		std::cout << "found block for " << key << ", size: " << iter->second.size << std::endl;
+//		std::cout << "found block for " << key << ", size: " << iter->second.size << std::endl;
 		assert (size == iter->second.size);
-		std::cout << "copying from " << iter->second.pdata << " to " << (void*) data << std::endl; 
-		std::cout << "copying from " << blocks[key].pdata << " to " << (void*) data << std::endl; 
+//		std::cout << "copying from " << iter->second.pdata << " to " << (void*) data << std::endl; 
+//		std::cout << "copying from " << blocks[key].pdata << " to " << (void*) data << std::endl; 
 		assert (blocks[key].size == size);
 		memcpy (data, blocks[key].pdata, size);
 		return true;
@@ -85,7 +85,7 @@ struct ReadSerializer {
 		while (!stream.eof()) {
 			// read key size
 			stream.read(reinterpret_cast<char*>(&key_size), sizeof(size_t));
-			std::cout << "read key size " << key_size << std::endl;
+//			std::cout << "read key size " << key_size << std::endl;
 			assert (key_size < 1000);
 			// read key
 			std::string key (key_size, 0);
@@ -97,9 +97,9 @@ struct ReadSerializer {
 
 			// read block size
 			stream.read(reinterpret_cast<char*>(&block->size), sizeof(size_t));
-			std::cout << "read block " << key << ", size = " << block->size << std::endl;
+//			std::cout << "read block " << key << ", size = " << block->size << std::endl;
 			block->pdata = new char[block->size + 1];
-			std::cout << "block addr = " << block->pdata << std::endl;
+//			std::cout << "block addr = " << block->pdata << std::endl;
 			stream.read(reinterpret_cast<char*>(block->pdata), block->size);
 		}
 
