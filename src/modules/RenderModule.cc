@@ -49,7 +49,7 @@ struct module_state {
 };
 
 static struct module_state *module_init() {
-	std::cout << "RenderModule init called" << std::endl;
+	gLog ("RenderModule init called.");
 	assert (gWindow != nullptr && "Cannot initialize renderer module without gWindow!");
 
 	module_state *state = (module_state*) malloc(sizeof(*state));
@@ -75,7 +75,7 @@ static void module_serialize (
 }
 
 static void module_finalize(struct module_state *state) {
-	std::cout << "RenderModule finalize called" << std::endl;
+	gLog ("RenderModule finalize called");
 
 	assert (state->renderer != nullptr);
 	delete state->renderer;
@@ -84,12 +84,12 @@ static void module_finalize(struct module_state *state) {
 }
 
 static void module_reload(struct module_state *state, void *read_serializer) {
-	std::cout << "RenderModule reload called" << std::endl;
+	gLog ("RenderModule reload called");
 	assert (gWindow != nullptr);
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
 
-	std::cout << "renderer initialize" << std::endl;
+	gLog ("Renderer initialize");
 	assert (state != nullptr);
 	state->renderer->initialize(width, height);
 	gRenderer = state->renderer;
@@ -115,7 +115,7 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 	gRenderer = nullptr;
 	state->renderer->shutdown();
 
-	std::cout << "RenderModule unload called" << std::endl;
+	gLog ("RenderModule unload called");
 }
 
 static bool module_step(struct module_state *state, float dt) {
@@ -385,12 +385,14 @@ bool RenderProgram::reload() {
 			bgfx::destroyProgram(program);
 		}
 
-		cout << "Reload of shaders " << vertexShaderFileName << " and " << fragmentShaderFileName << " success!" << endl;
+		gLog ("Reload of shaders %s and %s success!", 
+				vertexShaderFileName.c_str(), fragmentShaderFileName.c_str());
 
 		program = new_handle;
 		return true;
 	} else {
-		cout << "Reload of shaders " << vertexShaderFileName << " and " << fragmentShaderFileName << " failed!" << endl;
+		gLog ("Reload of shaders %s and %s failed!", 
+				vertexShaderFileName.c_str(), fragmentShaderFileName.c_str());
 	}
 
 	return false;
@@ -996,7 +998,7 @@ void Renderer::setupShaders() {
 	m_timeOffset = bx::getHPCounter();
 
 	// Initialize light
-	std::cout << "Creating light uniforms..." << std::endl;
+	gLog ("Creating light uniforms...");
 	lights[0].u_shadowMap = bgfx::createUniform("u_shadowMap", bgfx::UniformType::Int1);
 	lights[0].u_shadowMapParams = bgfx::createUniform("u_shadowMapParams", bgfx::UniformType::Vec4);
 	lights[0].u_lightPos  = bgfx::createUniform("u_lightPos", bgfx::UniformType::Vec4);
@@ -1188,7 +1190,7 @@ void Renderer::initialize(int width, int height) {
 
 	bgfx::setDebug(debug);
 
-	std::cout << "Creating Cameras" << std::endl;
+	gLog ("Creating Cameras");
 	cameras.push_back (Camera());
 	activeCameraIndex = 0;
 	lights.push_back (Light());
@@ -1257,7 +1259,7 @@ void Renderer::shutdown() {
 	}
 
 	for (size_t i = 0; i < lights.size(); i++) {
-		std::cout << "Destroying light uniforms for light " << i << std::endl;
+		gLog ("Destroying light uniforms for light %d", i);
 		bgfx::destroyFrameBuffer(lights[i].shadowMapFB);
 
 		bgfx::destroyUniform(lights[i].u_shadowMap);
@@ -1648,7 +1650,7 @@ void Renderer::paintGL() {
 				line.UpdateBuffers();
 			}
 
-			float thickness = 0.05f;
+			float thickness = 0.143f;
 			float miter = 0.0f;
 			float aspect = static_cast<float>(width) / height;
 

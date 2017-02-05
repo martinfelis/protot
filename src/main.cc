@@ -25,6 +25,7 @@ GLFWwindow* gWindow = nullptr;
 RuntimeModuleManager* gModuleManager = nullptr;
 WriteSerializer* gWriteSerializer = nullptr;
 ReadSerializer* gReadSerializer = nullptr;
+double gTimeAtStart = 0;
 
 using namespace std;
 
@@ -64,6 +65,9 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 int main(void)
 {
+	gTimeAtStart = gGetCurrentTime();
+	std::cout << "Time at start: " << gTimeAtStart << std::endl;
+
 	WriteSerializer out_serializer;
 	ReadSerializer in_serializer;
 

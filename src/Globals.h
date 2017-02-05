@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math_types.h"
+#include "Utils.h"
 
 struct Timer;
 extern Timer* gTimer;

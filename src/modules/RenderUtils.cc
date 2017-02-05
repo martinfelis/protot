@@ -22,8 +22,7 @@ namespace stl = tinystl;
 
 #include "RenderModule.h"
 #include "RenderUtils.h"
-//#include "MeshVBO.h"
-#include "SimpleMath/SimpleMath.h"
+#include "Globals.h"
 
 using namespace SimpleMath;
 
@@ -214,7 +213,7 @@ bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName)
 }
 
 bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_fsFileName) {
-	std::cout << "Loading shader " << _vsFileName << std::endl;
+	gLog ("Loading shader %s", _vsFileName);	
 	const char* argv[10];
 	argv[0] = "--type";
 	argv[1] = "vertex";
@@ -306,7 +305,7 @@ bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const char* _name, uin
 
 	strcat(filePath, _name);
 
-	std::cout << "Loading texture " << filePath << std::endl;
+	gLog ("Loading texture %s", filePath);
 
 	if (NULL != bx::stristr(_name, ".dds")
 	||  NULL != bx::stristr(_name, ".pvr")
