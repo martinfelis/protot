@@ -51,7 +51,8 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 	if ( stat_result == 0 && 
 			(module->id != attr.st_ino || module->mtime != attr.st_mtime)
 			) {
-		std::cout << "Opening module " << module->name << std::endl;
+		std::cout << "Opening module " << module->name 
+			<< " (size = " << attr.st_size << ")" << std::endl;
 		void *handle = dlopen(module->name.c_str(), RTLD_NOW | RTLD_GLOBAL);
 		if (handle) {
 			module->handle = handle;
@@ -94,16 +95,42 @@ void RuntimeModuleManager::Update(float dt) {
 bool RuntimeModuleManager::CheckModulesChanged() {
 	struct stat attr;
 
+	double current_time = gGetTimeSinceStart();
+	mNumUpdatesSinceLastModuleChange++;
+
 	for (int i = 0; i < mModules.size(); i++) {
 		RuntimeModule* module = mModules[i];
 		bool stat_result = stat(module->name.c_str(), &attr);
 
-		if ( stat_result == 0 && 
-				(module->id != attr.st_ino || module->mtime != attr.st_mtime)
+		if (stat_result != 0) {
+			gLog ("Error: could not stat module %s", module->name.c_str());
+			abort();
+		}
+		
+		if (    module->id != attr.st_ino 
+				 || module->mtime != attr.st_mtime
+				 || module->fsize != attr.st_size
+				 || module->fsize == 0 
 			 ) {
-			return true;
+			module->id = attr.st_ino;
+			module->mtime = attr.st_mtime;
+			module->mtimensec = attr.st_mtim.tv_nsec;
+			module->fsize = attr.st_size;
+			mNumUpdatesSinceLastModuleChange = 0;
+
+			gLog ("Detected file change of %s: new size %d",
+					module->name.c_str(), attr.st_size);
 		}
 	}
+
+	// We have to delay the actual reload trigger to make
+	// sure all writes to the dynamic libraries are complete.
+	if (mNumUpdatesSinceLastModuleChange == 5) {
+		gLog ("Triggering reload");
+
+		return true;
+	}
+
 
 	return false;
 }
