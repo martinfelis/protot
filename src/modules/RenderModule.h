@@ -13,24 +13,6 @@
 
 struct Entity;
 
-struct InputState {
-	int32_t mousedX;
-	int32_t mousedY;
-	int32_t mouseX;
-	int32_t mouseY;
-	uint8_t mouseButton;
-	int32_t mouseScroll;
-	char key;
-
-	InputState() :
-		mouseX(0),
-		mouseY(0),
-		mouseButton(0),
-		mouseScroll(0),
-		key(0) {
-		}
-};
-
 struct Camera {
 	Vector3f eye;
 	Vector3f poi;
@@ -371,9 +353,6 @@ struct Renderer {
 	std::vector<DebugCommand> debugCommands;
 
 	uint16_t activeCameraIndex;
-
-	// needed to forward inputs to IMGUI
-	InputState inputState;
 
 	Renderer() :
 		initialized(false),

@@ -185,8 +185,6 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 }
 
 static void module_unload(struct module_state *state, void* write_serializer) {
-	glfwSetScrollCallback (gWindow, nullptr);
-
 	// serialize the state of the entity
 	if (write_serializer != nullptr) {
 		module_serialize(state, static_cast<WriteSerializer*>(write_serializer));

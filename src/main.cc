@@ -25,7 +25,11 @@ GLFWwindow* gWindow = nullptr;
 RuntimeModuleManager* gModuleManager = nullptr;
 WriteSerializer* gWriteSerializer = nullptr;
 ReadSerializer* gReadSerializer = nullptr;
+GuiInputState* gGuiInputState = nullptr;
 double gTimeAtStart = 0;
+
+double mouse_scroll_x = 0.;
+double mouse_scroll_y = 0.;
 
 using namespace std;
 
@@ -63,6 +67,36 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
+void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	mouse_scroll_x += xoffset;
+	mouse_scroll_y += yoffset;
+}
+
+void handle_mouse () {
+	if (!glfwGetWindowAttrib(gWindow, GLFW_FOCUSED)) {
+		return;
+	}
+
+	if (glfwGetMouseButton(gWindow, 1)) {
+		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	} else {
+		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	}
+
+	double mouse_x, mouse_y;
+	glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
+	gGuiInputState->mousedX = mouse_x - gGuiInputState->mouseX;
+	gGuiInputState->mousedY = mouse_y - gGuiInputState->mouseY;
+	gGuiInputState->mouseX = mouse_x;
+	gGuiInputState->mouseY = mouse_y;
+	gGuiInputState->mouseScroll = mouse_scroll_y;
+
+	gGuiInputState->mouseButton =
+		glfwGetMouseButton(gWindow, 0)
+		+ (glfwGetMouseButton(gWindow, 1) << 1)
+		+ (glfwGetMouseButton(gWindow, 2) << 2);
+}
+
 int main(void)
 {
 	gTimeAtStart = gGetCurrentTime();
@@ -85,6 +119,9 @@ int main(void)
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
 
+	glfwSetKeyCallback(gWindow, key_callback);
+	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
+
 	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
 	std::cout << "GLSL Version  : " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
 
@@ -103,6 +140,8 @@ int main(void)
 
 	// imgui initialization.
 	imguiCreate();
+	GuiInputState gui_input_state;
+	gGuiInputState = &gui_input_state;
 
 	// Timer
 	Timer timer;
@@ -124,10 +163,19 @@ int main(void)
 	// Load modules
 	module_manager.LoadModules();
 
-	glfwSetKeyCallback(gWindow, key_callback);
 	int64_t time_offset = bx::getHPCounter();
 
 	while(!glfwWindowShouldClose(gWindow)) {
+		// Start the imgui frame such that widgets can be submitted
+		handle_mouse();
+		glfwGetWindowSize(gWindow, &width, &height);
+		imguiBeginFrame (gGuiInputState->mouseX,
+				gGuiInputState->mouseY,
+				gGuiInputState->mouseButton,
+				gGuiInputState->mouseScroll,
+				width,
+				height);
+
 		static int64_t last = bx::getHPCounter();
 		int64_t pre_module_check = bx::getHPCounter();
 
@@ -161,6 +209,9 @@ int main(void)
 		module_manager.Update(gTimer->mDeltaTime);
 
 		glfwPollEvents();
+
+		// submit the imgui widgets
+		imguiEndFrame();
 
     usleep(16000);
 	}

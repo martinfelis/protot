@@ -1205,14 +1205,6 @@ void Renderer::initialize(int width, int height) {
 	mLightProbes[LightProbe::Kyoto  ].load("kyoto");
 	mCurrentLightProbe = LightProbe::Bolonga;
 
-	// Start the imgui frame such that widgets can be submitted
-	imguiBeginFrame (inputState.mouseX,
-			inputState.mouseY,
-			inputState.mouseButton,
-			inputState.mouseScroll,
-			width,
-			height);
-	
 	initialized = true;
 	resize (width, height);
 	bgfx::frame();
@@ -1329,9 +1321,6 @@ void Renderer::paintGL() {
 	// debug font is 8 pixels wide
 	int num_chars = width / 8;
 	bgfx::dbgTextPrintf(num_chars - 18, 0, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
-
-	// submit the imgui widgets
-	imguiEndFrame();
 
 	// This dummy draw call is here to make sure that view 0 is cleared
 	// if no other draw calls are submitted to view 0.
@@ -1680,14 +1669,6 @@ void Renderer::paintGL() {
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.
 	bgfx::frame();
-
-	// Start the next imgui frame
-	imguiBeginFrame (inputState.mouseX,
-			inputState.mouseY,
-			inputState.mouseButton,
-			inputState.mouseScroll,
-			width,
-			height);
 
 	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);

@@ -20,8 +20,6 @@
 
 using namespace std;
 
-double mouse_scroll_x = 0.;
-double mouse_scroll_y = 0.;
 bool fps_camera = true;
 
 // Boilerplate for the module reload stuff
@@ -38,11 +36,6 @@ struct module_state {
 	CharacterEntity* character = nullptr;
 };
 
-void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-	mouse_scroll_x += xoffset;
-	mouse_scroll_y += yoffset;
-}
-
 void handle_mouse (struct module_state *state) {
 	if (!glfwGetWindowAttrib(gWindow, GLFW_FOCUSED)) {
 		return;
@@ -53,19 +46,6 @@ void handle_mouse (struct module_state *state) {
 	} else {
 		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	}
-
-	double mouse_x, mouse_y;
-	glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
-	gRenderer->inputState.mousedX = mouse_x - gRenderer->inputState.mouseX;
-	gRenderer->inputState.mousedY = mouse_y - gRenderer->inputState.mouseY;
-	gRenderer->inputState.mouseX = mouse_x;
-	gRenderer->inputState.mouseY = mouse_y;
-	gRenderer->inputState.mouseScroll = mouse_scroll_y;
-
-	gRenderer->inputState.mouseButton =
-		glfwGetMouseButton(gWindow, 0)
-		+ (glfwGetMouseButton(gWindow, 1) << 1)
-		+ (glfwGetMouseButton(gWindow, 2) << 2);
 
 	Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 	assert (active_camera != nullptr);
@@ -82,10 +62,10 @@ void handle_mouse (struct module_state *state) {
 		Vector3f right = camera_rot_inv.block<1,3>(0,0).transpose();
 		right = view_dir.cross (Vector3f (0.f, 1.f, 0.f));
 		Matrix33f rot_matrix_y = SimpleMath::GL::RotateMat33(
-				gRenderer->inputState.mousedY * 0.4f,
+				gGuiInputState->mousedY * 0.4f,
 				right[0], right[1], right[2]);
 		Matrix33f rot_matrix_x = SimpleMath::GL::RotateMat33(
-				gRenderer->inputState.mousedX * 0.4f,
+				gGuiInputState->mousedX * 0.4f,
 				0.f, 1.f, 0.f);
 		poi = eye + rot_matrix_x * rot_matrix_y * view_dir;
 
@@ -224,22 +204,14 @@ static void module_finalize(struct module_state *state) {
 static void module_reload(struct module_state *state, void* read_serializer) {
 	std::cout << "Module reload called. State: " << state << std::endl;
 
-	// reset mouse scrolling state
-	mouse_scroll_x = 0;
-	mouse_scroll_y = 0;
-
 	cout << "Creating render entity ..." << endl;
 	// load the state of the entity
 	if (read_serializer != nullptr) {
 		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));
 	}
-
-	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
 }
 
 static void module_unload(struct module_state *state, void* write_serializer) {
-	glfwSetScrollCallback (gWindow, nullptr);
-
 	// serialize the state of the entity
 	if (write_serializer != nullptr) {
 		module_serialize(state, static_cast<WriteSerializer*>(write_serializer));
