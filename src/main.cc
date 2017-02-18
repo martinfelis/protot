@@ -142,6 +142,7 @@ int main(void)
 	imguiCreate();
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
+	ImGui::InitDockContext();
 
 	// Timer
 	Timer timer;
@@ -169,6 +170,7 @@ int main(void)
 		// Start the imgui frame such that widgets can be submitted
 		handle_mouse();
 		glfwGetWindowSize(gWindow, &width, &height);
+
 		imguiBeginFrame (gGuiInputState->mouseX,
 				gGuiInputState->mouseY,
 				gGuiInputState->mouseButton,

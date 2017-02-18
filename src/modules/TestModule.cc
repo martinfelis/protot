@@ -231,59 +231,63 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 }
 
 void ShowModulesWindow(struct module_state *state) {
-	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
-	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
-	ImGui::Begin("Modules");
+//	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4 (0.5f, 0.5f, 0.5f, 0.8f));
+	if (ImGui::BeginDock("Modules")) {
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4 (0.5f, 0.0f, 0.0f, 1.f));
+		//	ImGui::Columns(2);
+		int selected = state->modules_window_selected_index;
+		for (int i = 0; i < gModuleManager->mModules.size(); i++) {
+			ImGuiTreeNodeFlags node_flags = 
+				ImGuiTreeNodeFlags_Leaf
+				| ((i == selected) ? ImGuiTreeNodeFlags_Selected : 0)
+				;
 
-//	ImGui::Columns(2);
-	int selected = state->modules_window_selected_index;
-	for (int i = 0; i < gModuleManager->mModules.size(); i++) {
-		ImGuiTreeNodeFlags node_flags = 
-			ImGuiTreeNodeFlags_Leaf
-			| ((i == selected) ? ImGuiTreeNodeFlags_Selected : 0)
-			;
+			bool node_open = ImGui::TreeNodeEx(
+					gModuleManager->mModules[i]->name.c_str(),
+					node_flags);
 
-		bool node_open = ImGui::TreeNodeEx(
-				gModuleManager->mModules[i]->name.c_str(),
-				node_flags);
+			if (ImGui::IsItemClicked()) {
+				selected = i;
+			}
 
-		if (ImGui::IsItemClicked()) {
-			selected = i;
+			if (node_open) {
+				ImGui::TreePop();
+			}
+		}
+		state->modules_window_selected_index = selected;
+
+		ImGui::Separator();
+
+		RuntimeModule* selected_module = nullptr;
+		if (selected != -1) {
+			selected_module = gModuleManager->mModules[selected];
 		}
 
-		if (node_open) {
-			ImGui::TreePop();
-		}
-	}
-	state->modules_window_selected_index = selected;
+		if (selected_module) {
+			static char time_buf[32];
+			memset (time_buf, 0, 32);
 
-	ImGui::Separator();
+			ImGui::LabelText("File", "%s", selected_module->name.c_str());
+			ImGui::LabelText("Handle", "0x%p", selected_module->handle);
+			ImGui::LabelText("id", "%ld", selected_module->id);
+			ImGui::LabelText("mtime", "%ld", selected_module->mtime);
+			ImGui::LabelText("mtimensec", "%ld", selected_module->mtimensec);
 
-	RuntimeModule* selected_module = nullptr;
-	if (selected != -1) {
-		selected_module = gModuleManager->mModules[selected];
-	}
+			//		ImGui::LabelText("mtime", "%s", ctime((time_t*)&selected_module->mtime));
+			//		cout << "time_buf = " << ctime((time_t*)&selected_module->mtime) << endl;
 
-	if (selected_module) {
-		static char time_buf[32];
-		memset (time_buf, 0, 32);
-
-		ImGui::LabelText("File", "%s", selected_module->name.c_str());
-		ImGui::LabelText("Handle", "0x%p", selected_module->handle);
-		ImGui::LabelText("id", "%ld", selected_module->id);
-		ImGui::LabelText("mtime", "%ld", selected_module->mtime);
-		ImGui::LabelText("mtimensec", "%ld", selected_module->mtimensec);
-
-//		ImGui::LabelText("mtime", "%s", ctime((time_t*)&selected_module->mtime));
-//		cout << "time_buf = " << ctime((time_t*)&selected_module->mtime) << endl;
-
-		if (ImGui::Button ("Force Reload")) {
-			selected_module->mtime = 0;
-			selected_module->id = 0;
+			if (ImGui::Button ("Force Reload")) {
+				selected_module->mtime = 0;
+				selected_module->id = 0;
+			}
 		}
 	}
 
-	ImGui::End();
+	ImGui::PopStyleColor();
+	ImGui::EndDock();
+
+//		ImGui::PopStyleColor ();
+
 }
 
 static bool module_step(struct module_state *state, float dt) {

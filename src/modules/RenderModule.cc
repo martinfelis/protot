@@ -127,9 +127,23 @@ static bool module_step(struct module_state *state, float dt) {
 	assert (gWindow != nullptr);
 	glfwGetWindowSize(gWindow, &width, &height);
 	state->renderer->updateShaders();
-	state->renderer->resize (width, height);
+
+	bgfx::reset (width, height);
+
+	int dock_top_offset = 20.0f;
+	int dock_width = 400;
+	ImGui::RootDock(
+			ImVec2(width - dock_width, dock_top_offset),
+			ImVec2(dock_width, height - dock_top_offset)
+			);
+//	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4 (0.5f, 0.5f, 0.5f, 0.5f));
+
+	state->renderer->resize (0, 20.0f, width - dock_width, height - 20.0f);
+//	state->renderer->resize (0, 20.0f, width, height - 20.0f);
 
 	state->renderer->paintGL();
+
+//	ImGui::PopStyleColor();
 
 	return true;
 }
@@ -1165,14 +1179,14 @@ namespace bgfx {
 
 
 void Renderer::initialize(int width, int height) {
-	this->width = width;
-	this->height = height;
+	this->view_width = width;
+	this->view_height = height;
 
 	uint32_t debug = BGFX_DEBUG_TEXT;
 	uint32_t reset = BGFX_RESET_VSYNC;
 
 	reset = BGFX_RESET_VSYNC | BGFX_RESET_MAXANISOTROPY | BGFX_RESET_MSAA_X16;
-	bgfx::reset(width, height, reset);
+	bgfx::reset(view_width, view_height, reset);
 
 	bgfx::setViewClear(0
 			, BGFX_CLEAR_COLOR|BGFX_CLEAR_DEPTH
@@ -1180,7 +1194,7 @@ void Renderer::initialize(int width, int height) {
 			, 1.0f
 			, 0
 			);
-	bgfx::setViewRect(0, 0, 0, width, height);
+	bgfx::setViewRect(0, view_offset_x, view_offset_y, view_width, view_height);
 
 	bgfx::RendererType::Enum renderer = bgfx::getRendererType();
 	flipV = false
@@ -1206,7 +1220,7 @@ void Renderer::initialize(int width, int height) {
 	mCurrentLightProbe = LightProbe::Bolonga;
 
 	initialized = true;
-	resize (width, height);
+	resize (view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::frame();
 }
 
@@ -1264,12 +1278,12 @@ void Renderer::shutdown() {
 	cameras.clear();
 }
 
-void Renderer::resize (int width, int height) {
+void Renderer::resize (int x, int y, int width, int height) {
 	if (initialized) {
-		bgfx::reset (width, height);
-
-		this->width = width;
-		this->height = height;
+		this->view_offset_x = x;
+		this->view_offset_y = y;
+		this->view_width = width;
+		this->view_height = height;
 
 		for (uint32_t i = 0; i < cameras.size(); i++) {
 			cameras[i].width = static_cast<float>(width);
@@ -1280,7 +1294,7 @@ void Renderer::resize (int width, int height) {
 
 void Renderer::paintGLSimple() {
 	// Set view 0 default viewport.
-	bgfx::setViewRect(0, 0, 0, width, height);
+	bgfx::setViewRect(0, view_offset_x, view_offset_y, view_width, view_height);
 
 	// This dummy draw call is here to make sure that view 0 is cleared
 	// if no other draw calls are submitted to view 0.
@@ -1319,7 +1333,7 @@ void Renderer::paintGL() {
 	bgfx::dbgTextClear();
 
 	// debug font is 8 pixels wide
-	int num_chars = width / 8;
+	int num_chars = view_width / 8;
 	bgfx::dbgTextPrintf(num_chars - 18, 0, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
 
 	// This dummy draw call is here to make sure that view 0 is cleared
@@ -1384,26 +1398,27 @@ void Renderer::paintGL() {
 	float proj[16];
 	bx::mtxIdentity(view);
 	bx::mtxOrthoRh(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f);
-	bgfx::setViewRect(RenderState::Skybox, 0, 0, width, height);
+
+	bgfx::setViewRect(RenderState::Skybox, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Skybox, view, proj);
 	
 	bgfx::setViewRect(RenderState::ShadowMap, 0, 0, lights[0].shadowMapSize, lights[0].shadowMapSize);
 	bgfx::setViewFrameBuffer(RenderState::ShadowMap, lights[0].shadowMapFB);
 	bgfx::setViewTransform(RenderState::ShadowMap, lights[0].mtxView, lights[0].mtxProj);
 
-	bgfx::setViewRect(RenderState::Scene, 0, 0, width, height);
+	bgfx::setViewRect(RenderState::Scene, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Scene, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::SceneTextured, 0, 0, width, height);
+	bgfx::setViewRect(RenderState::SceneTextured, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::SceneTextured, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::Lines, 0, 0, width, height);
+	bgfx::setViewRect(RenderState::Lines, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Lines, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::LinesOccluded, 0, 0, width, height);
+	bgfx::setViewRect(RenderState::LinesOccluded, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::LinesOccluded, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::Debug, 0, 0, width, height);
+	bgfx::setViewRect(RenderState::Debug, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Debug, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
 
@@ -1641,7 +1656,7 @@ void Renderer::paintGL() {
 
 			float thickness = 0.143f;
 			float miter = 0.0f;
-			float aspect = static_cast<float>(width) / height;
+			float aspect = static_cast<float>(view_width) / static_cast<float>(view_height);
 
 			Vector4f params (thickness, miter, aspect, 0.0f);
 
@@ -1670,43 +1685,44 @@ void Renderer::paintGL() {
 	// process submitted rendering primitives.
 	bgfx::frame();
 
-	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
-	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
+//	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
+//	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
+//
+	if (ImGui::BeginDock("Render Settings")) {
 
-	ImGui::Begin("Render Settings");
+		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
+		}
 
-	if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos, 1.0f, -10.0f, 10.0f)) {
+		if(ImGui::DragFloat3 ("Light0 Dir", lights[0].dir.data(), 1.0f, -10.0f, 10.0f)) {
+		}
+
+		float light_at[3];
+		light_at[0] = lights[0].dir[0] - lights[0].pos[0];
+		light_at[1] = lights[0].dir[1] - lights[0].pos[1];
+		light_at[2] = lights[0].dir[2] - lights[0].pos[2];
+
+		if(ImGui::DragFloat3 ("Light0 At", light_at, 1.0f, -10.0f, 10.0f)) {
+			lights[0].dir[0] =  lights[0].pos[0]- light_at[0];
+			lights[0].dir[1] =  lights[0].pos[1]- light_at[1];
+			lights[0].dir[2] =  lights[0].pos[2]- light_at[2];
+		}
+
+		assert (lights.size() == 1);
+
+		ImGui::Checkbox("Draw Floor", &drawFloor);
+		ImGui::Checkbox("Draw Skybox", &drawSkybox);
+		ImGui::Checkbox("Draw Debug", &drawDebug);
+
+		for (int i = 0; i < lights.size(); i++) {
+			ImGui::SliderFloat("Bias", 
+					&lights[i].shadowMapBias,
+					0.0001f,
+					0.10f
+					);
+		}
 	}
 
-	if(ImGui::DragFloat3 ("Light0 Dir", lights[0].dir, 1.0f, -10.0f, 10.0f)) {
-	}
-
-	float light_at[3];
-	light_at[0] = lights[0].dir[0] - lights[0].pos[0];
-	light_at[1] = lights[0].dir[1] - lights[0].pos[1];
-	light_at[2] = lights[0].dir[2] - lights[0].pos[2];
-
-	if(ImGui::DragFloat3 ("Light0 At", light_at, 1.0f, -10.0f, 10.0f)) {
-		lights[0].dir[0] =  lights[0].pos[0]- light_at[0];
-		lights[0].dir[1] =  lights[0].pos[1]- light_at[1];
-		lights[0].dir[2] =  lights[0].pos[2]- light_at[2];
-	}
-
-	assert (lights.size() == 1);
-
-	ImGui::Checkbox("Draw Floor", &drawFloor);
-	ImGui::Checkbox("Draw Skybox", &drawSkybox);
-	ImGui::Checkbox("Draw Debug", &drawDebug);
-
-	for (int i = 0; i < lights.size(); i++) {
-		ImGui::SliderFloat("Bias", 
-			&lights[i].shadowMapBias,
-			0.0001f,
-			0.10f
-			);
-	}
-
-	ImGui::End();
+	ImGui::EndDock();
 
 	// clear debug commands as they have to be issued every frame
 	debugCommands.clear();
