@@ -158,7 +158,7 @@ void MeshHierarchy::updateMatrices(const Matrix44f &world_transform) {
 
 void MeshHierarchy::submit(const RenderState *state) {
 	for (uint32_t i = 0; i < meshes.size(); ++i) {
-		bgfxutils::meshSubmit (meshes[i], state, 1, meshMatrices[i].data());
+		bgfxutils::meshSubmit (meshes[i]->mBgfxMesh, state, 1, meshMatrices[i].data());
 	}
 };
 
@@ -1245,11 +1245,6 @@ void Renderer::shutdown() {
 		entities[i] = NULL;
 	}
 
-	for (size_t i = 0; i < meshes.size(); i++) {
-		bgfxutils::meshUnload(meshes[i]);
-		meshes[i] = NULL;
-	}
-
 	for (size_t i = 0; i < lights.size(); i++) {
 		gLog ("Destroying light uniforms for light %d", i);
 		bgfx::destroyFrameBuffer(lights[i].shadowMapFB);
@@ -1523,12 +1518,12 @@ void Renderer::paintGL() {
 		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
 			bx::mtxMul(
 					lightMtx, 
-					entities[i]->mesh.meshMatrices[j].data(), 
+					entities[i]->mesh.meshMatrices[j].data(),
 					lights[0].mtxShadow
 					);
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			bgfxutils::meshSubmit (
-					entities[i]->mesh.meshes[j], 
+					entities[i]->mesh.meshes[j]->mBgfxMesh, 
 					&s_renderStates[RenderState::ShadowMap],
 					1,
 					entities[i]->mesh.meshMatrices[j].data()
@@ -1545,7 +1540,7 @@ void Renderer::paintGL() {
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			bgfx::setUniform(u_color, entities[i]->color, 4);
 			bgfxutils::meshSubmit (
-					entities[i]->mesh.meshes[j], 
+					entities[i]->mesh.meshes[j]->mBgfxMesh, 
 					&s_renderStates[RenderState::Scene],
 					1,
 					entities[i]->mesh.meshMatrices[j].data()
@@ -1758,36 +1753,6 @@ bool Renderer::destroyEntity(Entity* entity) {
 	}
 
 	return false;
-}
-
-bgfxutils::Mesh* Renderer::loadMesh(const char* filename) {
-	MeshIdMap::iterator mesh_iter = meshIdMap.find (filename);
-	bgfxutils::Mesh* result = NULL;
-
-	if (mesh_iter == meshIdMap.end()) {
-		std::string filename_str (filename);
-		if (filename_str.substr(filename_str.size() - 4, 4) == ".obj") {
-			std::vector<tinyobj::shape_t> shapes;
-			std::vector<tinyobj::material_t> materials;
-
-			std::string err;
-			bool result = tinyobj::LoadObj(shapes, materials, err, filename);
-
-			if (!result) {
-				std::cerr << "Error loading '" << filename << "': " << err << std::endl;
-				exit(-1);
-			}
-//			result = bgfxutils::createMeshFromVBO (vbo);
-		} else {
-			result = bgfxutils::meshLoad(filename);
-		}
-		meshes.push_back (result);
-		meshIdMap[filename] = meshes.size() - 1;
-	} else {
-		result = meshes[mesh_iter->second];
-	}
-
-	return result;
 }
 
 // debug commands

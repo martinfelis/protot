@@ -37,7 +37,7 @@ CharacterEntity::CharacterEntity() {
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
 				),
-			bgfxutils::createUVSphere (45, 45, 0.9)
+			Mesh::sCreateUVSphere(45, 45, 0.9)
 			);
 
 	entity->mesh.addMesh(
@@ -45,7 +45,7 @@ CharacterEntity::CharacterEntity() {
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.55f, 0.0f)
 				),
-			bgfxutils::createUVSphere (45, 45, 0.7)
+			Mesh::sCreateUVSphere (45, 45, 0.7)
 			);
 
 	entity->mesh.addMesh(
@@ -53,7 +53,7 @@ CharacterEntity::CharacterEntity() {
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.4f, 0.0f)
 				),
-			bgfxutils::createUVSphere (45, 45, 0.5)
+			Mesh::sCreateUVSphere (45, 45, 0.5)
 			);
 
 	//	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
