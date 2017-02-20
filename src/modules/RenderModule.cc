@@ -1639,7 +1639,7 @@ void Renderer::paintGL() {
 				line.UpdateBuffers();
 			}
 
-			float thickness = 0.143f;
+			float thickness = 0.05143f;
 			float miter = 0.0f;
 			float aspect = static_cast<float>(width) / height;
 
