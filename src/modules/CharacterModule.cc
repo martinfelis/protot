@@ -105,11 +105,18 @@ void CharacterEntity::update(float dt) {
 			position[1],
 			position[2]);
 
+	gRenderer->drawDebugSphere (Vector3f (0.f, 1.3 + sin(cur_time * 2.f), 0.f), 2.2f);
+
+
+	Quaternion quat (-cos(cur_time), 0.0f, 0.0f * sin(cur_time), 1.0f);
+	quat.normalize();
+
+	entity->mesh.localTransforms[0].rotation = quat;
+
+	// update matrices
 	entity->mesh.updateMatrices(entity->transform.toMatrix());
 
 	cur_time += dt;
-
-	gRenderer->drawDebugSphere (Vector3f (0.f, 1.3 + sin(cur_time * 2.f), 0.f), 2.2f);
 }
 
 void ShowCharacterPropertiesWindow (CharacterEntity* character) {
