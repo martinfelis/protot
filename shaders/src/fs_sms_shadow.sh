@@ -11,7 +11,6 @@ uniform vec4 u_color;
 uniform vec4 u_shadowMapParams;
 #define u_shadowMapSize u_shadowMapParams.x
 #define u_shadowMapBias u_shadowMapParams.y
-#define shininess 0.5
 
 #if SHADOW_PACKED_DEPTH
 SAMPLER2D(u_shadowMap, 0);
@@ -32,20 +31,6 @@ vec2 lit(vec3 _ld, vec3 _n, vec3 _vd, float _exp)
 
 	//spec
 	vec3 r = 2.0*ndotl*_n - _ld; //reflect(_ld, _n);
-	r = reflect(-_ld, _n);
-	float rdotv = dot(r, _n);
-	float spec = step(0.0, ndotl) * pow(max(0.0, rdotv), _exp) * (2.0 + _exp)/8.0;
-
-	return max(vec2(ndotl, spec), 0.0);
-}
-vec2 lit_old(vec3 _ld, vec3 _n, vec3 _vd, float _exp)
-{
-	//diff
-	float ndotl = dot(_n, _ld);
-
-	//spec
-	vec3 r = 2.0*ndotl*_n - _ld; //reflect(_ld, _n);
-	r = reflect(-_ld, _n);
 	float rdotv = dot(r, _n);
 	float spec = step(0.0, ndotl) * pow(max(0.0, rdotv), _exp) * (2.0 + _exp)/8.0;
 
@@ -101,39 +86,6 @@ float PCF(Sampler _sampler, vec4 _shadowCoord, float _bias, vec2 _texelSize)
 	return result / 16.0;
 }
 
-vec2 blinn(vec3 _lightDir, vec3 _normal, vec3 _viewDir)
-{
-	float ndotl = dot(_normal, _lightDir);
-	vec3 reflected = 2.0*ndotl*_normal - _lightDir; // reflect(_lightDir, _normal);
-	float rdotv = dot(reflected, _viewDir);
-	return vec2(ndotl, rdotv);
-}
-
-vec4 lit(float _ndotl, float _rdotv, float _m)
-{
-	float diff = max(0.0, _ndotl);
-	float spec = step(0.0, _ndotl) * pow(max(0.0, _rdotv), _m);
-	return vec4(1.0, diff, spec, 1.0);
-}
-
-vec3 calcLight(vec3 _view, vec3 _normal, vec3 _viewDir)
-{
-//	vec3 lightPos = mul(u_view, vec4(u_lightPos.xyz, 1.0)).xyz;
-	vec3 lightPos = u_lightPos.xyz;
-	vec3 toLight = lightPos - _view;
-	vec3 lightDir = normalize(toLight);
-
-	vec2 bln = blinn(lightDir, _normal, _viewDir);
-	vec4 lc = lit(bln.x, bln.y, shininess);
-
-	float dist = max(length(toLight), u_lightPos.w);
-	float attn = 250.0 * pow(dist, -2.0);
-	vec3 rgb = (lc.y * u_color.xyz + lc.z * vec3 (0.0, 0.8, 0.0)) 
-	* vec3(0.2, 0.2, 0.9) * attn;
-
-	return rgb;
-}
-
 void main()
 {
 	vec3 color = u_color.xyz;
@@ -141,29 +93,16 @@ void main()
 	vec3 v  = v_view;
 	vec3 vd = -normalize(v);
 	vec3 n  = v_normal;
-	vec3 l  = u_lightPos.xyz - v_view;
+	vec3 l  = u_lightPos.xyz;
 	vec3 ld = normalize(l);
 
-	vec2 lc = lit(ld, n, vd, 128.0);
-
-	// diffuse
-	float diff = max (0, dot(n, ld));
-
-	// spec
-	vec3 r = reflect(-ld, n);
-	float rdotv = max (0.0, dot (n, r));
-	float spec = pow (rdotv, 128.);
+	vec2 lc = lit(ld, n, vd, 1.0);
 
 	vec2 texelSize = vec2_splat(1.0/u_shadowMapSize);
 	float visibility = PCF(u_shadowMap, v_shadowcoord, u_shadowMapBias, texelSize);	
 
 	vec3 ambient = 0.05 * color;
-//	if (spec > 0.1)
-//		color = vec3(1., 0, 0);
-
-	vec3 brdf = lc.x * color + lc.y * vec3 (1.0, 1.0, 1.0); // * visibility;
-//	vec3 brdf = diff * color + spec * vec3 (1.0, 1.0, 1.0); // * visibility;
-	brdf = brdf * visibility;
+	vec3 brdf = (lc.x * color + lc.y * color)  * visibility;
 
 #if TEXTURED
   vec4 texcolor = toLinear (texture2D(sceneDefaultTexture, v_texcoord0) );
