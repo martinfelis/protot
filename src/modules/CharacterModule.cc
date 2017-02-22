@@ -31,12 +31,25 @@ CharacterEntity::CharacterEntity() {
 
 	cout << "Creating render entity mesh ..." << endl;
 
+//	Mesh* base_mesh = Mesh::sCreateUVSphere(45, 45, 0.9);
+//	Transform sub_transform =
+//		Transform::fromTransRot(
+//				Vector3f (4.f, 3.3f, 0.12f),
+//				Quaternion::fromEulerYXZ (Vector3f(1.f, 2.f, 0.f))
+//				);
+//	Mesh* quad = Mesh::sCreateCuboid(1.05, 0.1, 2.05);
+//
+//	base_mesh->Merge (*quad, sub_transform.toMatrix());
+//	base_mesh->Update();
+//	delete quad;
+
 	// Build the snowman
 	entity->mesh.addMesh(
 			- 1,
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
 				),
+//			base_mesh
 			Mesh::sCreateUVSphere(45, 45, 0.9)
 			);
 

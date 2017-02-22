@@ -912,8 +912,8 @@ void Mesh::Update() {
 
 void Mesh::Merge (const Mesh& other, const Matrix44f &transform) {
 	for (int i = 0; i < other.mVertices.size(); ++i) {
-		mVertices.push_back (transform * other.mVertices[i]);
-		mNormals.push_back (Matrix33f(transform.block<3,3>(0,0)) * other.mNormals[i]);
+		mVertices.push_back (transform.transpose() * other.mVertices[i]);
+		mNormals.push_back (Matrix33f(transform.block<3,3>(0,0)).transpose() * other.mNormals[i]);
 
 		if (other.mColors.size() == other.mVertices.size())
 			mColors.push_back(other.mColors[i]);

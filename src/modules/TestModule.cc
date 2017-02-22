@@ -175,8 +175,6 @@ void update_character(module_state* state, float dt) {
 static struct module_state *module_init() {
 	std::cout << "Module init called" << std::endl;
 	module_state *state = (module_state*) malloc(sizeof(*state));
-	state->character = new CharacterEntity;
-	state->character->position = Vector3f (0.f, 0.f, 0.f);
 	state->modules_window_selected_index = -1;
 
 	fps_camera = true;
@@ -205,6 +203,10 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 	std::cout << "Module reload called. State: " << state << std::endl;
 
 	cout << "Creating render entity ..." << endl;
+
+	state->character = new CharacterEntity;
+	state->character->position = Vector3f (0.f, 0.f, 0.f);
+
 	// load the state of the entity
 	if (read_serializer != nullptr) {
 		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));
@@ -218,13 +220,7 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 	}
 
 	// clean up
-	cout << "destroying render entity " << state->character->entity << endl;
-	if (!gRenderer->destroyEntity (state->character->entity)) {
-		cerr << "Warning: could not destroy entity " << state->character->entity << endl;
-	} else {
-		cout << "Successfully destroyed entity " << state->character->entity << endl;
-
-	}
+	delete state->character;
 	state->character->entity = nullptr;
 
 	std::cout << "TestModule unloaded. State: " << state << std::endl;
