@@ -168,7 +168,7 @@ void handle_keyboard (struct module_state *state, float dt) {
 
 void update_character(module_state* state, float dt) {
 	if (state->character != nullptr) {
-		state->character->update(dt);
+		state->character->Update(dt);
 	}
 }
 

@@ -52,13 +52,15 @@ struct CharacterEntity {
 	CharacterEntity ();
 	~CharacterEntity ();
 
-	void reset() {
+	void Reset() {
 		mPosition.setZero();
 		mVelocity.setZero();
 		mController.reset();
 	}
 
-	void update(float dt); 
+	bool LoadRig (const char* filename);
+
+	void Update(float dt); 
 };
 
 void ShowCharacterPropertiesWindow (CharacterEntity* character);

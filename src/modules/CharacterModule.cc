@@ -15,8 +15,20 @@
 
 #include "CharacterModule.h"
 
+#include "rbdl/addons/luamodel/luatables.h"
+
+// forward declaration of a function that is in the LuaModel addon
+// of RBDL. We make it visible here to extract more information
+// from the Lua file.
+namespace RigidBodyDynamics {
+namespace Addons {
+bool LuaModelReadFromTable (LuaTable &model_table, Model *model, bool verbose);
+}
+}
+
 using namespace std;
 using namespace RigidBodyDynamics;
+using namespace RigidBodyDynamics::Addons;
 
 const float cJumpVelocity = 4.0f;
 const float cVelocityDamping = 4.0f;
@@ -24,14 +36,17 @@ const float cGravity = 9.81f;
 const float cGroundAcceleration = 30.0f;
 const float cCharacterHeight = 1.8f;
 const float cCharacterWidth = 1.f;
+const char* cRigModelFile = "data/models/model.lua";
 
 CharacterEntity::CharacterEntity() {
 	entity = gRenderer->createEntity();
 	mPosition = Vector3f (0.f, 0.0f, 0.0f);
 
 	mRigModel = new Model();
+	
+	bool load_result = LoadRig (cRigModelFile);
+	assert (load_result);
 
-	cout << "Creating render entity ... success!" << endl;
 	cout << "Creating render entity mesh ..." << endl;
 
 //	Mesh* base_mesh = Mesh::sCreateUVSphere(45, 45, 0.9);
@@ -84,9 +99,21 @@ CharacterEntity::~CharacterEntity() {
 	mRigModel = nullptr;
 }
 
+bool CharacterEntity::LoadRig(const char* filename) {
+	gLog ("Creating rig model from %s ... ", filename);
+	LuaTable model_table = LuaTable::fromFile (filename);
+
+	bool load_result = LuaModelReadFromTable (model_table, mRigModel, false);
+
+	gLog ("Creating rig model from %s ... %s", filename, load_result ? "success" : "failed!");
+	gLog ("Rig model has %d degrees of freedom", mRigModel->qdot_size);
+
+	return load_result;
+}
+
 static float cur_time = 0.0f;
 
-void CharacterEntity::update(float dt) {
+void CharacterEntity::Update(float dt) {
 	Vector3f mController_acceleration (
 			mController.mDirection[0] * cGroundAcceleration,
 			mController.mDirection[1] * cGroundAcceleration,
@@ -144,7 +171,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	ImGui::Begin("Character");
 
 	if (ImGui::Button ("Reset")) {
-		character->reset();
+		character->Reset();
 	}
 	
 	ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
