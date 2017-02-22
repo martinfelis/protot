@@ -10,6 +10,12 @@
 #include "Globals.h"
 
 #include "imgui_protot_ext.h"
+#include "rbdl/rbdl.h"
+#include "rbdl/addons/luamodel/luamodel.h"
+
+namespace RigidBodyDynamics {
+	struct Model;
+}
 
 struct CharacterController {
 	enum ControllerState {
@@ -17,16 +23,16 @@ struct CharacterController {
 		ControlStateLast
 	};
 
-	bool state[ControlStateLast];
+	bool mState[ControlStateLast];
 
-	Vector3f direction = Vector3f::Zero();
+	Vector3f mDirection = Vector3f::Zero();
 
 	void reset() {
 		for (int i = 0; i < ControlStateLast; i++) {
-			state[i] = false;
+			mState[i] = false;
 		}
 
-		direction.setZero();
+		mDirection.setZero();
 	}
 
 	CharacterController() {
@@ -37,17 +43,19 @@ struct CharacterController {
 struct CharacterEntity {
 	/// Render entity
 	Entity *entity = nullptr;
-	Vector3f position;
-	Vector3f velocity;
-	CharacterController controller;
+	Vector3f mPosition;
+	Vector3f mVelocity;
+	CharacterController mController;
+
+	RigidBodyDynamics::Model* mRigModel = nullptr;
 
 	CharacterEntity ();
 	~CharacterEntity ();
 
 	void reset() {
-		position.setZero();
-		velocity.setZero();
-		controller.reset();
+		mPosition.setZero();
+		mVelocity.setZero();
+		mController.reset();
 	}
 
 	void update(float dt); 

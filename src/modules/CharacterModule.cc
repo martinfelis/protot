@@ -16,6 +16,7 @@
 #include "CharacterModule.h"
 
 using namespace std;
+using namespace RigidBodyDynamics;
 
 const float cJumpVelocity = 4.0f;
 const float cVelocityDamping = 4.0f;
@@ -26,9 +27,11 @@ const float cCharacterWidth = 1.f;
 
 CharacterEntity::CharacterEntity() {
 	entity = gRenderer->createEntity();
-	position = Vector3f (0.f, 0.0f, 0.0f);
-	cout << "Creating render entity ... success!" << endl;
+	mPosition = Vector3f (0.f, 0.0f, 0.0f);
 
+	mRigModel = new Model();
+
+	cout << "Creating render entity ... success!" << endl;
 	cout << "Creating render entity mesh ..." << endl;
 
 //	Mesh* base_mesh = Mesh::sCreateUVSphere(45, 45, 0.9);
@@ -69,54 +72,56 @@ CharacterEntity::CharacterEntity() {
 			Mesh::sCreateUVSphere (45, 45, 0.5)
 			);
 
-	//	state->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
-	//	state->character->entity->mesh = bgfxutils::createCylinder (20);
+	//	mState->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
+	//	mState->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
 }
 
 CharacterEntity::~CharacterEntity() {
 	gRenderer->destroyEntity(entity);
 	entity = nullptr;
+	delete mRigModel;
+	mRigModel = nullptr;
 }
 
 static float cur_time = 0.0f;
 
 void CharacterEntity::update(float dt) {
-	Vector3f controller_acceleration (
-			controller.direction[0] * cGroundAcceleration,
-			controller.direction[1] * cGroundAcceleration,
-			controller.direction[2] * cGroundAcceleration
+	Vector3f mController_acceleration (
+			mController.mDirection[0] * cGroundAcceleration,
+			mController.mDirection[1] * cGroundAcceleration,
+			mController.mDirection[2] * cGroundAcceleration
 			);
 
 	Vector3f gravity (0.0f, -cGravity, 0.0f);
 	Vector3f damping (
-			-velocity[0] * cVelocityDamping,
+			-mVelocity[0] * cVelocityDamping,
 			0.0f,
-			-velocity[2] * cVelocityDamping
+			-mVelocity[2] * cVelocityDamping
 			);
 
-	Vector3f acceleration = controller_acceleration + gravity + damping;
+	Vector3f acceleration = mController_acceleration + gravity + damping;
 
-	velocity = velocity + acceleration * dt;
+	mVelocity = mVelocity + acceleration * dt;
 
-	if (position[1] == 0.0f 
-			&& controller.state[CharacterController::ControlStateJump]) {
-		velocity[1] = cJumpVelocity;	
+	if (mPosition[1] == 0.0f 
+			&& mController.mState[CharacterController::ControlStateJump]) {
+		mVelocity[1] = cJumpVelocity;	
 	}
 
-	// integrate position
-	position += velocity * dt;
+	// integrate mPosition
+	mPosition += mVelocity * dt;
 
-	if (position[1] < 0.f) {
-		position[1] = 0.f;
-		velocity[1] = 0.0f;
+	if (mPosition[1] < 0.f) {
+		mPosition[1] = 0.f;
+		mVelocity[1] = 0.0f;
 	}
 
 	// apply transformation
 	entity->transform.translation.set(
-			position[0],
-			position[1],
-			position[2]);
+			mPosition[0],
+			mPosition[1],
+			mPosition[2]);
 
 	gRenderer->drawDebugSphere (Vector3f (0.f, 1.3 + sin(cur_time * 2.f), 0.f), 2.2f);
 
@@ -142,8 +147,8 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 		character->reset();
 	}
 	
-	ImGui::DragFloat3 ("Position", character->position.data(), 0.01, -10.0f, 10.0f);
-	ImGui::DragFloat3 ("Velocity", character->velocity.data(), 0.01, -10.0f, 10.0f);
+	ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
+	ImGui::DragFloat3 ("Velocity", character->mVelocity.data(), 0.01, -10.0f, 10.0f);
 
 
 	for (int i = 0; i < character->entity->mesh.meshes.size(); ++i) {
@@ -188,7 +193,7 @@ template <typename Serializer>
 static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
-//	SerializeVec3(*serializer, "protot.TestModule.entity.position", state->character->position);
+//	SerializeVec3(*serializer, "protot.TestModule.entity.mPosition", state->character->mPosition);
 }
 
 static void module_finalize(struct module_state *state) {

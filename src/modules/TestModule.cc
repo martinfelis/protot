@@ -132,7 +132,7 @@ void handle_keyboard (struct module_state *state, float dt) {
 		active_camera->poi = poi;
 	} else if (state->character != nullptr) {
 		// Movement of the character
-		CharacterController& controller = state->character->controller;
+		CharacterController& controller = state->character->mController;
 
 		controller.reset();
 
@@ -140,23 +140,23 @@ void handle_keyboard (struct module_state *state, float dt) {
 
 		// Reset the character control state:
 		if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
-			controller.direction += forward_plane;
+			controller.mDirection += forward_plane;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
-			controller.direction -= forward_plane;
+			controller.mDirection -= forward_plane;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
-			controller.direction += right;
+			controller.mDirection += right;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
-			controller.direction -= right;
+			controller.mDirection -= right;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlStateJump] = true;	
+			controller.mState[CharacterController::ControlStateJump] = true;	
 		}
 	}
 
@@ -186,8 +186,8 @@ template <typename Serializer>
 static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
-	SerializeVec3(*serializer, "protot.TestModule.entity.position", state->character->position);
-	SerializeVec3(*serializer, "protot.TestModule.entity.velocity", state->character->velocity);
+	SerializeVec3(*serializer, "protot.TestModule.entity.mPosition", state->character->mPosition);
+	SerializeVec3(*serializer, "protot.TestModule.entity.mVelocity", state->character->mVelocity);
 	SerializeBool(*serializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
 	SerializeBool(*serializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
 	SerializeBool(*serializer, "protot.TestModule.imgui_demo_window_visible", state->imgui_demo_window_visible);
@@ -205,7 +205,7 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 	cout << "Creating render entity ..." << endl;
 
 	state->character = new CharacterEntity;
-	state->character->position = Vector3f (0.f, 0.f, 0.f);
+	state->character->mPosition = Vector3f (0.f, 0.f, 0.f);
 
 	// load the state of the entity
 	if (read_serializer != nullptr) {
