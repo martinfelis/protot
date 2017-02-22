@@ -6,7 +6,27 @@
 #include "GLFW/glfw3.h"
 #include <bgfx/bgfx.h>
 
+// Forward declarations
 struct RenderState;
+
+namespace bgfxutils {
+struct Mesh;
+}
+
+struct Mesh {
+	bgfxutils::Mesh* mBgfxMesh = nullptr;
+ 	std::vector<Vector4f> mVertices;
+ 	std::vector<Vector3f> mNormals;
+ 	std::vector<Vector4f> mColors;
+
+	~Mesh();
+	void Update();
+	void Merge (const Mesh& other, const Matrix44f &mat = Matrix44f::Identity());
+
+	static Mesh *sCreateCuboid (float width, float height, float depth);
+	static Mesh *sCreateUVSphere (int rows, int segments, float radius = 1.0f);
+	static Mesh *sCreateCylinder (int segments);
+};
 
 namespace bgfxutils {
 	bgfx::ShaderHandle loadShader(const char *_name);
@@ -21,30 +41,9 @@ namespace bgfxutils {
 	void calcTangents(void *_vertices, uint16_t _numVertices, bgfx::VertexDecl _decl, const uint16_t *_indices,
 					  uint32_t _numIndices);
 
-	struct MeshState {
-		struct Texture {
-			uint32_t m_flags;
-			bgfx::UniformHandle m_sampler;
-			bgfx::TextureHandle m_texture;
-			uint8_t m_stage;
-		};
-
-		Texture m_textures[4];
-		uint64_t m_state;
-		bgfx::ProgramHandle m_program;
-		uint8_t m_numTextures;
-		uint8_t m_viewId;
-	};
-
-	struct Mesh;
-
 	Mesh *meshLoad(const char *_filePath);
 
 	void meshUnload(Mesh *_mesh);
-
-	MeshState *meshStateCreate();
-
-	void meshStateDestroy(MeshState *_meshState);
 
 	void meshSubmit(const Mesh *_mesh, uint8_t _id, bgfx::ProgramHandle _program, const float *_mtx,
 					uint64_t _state = BGFX_STATE_MASK);
@@ -57,9 +56,6 @@ namespace bgfxutils {
 
 	void meshTransform (Mesh* mesh, const float *mtx);
 
-	Mesh *createCuboid (float width, float height, float depth);
-	Mesh *createUVSphere (int rows, int segments, float radius = 1.0f);
-	Mesh *createCylinder (int segments);
 }
 
 #endif

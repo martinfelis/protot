@@ -233,11 +233,11 @@ struct Transform {
 struct MeshHierarchy {
 	~MeshHierarchy()
 	{
-		for (bgfxutils::Mesh* mesh : meshes) {
-			meshUnload(mesh);
+		for (Mesh* mesh : meshes) {
+			delete mesh;
 		}
 	}
-	std::vector<bgfxutils::Mesh*> meshes;
+	std::vector<Mesh*> meshes;
 
 	/// index of the parent. Children must have higher indices than heir
 	//  parents
@@ -250,7 +250,7 @@ struct MeshHierarchy {
 	void addMesh(
 			const int parent_idx, 
 			const Transform& transform, 
-			bgfxutils::Mesh* mesh) {
+			Mesh* mesh) {
 		assert (parent_idx == -1 || parent_idx < parent.size());
 		parent.push_back(parent_idx);
 		localTransforms.push_back(transform);
@@ -261,7 +261,6 @@ struct MeshHierarchy {
 		} else {
 			meshMatrices.push_back(transform.toMatrix());
 		}
-
 	}
 	void updateMatrices(const Matrix44f &world_transform);
 	void submit(const RenderState *state);
@@ -338,10 +337,6 @@ struct Renderer {
 	bgfx::UniformHandle sceneDefaultTextureSampler;
 	bgfx::TextureHandle sceneDefaultTexture;
 
-	std::vector<bgfxutils::Mesh*> meshes;
-	typedef std::map<std::string, unsigned int> MeshIdMap;
-	MeshIdMap meshIdMap;
-
 	LightProbe mLightProbes[LightProbe::Count];
 	LightProbe::Enum mCurrentLightProbe;
 
@@ -380,8 +375,6 @@ struct Renderer {
 
 	Entity* createEntity();
 	bool destroyEntity (Entity* entity);
-
-	bgfxutils::Mesh* loadMesh(const char* filename);
 
 	// debug commands
 	void drawDebugLine (
