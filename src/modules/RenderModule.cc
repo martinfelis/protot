@@ -1518,7 +1518,7 @@ void Renderer::paintGL() {
 	for (size_t i = 0; i < entities.size(); i++) {
 		float mtxLightViewProjInv[16];
 		float light_pos_world[3];
-		
+
 		// shadow map pass
 		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
 			bx::mtxMul(
@@ -1526,6 +1526,28 @@ void Renderer::paintGL() {
 					entities[i]->mesh.meshMatrices[j].data(), 
 					lights[0].mtxShadow
 					);
+
+			float tmp[4];
+			bx::vec4MulMtx(
+				tmp,
+				lightMtx,
+				lights[0].pos);
+
+			bgfx::setUniform(lights[0].u_lightPos, tmp);
+
+			
+			Matrix44f mesh_matrix = entities[i]->mesh.meshMatrices[j];
+
+			Vector4f light_pos (
+					lights[0].pos[0], 
+					lights[0].pos[1],
+					lights[0].pos[2], 
+					lights[0].pos[3]);
+
+			light_pos = mesh_matrix.inverse() * light_pos;
+//			tmp = light_pos;
+
+			bgfx::setUniform(lights[i].u_lightPos, light_pos.data());
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			bgfxutils::meshSubmit (
 					entities[i]->mesh.meshes[j], 
@@ -1537,13 +1559,21 @@ void Renderer::paintGL() {
 
 		// scene pass
 		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
-			bx::mtxMul(
-					lightMtx, 
-					entities[i]->mesh.meshMatrices[j].data(), 
-					lights[0].mtxShadow
-					);
+			Matrix44f mesh_matrix = entities[i]->mesh.meshMatrices[j];
+
+			Vector4f light_pos (
+					lights[0].pos[0], 
+					lights[0].pos[1],
+					lights[0].pos[2], 
+					lights[0].pos[3]);
+
+			light_pos = mesh_matrix * light_pos;
+//			tmp = light_pos;
+
+			bgfx::setUniform(lights[i].u_lightPos, light_pos.data());
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-			bgfx::setUniform(u_color, entities[i]->color, 4);
+			Vector4f color (0.1, 0.0, 1.0, 1.0);
+			bgfx::setUniform(u_color, color.data(), 4);
 			bgfxutils::meshSubmit (
 					entities[i]->mesh.meshes[j], 
 					&s_renderStates[RenderState::Scene],
