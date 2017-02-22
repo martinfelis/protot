@@ -26,6 +26,7 @@ struct Mesh {
 	static Mesh *sCreateCuboid (float width, float height, float depth);
 	static Mesh *sCreateUVSphere (int rows, int segments, float radius = 1.0f);
 	static Mesh *sCreateCylinder (int segments);
+	static Mesh *sCreateCapsule (int rows, int segments, float length, float radius);
 };
 
 namespace bgfxutils {

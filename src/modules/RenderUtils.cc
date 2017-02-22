@@ -1176,3 +1176,84 @@ Mesh* Mesh::sCreateCylinder (int segments) {
 
 	return result;
 }
+
+Mesh* Mesh::sCreateCapsule (int rows, int segments, float length, float radius) {
+	Mesh* result = new Mesh();
+
+	// work arrays that we fill with data
+ 	std::vector<Vector4f> &vertices = result->mVertices;
+ 	std::vector<Vector3f> &normals = result->mNormals;
+ 	std::vector<Vector4f> &colors = result->mColors;
+
+	float delta = 2. * M_PI / static_cast<float>(segments);
+	for (unsigned int i = 0; i < segments; i++) {
+		float r0 = (i - 0.5) * delta;
+		float r1 = (i + 0.5) * delta;
+
+		float c0 = cos (r0); 
+		float s0 = sin (r0); 
+
+		float c1 = cos (r1); 
+		float s1 = sin (r1); 
+
+		Vector3f normal0 (-c0, -s0, 0.f);
+		Vector3f normal1 (-c1, -s1, 0.f);
+
+		Vector4f normal0_4 (-c0, -s0, 0.f, 0.f);
+		Vector4f normal1_4 (-c1, -s1, 0.f, 0.f);
+
+		Vector4f p0 = normal0_4 + Vector4f (0., 0.,  0.5f, 1.0f);
+		Vector4f p1 = normal0_4 + Vector4f (0., 0., -0.5f, 1.0f);
+		Vector4f p2 = normal1_4 + Vector4f (0., 0.,  0.5f, 1.0f);
+		Vector4f p3 = normal1_4 + Vector4f (0., 0., -0.5f, 1.0f);
+
+    // side triangle 1
+		vertices.push_back(p0);
+		normals.push_back(normal0);
+
+		vertices.push_back(p1);
+		normals.push_back(normal0);
+
+		vertices.push_back(p2);
+		normals.push_back(normal1);
+
+		// side triangle 2
+		vertices.push_back(p2);
+		normals.push_back(normal1);
+
+		vertices.push_back(p1);
+		normals.push_back(normal0);
+
+		vertices.push_back(p3);
+		normals.push_back(normal1);
+
+		// upper end triangle
+		Vector3f normal (0.f, 0.f, 1.f);
+
+		vertices.push_back(p0);
+		normals.push_back(normal);
+
+		vertices.push_back(p2);
+		normals.push_back(normal);
+
+		vertices.push_back(Vector4f (0.f, 0.f, 0.5f, 1.0f));
+		normals.push_back(normal);
+
+		// lower end triangle
+		normal = Vector3f(0.f, 0.f, -1.f);
+
+		vertices.push_back(p3);
+		normals.push_back(normal);
+
+		vertices.push_back(p1);
+		normals.push_back(normal);
+
+		vertices.push_back(Vector4f (0.f, 0.f, -0.5f, 1.0f));
+		normals.push_back(normal);
+	}
+
+	result->Update();
+
+	return result;
+};
+

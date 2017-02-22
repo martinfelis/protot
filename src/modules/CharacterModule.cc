@@ -14,6 +14,7 @@
 #include "Serializer.h"
 
 #include "CharacterModule.h"
+#include "LuaTableTypes.h"
 
 #include "rbdl/addons/luamodel/luatables.h"
 
@@ -25,6 +26,8 @@ namespace Addons {
 bool LuaModelReadFromTable (LuaTable &model_table, Model *model, bool verbose);
 }
 }
+
+// Types needed to parse
 
 using namespace std;
 using namespace RigidBodyDynamics;
@@ -107,6 +110,66 @@ bool CharacterEntity::LoadRig(const char* filename) {
 
 	gLog ("Creating rig model from %s ... %s", filename, load_result ? "success" : "failed!");
 	gLog ("Rig model has %d degrees of freedom", mRigModel->qdot_size);
+
+	gLog ("Reading rig geometry information ... ");
+
+	int frame_count = model_table["frames"].length();
+	gLog ("Found %d frames", frame_count);
+
+	for (int fi = 1; fi <= frame_count; ++fi) {
+		LuaTableNode frame_table = model_table["frames"][fi];
+		string frame_name = frame_table["name"].getDefault<string>("");
+		int visuals_count = frame_table["visuals"].length();
+		gLog ("  Frame %s has %d visuals", frame_name.c_str(), visuals_count);
+		
+		for (int vi = 1; vi <= visuals_count; ++vi) {
+			LuaTableNode visual_table = frame_table["visuals"][vi];
+			bool have_geometry = visual_table["geometry"].exists();
+
+			if (!have_geometry) {
+				gLog ("  Warning: could not find geometry for visual %d of frame %s",
+						vi, frame_name.c_str());
+				continue;
+			}
+
+			Vector4f color (1.f, 0.f, 1.f, 1.f);
+			if (visual_table["color"].length() == 3) {
+				color.block<3,1>(0,0) = visual_table["color"].getDefault(Vector3f(color.block<3,1>(0,0)));
+			} if (visual_table["color"].length() == 4) {
+				color = visual_table["color"].getDefault(color);
+			}
+
+			Mesh* mesh = nullptr;
+
+			if (visual_table["geometry"]["box"].exists()) {
+				Vector3f dimensions = visual_table["geometry"]["box"]["dimensions"].getDefault(Vector3f (1.f, 1.f, 1.f));
+				mesh = Mesh::sCreateCuboid (
+						dimensions[0],
+						dimensions[1],
+						dimensions[2]
+						);
+			} else if (visual_table["geometry"]["sphere"].exists()) {
+				int rows = static_cast<int>(
+						visual_table["geometry"]["sphere"]["radius"].getDefault (16.f)
+						);				
+				int segments = static_cast<int>(
+						visual_table["geometry"]["sphere"]["segments"].getDefault (16.f)
+						);
+				float radius = visual_table["geometry"]["sphere"]["radius"].getDefault (1.f);
+				mesh = Mesh::sCreateUVSphere (rows, segments, radius);
+			} else if (visual_table["geometry"]["capsule"].exists()) {
+				int rows = static_cast<int>(
+						visual_table["geometry"]["capsule"]["radius"].getDefault (16.f)
+						);				
+				int segments = static_cast<int>(
+						visual_table["geometry"]["capsule"]["segments"].getDefault (16.f)
+						);
+				float radius = visual_table["geometry"]["capsule"]["radius"].getDefault (1.f);
+				float length = visual_table["geometry"]["capsule"]["length"].getDefault (1.f);
+				mesh = Mesh::sCreateCapsule (rows, segments, length, radius);
+			}
+		}
+	}
 
 	return load_result;
 }
