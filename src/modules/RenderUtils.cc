@@ -920,6 +920,15 @@ void Mesh::Merge (const Mesh& other, const Matrix44f &transform) {
 	}
 }
 
+void Mesh::Submit (const RenderState *state, const float* matrix) const {
+	bgfxutils::meshSubmit (
+			mBgfxMesh, 
+			state,
+			1,
+			matrix);
+}
+
+
 Mesh* Mesh::sCreateCuboid (float width, float height, float depth) {
 	Mesh* result = new Mesh();
 

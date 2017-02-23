@@ -145,22 +145,16 @@ const struct module_api MODULE_API = {
 };
 }
 
-void MeshHierarchy::updateMatrices(const Matrix44f &world_transform) {
-	for (uint32_t i = 0; i < meshes.size(); ++i) {
+void Skeleton::UpdateMatrices(const Matrix44f &world_transform) {
+	for (uint32_t i = 0; i < mBoneMatrices.size(); ++i) {
 		Matrix44f parent_matrix (world_transform);
-		if (parent[i] != -1) {
-			parent_matrix = meshMatrices[parent[i]];
+		if (mParent[i] != -1) {
+			parent_matrix = mBoneMatrices[mParent[i]];
 		}
 
-		meshMatrices[i] = localTransforms[i].toMatrix() * parent_matrix;
+		mBoneMatrices[i] = mLocalTransforms[i].toMatrix() * parent_matrix;
 	}
 }
-
-void MeshHierarchy::submit(const RenderState *state) {
-	for (uint32_t i = 0; i < meshes.size(); ++i) {
-		bgfxutils::meshSubmit (meshes[i]->mBgfxMesh, state, 1, meshMatrices[i].data());
-	}
-};
 
 // BGFX globals
 bgfx::VertexBufferHandle cube_vbh;
@@ -1515,45 +1509,66 @@ void Renderer::paintGL() {
 		float light_pos_world[3];
 		
 		// shadow map pass
-		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+		for (uint32_t j = 0; j < entities[i]->mSkeletonMeshes.Length(); ++j) {
 			bx::mtxMul(
 					lightMtx, 
-					entities[i]->mesh.meshMatrices[j].data(),
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data(),
 					lights[0].mtxShadow
 					);
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-			bgfxutils::meshSubmit (
-					entities[i]->mesh.meshes[j]->mBgfxMesh, 
+			entities[i]->mSkeletonMeshes.GetMesh(j)->Submit(
 					&s_renderStates[RenderState::ShadowMap],
-					1,
-					entities[i]->mesh.meshMatrices[j].data()
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
 
 		// scene pass
-		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+		for (uint32_t j = 0; j < entities[i]->mSkeletonMeshes.Length(); ++j) {
 			bx::mtxMul(
 					lightMtx, 
-					entities[i]->mesh.meshMatrices[j].data(), 
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data(),
 					lights[0].mtxShadow
 					);
 
 			// compute world position of the light
 			Vector4f light_pos = 
-				entities[i]->mesh.meshMatrices[j] 
+				entities[i]->mSkeletonMeshes.GetBoneMatrix(j)
 				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
 
 			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
-			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			bgfx::setUniform(u_color, entities[i]->color);
-			bgfxutils::meshSubmit (
-					entities[i]->mesh.meshes[j]->mBgfxMesh, 
+			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+			entities[i]->mSkeletonMeshes.GetMesh(j)->Submit(
 					&s_renderStates[RenderState::Scene],
-					1,
-					entities[i]->mesh.meshMatrices[j].data()
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
-
 		}
+
+		//
+		//
+		//
+//		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+//			bx::mtxMul(
+//					lightMtx, 
+//					entities[i]->mesh.meshMatrices[j].data(), 
+//					lights[0].mtxShadow
+//					);
+//
+//			// compute world position of the light
+//			Vector4f light_pos = 
+//				entities[i]->mesh.meshMatrices[j] 
+//				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
+//
+//			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
+//			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+//			bgfxutils::meshSubmit (
+//					entities[i]->mesh.meshes[j]->mBgfxMesh, 
+//					&s_renderStates[RenderState::Scene],
+//					1,
+//					entities[i]->mesh.meshMatrices[j].data()
+//					);
+//
+//		}
 	}
 
 	// render debug information

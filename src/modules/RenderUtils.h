@@ -22,6 +22,7 @@ struct Mesh {
 	~Mesh();
 	void Update();
 	void Merge (const Mesh& other, const Matrix44f &mat = Matrix44f::Identity());
+	void Submit (const RenderState *state, const float* matrix) const;
 
 	static Mesh *sCreateCuboid (float width, float height, float depth);
 	static Mesh *sCreateUVSphere (int rows, int segments, float radius = 1.0f);

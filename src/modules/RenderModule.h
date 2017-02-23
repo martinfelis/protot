@@ -9,6 +9,7 @@
 
 #include <bgfx/bgfx.h>
 
+#include "Globals.h"
 #include "RenderUtils.h"
 
 struct Entity;
@@ -230,49 +231,82 @@ struct Transform {
 	}
 };
 
-struct MeshHierarchy {
-	~MeshHierarchy()
-	{
-		for (Mesh* mesh : meshes) {
-			delete mesh;
-		}
-	}
-	std::vector<Mesh*> meshes;
-
-	/// index of the parent. Children must have higher indices than heir
-	//  parents
-	std::vector<int> parent;
-	/// Transforms relative to their parents.
-	std::vector<Transform> localTransforms;
+struct Skeleton {
+	/// index of the mParent. Children must have higher indices than heir
+	//  mParents
+	std::vector<int> mParent;
+	/// Transforms relative to their mParents.
+	std::vector<Transform> mLocalTransforms;
 	/// Absolute transforms.
-	std::vector<Matrix44f> meshMatrices;
+	std::vector<Matrix44f> mBoneMatrices;
 
-	void addMesh(
-			const int parent_idx, 
-			const Transform& transform, 
-			Mesh* mesh) {
-		assert (parent_idx == -1 || parent_idx < parent.size());
-		parent.push_back(parent_idx);
-		localTransforms.push_back(transform);
-		meshes.push_back(mesh);
+	int AddBone(
+			const int parent_index, 
+			const Transform& transform
+			) {
+		assert (parent_index == -1 || parent_index < mParent.size());
+		mParent.push_back(parent_index);
+		mLocalTransforms.push_back(transform);
 
-		if (parent_idx != -1) {
-			meshMatrices.push_back(transform.toMatrix() * meshMatrices[parent_idx]);
+		if (parent_index != -1) {
+			mBoneMatrices.push_back(transform.toMatrix() * mBoneMatrices[parent_index]);
 		} else {
-			meshMatrices.push_back(transform.toMatrix());
+			mBoneMatrices.push_back(transform.toMatrix());
+		}
+
+		return mBoneMatrices.size() - 1;
+	}
+	void UpdateMatrices(const Matrix44f &world_transform);
+	int Length() const {
+		return mBoneMatrices.size();
+	}
+};
+
+struct SkeletonMeshes {
+	Skeleton& mSkeleton;
+	typedef std::pair<Mesh*, int> MeshBoneIndex;
+	std::vector<MeshBoneIndex> mMeshBoneIndices;
+
+	SkeletonMeshes(Skeleton &skeleton) :
+		mSkeleton(skeleton)
+	{}
+
+	~SkeletonMeshes() {
+		for(MeshBoneIndex& mesh_bone : mMeshBoneIndices) {
+			delete mesh_bone.first;
 		}
 	}
-	void updateMatrices(const Matrix44f &world_transform);
-	void submit(const RenderState *state);
+
+	void AddMesh (Mesh* mesh, int bone_index) {
+		mMeshBoneIndices.push_back (MeshBoneIndex (mesh, bone_index));
+	}
+
+	const Matrix44f GetBoneMatrix(int index) const {
+		assert (index >= 0 && index < Length());
+		assert (mMeshBoneIndices[index].second < mSkeleton.mBoneMatrices.size());
+
+		return mSkeleton.mBoneMatrices[mMeshBoneIndices[index].second];
+	}
+
+	const Mesh* GetMesh(int index) const {
+		assert (index >= 0 && index < Length());
+		return mMeshBoneIndices[index].first;
+	}
+
+	int Length() const {
+		return mMeshBoneIndices.size();
+	}
 };
 
 struct Entity {
-	Transform transform;
-	float color[4];
-	MeshHierarchy mesh;
+	Transform mTransform;
+	Vector4f mColor;
+	Skeleton mSkeleton;
+	SkeletonMeshes mSkeletonMeshes;
 
 	Entity() :
-		color { 1.f, 1.f, 1.f, 1.f }
+		mColor (1.f, 1.f, 1.f, 1.f ),
+		mSkeletonMeshes(mSkeleton)
 	{}
 };
 

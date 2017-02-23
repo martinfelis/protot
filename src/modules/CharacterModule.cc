@@ -64,31 +64,54 @@ CharacterEntity::CharacterEntity() {
 //	base_mesh->Update();
 //	delete quad;
 
+	int bone_index;
+
 	// Build the snowman
-	entity->mesh.addMesh(
-			- 1,
+
+	// bottom sphere
+	bone_index = entity->mSkeleton.AddBone(
+			-1, 
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
-				),
-//			base_mesh
-			Mesh::sCreateUVSphere(45, 45, 0.9)
+				)
 			);
+	entity->mSkeletonMeshes.AddMesh (
+			Mesh::sCreateUVSphere(45, 45, 0.9),
+			bone_index
+			);
+	gLog ("Now have %d bones, bone_index %d", 
+			entity->mSkeleton.Length(),
+			bone_index);
 
-	entity->mesh.addMesh(
-			0,
+	// middle sphere
+	bone_index = entity->mSkeleton.AddBone(
+			bone_index, 
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.55f, 0.0f)
-				),
-			Mesh::sCreateUVSphere (45, 45, 0.7)
+				)
 			);
+	entity->mSkeletonMeshes.AddMesh (
+			Mesh::sCreateUVSphere (45, 45, 0.7),
+			bone_index
+			);
+	gLog ("Now have %d bones, bone_index %d", 
+			entity->mSkeleton.Length(),
+			bone_index);
 
-	entity->mesh.addMesh(
-			1,
+	// top sphere
+	bone_index = entity->mSkeleton.AddBone(
+			bone_index, 
 			Transform::fromTrans(
 				Vector3f (0.0f, 0.4f, 0.0f)
-				),
-			Mesh::sCreateUVSphere (45, 45, 0.5)
+				)
 			);
+	entity->mSkeletonMeshes.AddMesh (
+			Mesh::sCreateUVSphere (45, 45, 0.5),
+			bone_index
+			);
+	gLog ("Now have %d bones, bone_index %d", 
+			entity->mSkeleton.Length(),
+			bone_index);
 
 	//	mState->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 	//	mState->character->entity->mesh = bgfxutils::createCylinder (20);
@@ -208,7 +231,7 @@ void CharacterEntity::Update(float dt) {
 	}
 
 	// apply transformation
-	entity->transform.translation.set(
+	entity->mTransform.translation.set(
 			mPosition[0],
 			mPosition[1],
 			mPosition[2]);
@@ -219,10 +242,10 @@ void CharacterEntity::Update(float dt) {
 	Quaternion quat (-cos(cur_time), 0.0f, 0.0f * sin(cur_time), 1.0f);
 	quat.normalize();
 
-	entity->mesh.localTransforms[0].rotation = quat;
+	entity->mTransform.rotation = quat;
 
 	// update matrices
-	entity->mesh.updateMatrices(entity->transform.toMatrix());
+	entity->mSkeleton.UpdateMatrices(entity->mTransform.toMatrix());
 
 	cur_time += dt;
 }
@@ -240,8 +263,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
 	ImGui::DragFloat3 ("Velocity", character->mVelocity.data(), 0.01, -10.0f, 10.0f);
 
-
-	for (int i = 0; i < character->entity->mesh.meshes.size(); ++i) {
+	for (int i = 0; i < character->entity->mSkeleton.Length(); ++i) {
 		char buf[32];
 		snprintf (buf, 32, "Mesh %d", i);
 
@@ -252,7 +274,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 				node_flags);
 
 		if (node_open) {
-			Transform &transform = character->entity->mesh.localTransforms[i];
+			Transform &transform = character->entity->mSkeleton.mLocalTransforms[i];
 
 			ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
 			if (ImGui::Protot::DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
