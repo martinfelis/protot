@@ -249,7 +249,19 @@ bool CharacterEntity::LoadRig(const char* filename) {
 			Vector3f dimensions = visual_table["dimensions"].getDefault(Vector3f(0.f, 0.f, 0.f));
 			Vector3f mesh_center = visual_table["mesh_center"].getDefault(Vector3f(0.f, 0.f, 0.f));
 			Vector3f translate = visual_table["translate"].getDefault(Vector3f(0.f, 0.f, 0.f));
-			
+
+			// parse mesh rotation
+			float angle = 0.0f;
+			Vector3f axis (1.f, 0.f, 0.f);
+			if (visual_table["rotate"].exists()) {
+				angle = visual_table["rotate"]["angle"].getDefault (0.0f);
+				axis = visual_table["rotate"]["axis"].getDefault (axis);
+			}
+
+			Quaternion visual_rotate (Quaternion::fromAxisAngle (axis, angle * M_PI / 180.f));
+			mesh_transform.rotation = visual_rotate;
+
+			// compute mesh center
 			mesh->UpdateBounds();
 
 			Vector3f bbox_size = mesh->mBoundsMax - mesh->mBoundsMin;
@@ -258,6 +270,13 @@ bool CharacterEntity::LoadRig(const char* filename) {
 							fabs(dimensions[1]) / bbox_size[1],
 							fabs(dimensions[2]) / bbox_size[2]
 								);
+			if (translate.squaredNorm() > 0.0f) {
+				mesh_transform.translation = translate;
+			} else {
+				mesh_transform.translation = mesh_center;
+			}
+
+			// apply transform
 			mesh->Transform (mesh_transform.toMatrix());
 			mesh->UpdateBounds();
 			mesh->Update();
