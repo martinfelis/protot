@@ -18,11 +18,16 @@ struct Mesh {
  	std::vector<Vector4f> mVertices;
  	std::vector<Vector3f> mNormals;
  	std::vector<Vector4f> mColors;
+	Vector3f mBoundsMin = Vector3f(0.f, 0.f, 0.f);
+	Vector3f mBoundsMax = Vector3f(0.f, 0.f, 0.f);
 
 	~Mesh();
 	void Update();
-	void Merge (const Mesh& other, const Matrix44f &mat = Matrix44f::Identity());
+	void UpdateBounds ();
+	void Merge (const Mesh& other, 
+			const Matrix44f &transform = Matrix44f::Identity());
 	void Submit (const RenderState *state, const float* matrix) const;
+	void Transform (const Matrix44f &mat);
 
 	static Mesh *sCreateCuboid (float width, float height, float depth);
 	static Mesh *sCreateUVSphere (int rows, int segments, float radius = 1.0f);

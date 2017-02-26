@@ -910,6 +910,28 @@ void Mesh::Update() {
 	mBgfxMesh = bgfxutils::createMeshFromStdVectors (mVertices, mNormals, mColors);
 }
 
+void Mesh::UpdateBounds() {
+	if (mVertices.size() == 0) {
+		mBoundsMin = Vector3f (0.f, 0.f, 0.f);
+		mBoundsMax = Vector3f (0.f, 0.f, 0.f);
+
+		gLog ("Error: updating bounds for mesh with zero vertices");
+		abort();
+	}
+
+	mBoundsMin = mVertices[0].block<3,1>(0,0);
+	mBoundsMax = mVertices[0].block<3,1>(0,0);
+	
+	for (int i = 0; i < mVertices.size(); i++) {
+		for (int j = 0; j < 3; j++) {
+			mBoundsMin[j] = mBoundsMin[j] < mVertices[i][j] 
+				? mBoundsMin[j] :mVertices[i][j];
+			mBoundsMax[j] = mBoundsMax[j] > mVertices[i][j] 
+				? mBoundsMax[j] :mVertices[i][j];
+		}
+	}
+}
+
 void Mesh::Merge (const Mesh& other, const Matrix44f &transform) {
 	for (int i = 0; i < other.mVertices.size(); ++i) {
 		mVertices.push_back (transform.transpose() * other.mVertices[i]);
@@ -928,6 +950,12 @@ void Mesh::Submit (const RenderState *state, const float* matrix) const {
 			matrix);
 }
 
+void Mesh::Transform(const Matrix44f &transform) {
+	for (int i = 0; i < mVertices.size(); ++i) {
+		mVertices[i] = (transform.transpose() * mVertices[i]);
+		mNormals[i] = (Matrix33f(transform.block<3,3>(0,0)).transpose() * mNormals[i]);
+	}
+}
 
 Mesh* Mesh::sCreateCuboid (float width, float height, float depth) {
 	Mesh* result = new Mesh();
