@@ -1536,7 +1536,7 @@ void Renderer::paintGL() {
 				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
 
 			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
-			bgfx::setUniform(u_color, entities[i]->color);
+			bgfx::setUniform(u_color, entities[i]->mColor.data());
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			entities[i]->mSkeletonMeshes.GetMesh(j)->Submit(
 					&s_renderStates[RenderState::Scene],

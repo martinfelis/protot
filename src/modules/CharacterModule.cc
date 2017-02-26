@@ -42,7 +42,7 @@ const float cCharacterWidth = 1.f;
 const char* cRigModelFile = "data/models/model.lua";
 
 CharacterEntity::CharacterEntity() {
-	entity = gRenderer->createEntity();
+	mEntity = gRenderer->createEntity();
 	mPosition = Vector3f (0.f, 0.0f, 0.0f);
 
 	mRigModel = new Model();
@@ -64,54 +64,51 @@ CharacterEntity::CharacterEntity() {
 //	base_mesh->Update();
 //	delete quad;
 
-	int bone_index;
-
-	// Build the snowman
-
-	// bottom sphere
-	bone_index = entity->mSkeleton.AddBone(
-			-1, 
-			Transform::fromTrans(
-				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
-				)
-			);
-	entity->mSkeletonMeshes.AddMesh (
-			Mesh::sCreateUVSphere(45, 45, 0.9),
-			bone_index
-			);
-	gLog ("Now have %d bones, bone_index %d", 
-			entity->mSkeleton.Length(),
-			bone_index);
-
-	// middle sphere
-	bone_index = entity->mSkeleton.AddBone(
-			bone_index, 
-			Transform::fromTrans(
-				Vector3f (0.0f, 0.55f, 0.0f)
-				)
-			);
-	entity->mSkeletonMeshes.AddMesh (
-			Mesh::sCreateUVSphere (45, 45, 0.7),
-			bone_index
-			);
-	gLog ("Now have %d bones, bone_index %d", 
-			entity->mSkeleton.Length(),
-			bone_index);
-
-	// top sphere
-	bone_index = entity->mSkeleton.AddBone(
-			bone_index, 
-			Transform::fromTrans(
-				Vector3f (0.0f, 0.4f, 0.0f)
-				)
-			);
-	entity->mSkeletonMeshes.AddMesh (
-			Mesh::sCreateUVSphere (45, 45, 0.5),
-			bone_index
-			);
-	gLog ("Now have %d bones, bone_index %d", 
-			entity->mSkeleton.Length(),
-			bone_index);
+//	int bone_index;
+//
+//	// Build the snowman
+//
+//	// bottom sphere
+//	bone_index = mEntity->mSkeleton.AddBone(
+//			-1, 
+//			Transform::fromTrans(
+//				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
+//				)
+//			);
+//	mEntity->mSkeletonMeshes.AddMesh (
+//			Mesh::sCreateUVSphere(45, 45, 0.9),
+//			bone_index
+//			);
+//	gLog ("Now have %d bones, bone_index %d", 
+//			mEntity->mSkeleton.Length(),
+//			bone_index);
+//
+//	// middle sphere
+//	bone_index = mEntity->mSkeleton.AddBone(
+//			bone_index, 
+//			Transform::fromTrans(
+//				Vector3f (0.0f, 0.55f, 0.0f)
+//				)
+//			);
+//	mEntity->mSkeletonMeshes.AddMesh (
+//			Mesh::sCreateUVSphere (45, 45, 0.7),
+//			bone_index
+//			);
+//	gLog ("Now have %d bones, bone_index %d", 
+//			mEntity->mSkeleton.Length(),
+//			bone_index);
+//
+//	// top sphere
+//	bone_index = mEntity->mSkeleton.AddBone(
+//			bone_index, 
+//			Transform::fromTrans(
+//				Vector3f (0.0f, 0.4f, 0.0f)
+//				)
+//			);
+//	mEntity->mSkeletonMeshes.AddMesh (
+//			Mesh::sCreateUVSphere (45, 45, 0.5),
+//			bone_index
+//			);
 
 	//	mState->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 	//	mState->character->entity->mesh = bgfxutils::createCylinder (20);
@@ -119,8 +116,8 @@ CharacterEntity::CharacterEntity() {
 }
 
 CharacterEntity::~CharacterEntity() {
-	gRenderer->destroyEntity(entity);
-	entity = nullptr;
+	gRenderer->destroyEntity(mEntity);
+	mEntity = nullptr;
 	delete mRigModel;
 	mRigModel = nullptr;
 }
@@ -138,13 +135,49 @@ bool CharacterEntity::LoadRig(const char* filename) {
 
 	int frame_count = model_table["frames"].length();
 	gLog ("Found %d frames", frame_count);
+	std::map<std::string, int> frame_name_bone_index;
+
+	int num_meshes = 0;
 
 	for (int fi = 1; fi <= frame_count; ++fi) {
 		LuaTableNode frame_table = model_table["frames"][fi];
-		string frame_name = frame_table["name"].getDefault<string>("");
+		string frame_name = frame_table["name"].getDefault<std::string>("ROOT");
+
+		// create a bone for the frame
+		string frame_parent = frame_table["parent"].getDefault<std::string>("ROOT");
+		int parent_index = -1;
+		if (frame_parent != "ROOT") {
+			if (frame_name_bone_index.find(frame_parent) 
+				== frame_name_bone_index.end()) {
+				gLog ("  Error: could not find frame for parent %s",
+						frame_parent.c_str());
+			}
+
+			parent_index = frame_name_bone_index[frame_parent];
+		}
+
+		// assemble the parent transform
+		Transform parent_transform;
+		if (frame_table["joint_frame"].exists()) {
+			Vector3f translation = frame_table["joint_frame"]["r"].getDefault(Vector3f(0.f, 0.f, 0.f));
+			Matrix33f rot_matrix = frame_table["joint_frame"]["E"].getDefault(
+					Matrix33f::Identity()
+					);
+			parent_transform.translation = translation;
+			parent_transform.rotation = Quaternion::fromMatrix(rot_matrix);
+		}
+		int bone_index = mEntity->mSkeleton.AddBone (
+				parent_index,
+				parent_transform
+				);
+		frame_name_bone_index[frame_name] = bone_index;
+		gLog ("  Added frame %s, bone index %d",
+				frame_name.c_str(),
+				bone_index);
+
+		// add visuals to the bone
 		int visuals_count = frame_table["visuals"].length();
 		gLog ("  Frame %s has %d visuals", frame_name.c_str(), visuals_count);
-		
 		for (int vi = 1; vi <= visuals_count; ++vi) {
 			LuaTableNode visual_table = frame_table["visuals"][vi];
 			bool have_geometry = visual_table["geometry"].exists();
@@ -162,6 +195,7 @@ bool CharacterEntity::LoadRig(const char* filename) {
 				color = visual_table["color"].getDefault(color);
 			}
 
+			// read the geometry
 			Mesh* mesh = nullptr;
 
 			if (visual_table["geometry"]["box"].exists()) {
@@ -173,7 +207,7 @@ bool CharacterEntity::LoadRig(const char* filename) {
 						);
 			} else if (visual_table["geometry"]["sphere"].exists()) {
 				int rows = static_cast<int>(
-						visual_table["geometry"]["sphere"]["radius"].getDefault (16.f)
+						visual_table["geometry"]["sphere"]["rows"].getDefault (16.f)
 						);				
 				int segments = static_cast<int>(
 						visual_table["geometry"]["sphere"]["segments"].getDefault (16.f)
@@ -191,8 +225,54 @@ bool CharacterEntity::LoadRig(const char* filename) {
 				float length = visual_table["geometry"]["capsule"]["length"].getDefault (1.f);
 				mesh = Mesh::sCreateCapsule (rows, segments, length, radius);
 			}
+
+			if (mesh == nullptr) {
+				gLog ("  Warning: could not find geometry for visual %d of frame %s",
+						vi, frame_name.c_str());
+				continue;
+			}
+			
+			if (mesh->mVertices.size() == 0) {
+				gLog ("  Warning: Invalid geometry for visual %d of frame %s: no vertices found",
+						vi, frame_name.c_str());
+			}
+
+
+
+
+			Transform mesh_transform;
+			if (visual_table["scale"].exists()) {
+				gLog("  Warning: keyword scale not supported for visual %d of frame %s",
+						vi, frame_name.c_str());
+			}
+
+			Vector3f dimensions = visual_table["dimensions"].getDefault(Vector3f(0.f, 0.f, 0.f));
+			Vector3f mesh_center = visual_table["mesh_center"].getDefault(Vector3f(0.f, 0.f, 0.f));
+			Vector3f translate = visual_table["translate"].getDefault(Vector3f(0.f, 0.f, 0.f));
+			
+			mesh->UpdateBounds();
+
+			Vector3f bbox_size = mesh->mBoundsMax - mesh->mBoundsMin;
+			mesh_transform.scale = Vector3f( 	
+							fabs(dimensions[0]) / bbox_size[0],
+							fabs(dimensions[1]) / bbox_size[1],
+							fabs(dimensions[2]) / bbox_size[2]
+								);
+			mesh->Transform (mesh_transform.toMatrix());
+			mesh->UpdateBounds();
+			mesh->Update();
+
+			mEntity->mSkeletonMeshes.AddMesh(
+					mesh,
+					bone_index
+					);
+			num_meshes++;
 		}
 	}
+
+	gLog ("Loaded rig with %d bones and %d meshes", 
+			mEntity->mSkeleton.Length(),
+			num_meshes);
 
 	return load_result;
 }
@@ -231,7 +311,7 @@ void CharacterEntity::Update(float dt) {
 	}
 
 	// apply transformation
-	entity->mTransform.translation.set(
+	mEntity->mTransform.translation.set(
 			mPosition[0],
 			mPosition[1],
 			mPosition[2]);
@@ -242,10 +322,10 @@ void CharacterEntity::Update(float dt) {
 	Quaternion quat (-cos(cur_time), 0.0f, 0.0f * sin(cur_time), 1.0f);
 	quat.normalize();
 
-	entity->mTransform.rotation = quat;
+	mEntity->mTransform.rotation = quat;
 
 	// update matrices
-	entity->mSkeleton.UpdateMatrices(entity->mTransform.toMatrix());
+	mEntity->mSkeleton.UpdateMatrices(mEntity->mTransform.toMatrix());
 
 	cur_time += dt;
 }
@@ -263,7 +343,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
 	ImGui::DragFloat3 ("Velocity", character->mVelocity.data(), 0.01, -10.0f, 10.0f);
 
-	for (int i = 0; i < character->entity->mSkeleton.Length(); ++i) {
+	for (int i = 0; i < character->mEntity->mSkeleton.Length(); ++i) {
 		char buf[32];
 		snprintf (buf, 32, "Mesh %d", i);
 
@@ -274,7 +354,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 				node_flags);
 
 		if (node_open) {
-			Transform &transform = character->entity->mSkeleton.mLocalTransforms[i];
+			Transform &transform = character->mEntity->mSkeleton.mLocalTransforms[i];
 
 			ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
 			if (ImGui::Protot::DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {

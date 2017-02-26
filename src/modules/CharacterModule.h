@@ -42,7 +42,7 @@ struct CharacterController {
 
 struct CharacterEntity {
 	/// Render entity
-	Entity *entity = nullptr;
+	Entity *mEntity = nullptr;
 	Vector3f mPosition;
 	Vector3f mVelocity;
 	CharacterController mController;
