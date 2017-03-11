@@ -222,6 +222,16 @@ struct Transform {
 				);
 	}
 
+	static Transform fromTransRot(
+			const Vector3f &translation,
+			const Matrix33f &rotation
+			) {
+		return Transform (
+				translation, 
+				Quaternion::fromMatrix(rotation), 
+				Vector3f(1.0f, 1.0f, 1.0f)
+				);
+	}
 	static Transform fromTransRotScale(
 			const Vector3f &translation,
 			const Quaternion &rotation,

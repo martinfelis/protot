@@ -220,8 +220,8 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 	}
 
 	// clean up
-	delete state->character;
 	state->character->mEntity = nullptr;
+	delete state->character;
 
 	std::cout << "TestModule unloaded. State: " << state << std::endl;
 }

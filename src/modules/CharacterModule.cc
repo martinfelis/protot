@@ -12,6 +12,9 @@
 #include "Globals.h"
 #include "modules/RenderModule.h"
 #include "Serializer.h"
+#include "Timer.h"
+
+#include "string_utils.h"
 
 #include "CharacterModule.h"
 #include "LuaTableTypes.h"
@@ -31,15 +34,112 @@ bool LuaModelReadFromTable (LuaTable &model_table, Model *model, bool verbose);
 
 using namespace std;
 using namespace RigidBodyDynamics;
+using namespace RigidBodyDynamics;
 using namespace RigidBodyDynamics::Addons;
 
 const float cJumpVelocity = 4.0f;
 const float cVelocityDamping = 4.0f;
 const float cGravity = 9.81f;
-const float cGroundAcceleration = 30.0f;
+const float cGroundAcceleration = 10.0f;
 const float cCharacterHeight = 1.8f;
 const float cCharacterWidth = 1.f;
 const char* cRigModelFile = "data/models/model.lua";
+const char* cAnimFile = "data/models/anim.csv";
+
+static VectorNf sRigQ;
+Quaternion offset_quat;
+
+struct module_state {
+};
+
+bool Animation::Load(const char* filename) {
+	ifstream infile (filename);
+	if (!infile) {
+		cerr << "Error reading animation file from '" << filename << "'" << endl;
+		abort();
+		return false;
+	}
+
+	mFrames.clear();
+
+	int line_index = 0;
+	string line;
+	string previous_line;
+
+	while (!infile.eof()) {
+		previous_line = line;
+		getline (infile, line);
+
+		if (infile.eof()) {
+			break;
+		} else {
+			line_index++;
+		}
+
+		vector<string> tokens = tokenize_csv_strip_whitespaces (line);
+		if (tokens.size() == 0)
+			continue;
+
+		double frame_time = 0.;
+		VectorNf state = VectorNf::Zero (tokens.size() - 1);
+
+		double value;
+		istringstream value_stream (tokens[0]);
+
+		// If the first entry is not a number we ignore the whole line
+		if (!(value_stream >> value))
+			continue;
+
+		for (size_t i = 0; i < tokens.size(); i++) {
+			value_stream.clear();
+			value_stream.str(tokens[i]);
+			if (!(value_stream >> value)) {
+				cerr << "Error: could not convert string '" << tokens[i] << "' to number in " << filename << ", line " << line_index << ", column " << i << endl;
+				abort();
+			}
+
+			if (i == 0)
+				frame_time = value;
+			else {
+				state[i - 1] = value;
+			}
+		}
+		mFrameTimes.push_back(frame_time);
+		mDuration = frame_time;
+		mFrames.push_back(state);
+	}
+
+	infile.close();
+
+	return true;
+}
+
+void Animation::Sample(float cur_time, VectorNf& state) {
+	assert (mFrameTimes.size() > 0 && mFrameTimes[0] == 0.0f);
+
+	while (mIsLooped && cur_time >= mDuration) {
+		cur_time -= mDuration;
+	}
+	assert(cur_time >= 0.0f);
+
+	int next = 0;
+	for (next = 0; next < mFrameTimes.size() - 1; ++next) {
+		if (mFrameTimes[next] > cur_time)
+			break;
+	}
+	float t1 = mFrameTimes[next];
+	assert (t1 > cur_time);
+
+	int prev = (next - 1) % mFrameTimes.size();
+	if (prev < 0)
+		prev += mFrameTimes.size();
+	float t0 = mFrameTimes[prev];
+
+	// if we do not want to loop we use the last frame
+	assert (cur_time >= t0 && cur_time <= t1);
+	float alpha = (cur_time - t0) / (t1 - t0);
+	state = mFrames[prev] * (1.0f - alpha) + mFrames[next] * alpha;
+}
 
 CharacterEntity::CharacterEntity() {
 	mEntity = gRenderer->createEntity();
@@ -52,67 +152,15 @@ CharacterEntity::CharacterEntity() {
 
 	cout << "Creating render entity mesh ..." << endl;
 
-//	Mesh* base_mesh = Mesh::sCreateUVSphere(45, 45, 0.9);
-//	Transform sub_transform =
-//		Transform::fromTransRot(
-//				Vector3f (4.f, 3.3f, 0.12f),
-//				Quaternion::fromEulerYXZ (Vector3f(1.f, 2.f, 0.f))
-//				);
-//	Mesh* quad = Mesh::sCreateCuboid(1.05, 0.1, 2.05);
-//
-//	base_mesh->Merge (*quad, sub_transform.toMatrix());
-//	base_mesh->Update();
-//	delete quad;
-
-//	int bone_index;
-//
-//	// Build the snowman
-//
-//	// bottom sphere
-//	bone_index = mEntity->mSkeleton.AddBone(
-//			-1, 
-//			Transform::fromTrans(
-//				Vector3f (0.0f, 0.9 * 0.5f, 0.0f)
-//				)
-//			);
-//	mEntity->mSkeletonMeshes.AddMesh (
-//			Mesh::sCreateUVSphere(45, 45, 0.9),
-//			bone_index
-//			);
-//	gLog ("Now have %d bones, bone_index %d", 
-//			mEntity->mSkeleton.Length(),
-//			bone_index);
-//
-//	// middle sphere
-//	bone_index = mEntity->mSkeleton.AddBone(
-//			bone_index, 
-//			Transform::fromTrans(
-//				Vector3f (0.0f, 0.55f, 0.0f)
-//				)
-//			);
-//	mEntity->mSkeletonMeshes.AddMesh (
-//			Mesh::sCreateUVSphere (45, 45, 0.7),
-//			bone_index
-//			);
-//	gLog ("Now have %d bones, bone_index %d", 
-//			mEntity->mSkeleton.Length(),
-//			bone_index);
-//
-//	// top sphere
-//	bone_index = mEntity->mSkeleton.AddBone(
-//			bone_index, 
-//			Transform::fromTrans(
-//				Vector3f (0.0f, 0.4f, 0.0f)
-//				)
-//			);
-//	mEntity->mSkeletonMeshes.AddMesh (
-//			Mesh::sCreateUVSphere (45, 45, 0.5),
-//			bone_index
-//			);
-
 	//	mState->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 	//	mState->character->entity->mesh = bgfxutils::createCylinder (20);
 	cout << "Creating render entity mesh ... success!" << endl;
+
+	gLog ("Loading Animation %s", cAnimFile);
+	load_result = mAnimation.Load(cAnimFile);
+	assert (load_result);
+
+	mAnimTime = 0.0f;
 }
 
 CharacterEntity::~CharacterEntity() {
@@ -126,10 +174,13 @@ bool CharacterEntity::LoadRig(const char* filename) {
 	gLog ("Creating rig model from %s ... ", filename);
 	LuaTable model_table = LuaTable::fromFile (filename);
 
+	mRigModel->fixed_body_discriminator = 1000;
+
 	bool load_result = LuaModelReadFromTable (model_table, mRigModel, false);
 
 	gLog ("Creating rig model from %s ... %s", filename, load_result ? "success" : "failed!");
 	gLog ("Rig model has %d degrees of freedom", mRigModel->qdot_size);
+	mRigState.q = VectorNd::Zero (mRigModel->q_size);
 
 	gLog ("Reading rig geometry information ... ");
 
@@ -171,9 +222,12 @@ bool CharacterEntity::LoadRig(const char* filename) {
 				parent_transform
 				);
 		frame_name_bone_index[frame_name] = bone_index;
-		gLog ("  Added frame %s, bone index %d",
+		gLog ("  Added frame %s, bone index %d, parent index %d",
 				frame_name.c_str(),
-				bone_index);
+				bone_index,
+				parent_index);
+		assert (bone_index == mBoneFrameIndices.size());
+		mBoneFrameIndices.push_back(mRigModel->GetBodyId(frame_name.c_str()));
 
 		// add visuals to the bone
 		int visuals_count = frame_table["visuals"].length();
@@ -337,16 +391,65 @@ void CharacterEntity::Update(float dt) {
 
 	gRenderer->drawDebugSphere (Vector3f (0.f, 1.3 + sin(cur_time * 2.f), 0.f), 2.2f);
 
-
-	Quaternion quat (-cos(cur_time), 0.0f, 0.0f * sin(cur_time), 1.0f);
+	// Convert to different coordinate frame
+	Quaternion quat (1., 0.0f, 0.0f, 1.0f);
 	quat.normalize();
 
-	mEntity->mTransform.rotation = quat;
+	float plane_angle = atan2 (mVelocity[2], mVelocity[0]);
+	Quaternion heading_rot (Quaternion::fromAxisAngle(Vector3f (0.f, 1.f, 0.f), plane_angle));
 
-	// update matrices
-	mEntity->mSkeleton.UpdateMatrices(mEntity->mTransform.toMatrix());
+	mEntity->mTransform.rotation = quat * heading_rot;
+
+	if (mVelocity.squaredNorm() > 0.01f) {
+		mAnimTime += dt;
+		VectorNf sampled_anim_state;
+		mAnimation.Sample(mAnimTime, sampled_anim_state);
+		mRigState.q = sampled_anim_state;
+	} else {
+		mAnimTime = mAnimation.mDuration * 0.125f;
+		mRigState.q.setZero();
+	}
+
+	UpdateBoneMatrices();
 
 	cur_time += dt;
+}
+
+void CharacterEntity::UpdateBoneMatrices() {
+	VectorNd q = mRigState.q;
+	UpdateKinematicsCustom(*mRigModel, &q, nullptr, nullptr);
+
+	for (int i = 0; i < mBoneFrameIndices.size(); ++i) {
+		int frame_index = mBoneFrameIndices[i];
+
+		if (frame_index < mRigModel->fixed_body_discriminator)
+		{
+			Matrix33f mat = mRigModel->X_lambda[frame_index].E;
+			mEntity->mSkeleton.mLocalTransforms[i].rotation =
+				Quaternion::fromMatrix(mat);
+//			mEntity->mSkeleton.mLocalTransforms[i].translation =
+//				mRigModel->X_lambda[frame_index].r;
+		} else {
+			const FixedBody& fbody = 
+				mRigModel->mFixedBodies[frame_index - mRigModel->fixed_body_discriminator];
+
+			Math::SpatialTransform parent_transform; // = mRigModel->X_lambda[fbody.mMovableParent];
+			Math::SpatialTransform fixed_transform = fbody.mParentTransform;
+
+			Math::SpatialTransform transform = fixed_transform * parent_transform;
+
+			Matrix33f mat = transform.E;
+			mEntity->mSkeleton.mLocalTransforms[i].rotation =
+				Quaternion::fromMatrix(mat);
+//			mEntity->mSkeleton.mLocalTransforms[i].translation =
+//				transform.r;
+		}
+	}
+
+	// update matrices
+	Transform entity_rig_transform = mEntity->mTransform;
+	entity_rig_transform.translation[1] += 0.98f;
+	mEntity->mSkeleton.UpdateMatrices(entity_rig_transform.toMatrix());
 }
 
 void ShowCharacterPropertiesWindow (CharacterEntity* character) {
@@ -358,41 +461,79 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	if (ImGui::Button ("Reset")) {
 		character->Reset();
 	}
-	
+
+	ImGui::Protot::DragFloat4Normalized ("Offset Quat", offset_quat.data(),
+			0.01f, -1.0f, 1.0f);
+
 	ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
 	ImGui::DragFloat3 ("Velocity", character->mVelocity.data(), 0.01, -10.0f, 10.0f);
+	float angle = atan2 (-character->mVelocity[2], character->mVelocity[0]);
+	ImGui::LabelText ("", "Angle %f", angle * 180.f / M_PI);
 
-	for (int i = 0; i < character->mEntity->mSkeleton.Length(); ++i) {
-		char buf[32];
-		snprintf (buf, 32, "Mesh %d", i);
+	ImGui::LabelText("", 
+			"Skeleton Bones %d", 
+			character->mEntity->mSkeleton.mLocalTransforms.size());
 
-		ImGuiTreeNodeFlags node_flags = 0;
+	ImGui::LabelText("", 
+			"Rig Frames %d", 
+			character->mRigModel->mBodies.size());
 
-		bool node_open = ImGui::TreeNodeEx(
-				buf,
-				node_flags);
+	bool node_open = ImGui::TreeNodeEx(
+			"DOFs",
+			0);
+	if (node_open) {
+		bool dof_modified = false;
+		for (int i = 0; i < character->mRigModel->q_size; ++i) {
+			char buf[32];
+			snprintf (buf, 32, "DOF %d", i);
 
-		if (node_open) {
-			Transform &transform = character->mEntity->mSkeleton.mLocalTransforms[i];
-
-			ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
-			if (ImGui::Protot::DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
-				if (isnan(transform.rotation.squaredNorm())) {
-					std::cout << "nan! " << transform.rotation.transpose() << std::endl;
-					abort();
-				}
+			if (ImGui::DragFloat (buf, &character->mRigState.q[i], 0.01, -10.0f, 10.0f)) {
+				dof_modified = true;
 			}
-			ImGui::DragFloat3 ("Scale", transform.scale.data(), 0.01, 0.001f, 10.0f);
-
-			ImGui::TreePop();
 		}
+
+		if (dof_modified) {
+			VectorNd q = character->mRigState.q;
+		}
+
+		ImGui::TreePop();
+	}
+
+	node_open = ImGui::TreeNodeEx(
+			"Meshes",
+			0);
+
+	if (node_open) {
+		for (int i = 0; i < character->mEntity->mSkeleton.Length(); ++i) {
+			char buf[32];
+			snprintf (buf, 32, "Mesh %d", i);
+
+			ImGuiTreeNodeFlags node_flags = 0;
+
+			bool node_open = ImGui::TreeNodeEx(
+					buf,
+					node_flags);
+
+			if (node_open) {
+				Transform &transform = character->mEntity->mSkeleton.mLocalTransforms[i];
+
+				ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
+				if (ImGui::Protot::DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
+					if (isnan(transform.rotation.squaredNorm())) {
+						std::cout << "nan! " << transform.rotation.transpose() << std::endl;
+						abort();
+					}
+				}
+				ImGui::DragFloat3 ("Scale", transform.scale.data(), 0.01, 0.001f, 10.0f);
+
+				ImGui::TreePop();
+			}
+		}
+		ImGui::TreePop();
 	}
 
 	ImGui::End();
 }
-
-struct module_state {
-};
 
 static struct module_state *module_init() {
 	std::cout << "Module init called" << std::endl;

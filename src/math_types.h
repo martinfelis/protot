@@ -19,4 +19,10 @@ typedef SimpleMath::GL::Quaternion Quaternion;
 typedef SimpleMath::Dynamic::Matrix<float> VectorNf;
 typedef SimpleMath::Dynamic::Matrix<float> MatrixNNf;
 
+typedef SimpleMath::Fixed::Matrix<double, 3, 1> Vector3d;
+typedef SimpleMath::Fixed::Matrix<double, 3, 3> Matrix33d;
+
+typedef SimpleMath::Dynamic::Matrix<double> VectorNd;
+typedef SimpleMath::Dynamic::Matrix<double> MatrixNNd;
+
 #endif

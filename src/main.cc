@@ -193,7 +193,11 @@ int main(void)
 		int64_t now = bx::getHPCounter();
 		int64_t module_update = now - pre_module_check;
 
-		const int64_t frameTime = (now - last) - module_update;
+		int64_t frameTime = (now - last);
+		// make sure we do not have negative updates in the very first update
+		if (now != last)
+			frameTime = frameTime - module_update;
+
 		last = now;
 		const double freq = double(bx::getHPFrequency() );
 		const double toMs = 1000.0/freq;
@@ -206,6 +210,7 @@ int main(void)
 			gTimer->mDeltaTime = 0.0f;
 		}
 
+		assert (gTimer->mDeltaTime >= 0.0f);
 		module_manager.Update(gTimer->mDeltaTime);
 
 		glfwPollEvents();

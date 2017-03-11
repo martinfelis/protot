@@ -140,6 +140,7 @@ void RuntimeModuleManager::UnloadModules() {
 
 	for (int i = mModules.size() - 1; i >= 0 ; i--) {
 		if (mModules[i]->handle) {
+			gLog("Unloading module %s", mModules[i]->name.c_str());
 			mModules[i]->api.unload(mModules[i]->state, gWriteSerializer);
 			mModules[i]->state = nullptr;
 			dlclose(mModules[i]->handle);

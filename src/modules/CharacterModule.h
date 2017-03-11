@@ -40,6 +40,15 @@ struct CharacterController {
 	};
 };
 
+struct Animation {
+	bool Load(const char* filename);
+	void Sample (float cur_time, VectorNf& state);
+	bool mIsLooped = true;
+	float mDuration;
+	std::vector<VectorNf> mFrames;
+	std::vector<float> mFrameTimes;
+};
+
 struct CharacterEntity {
 	/// Render entity
 	Entity *mEntity = nullptr;
@@ -48,6 +57,14 @@ struct CharacterEntity {
 	CharacterController mController;
 
 	RigidBodyDynamics::Model* mRigModel = nullptr;
+	struct RigState {
+		VectorNf q;
+	};
+	std::vector<int> mBoneFrameIndices;
+	RigState mRigState;
+
+	Animation mAnimation;
+	float mAnimTime;
 
 	CharacterEntity ();
 	~CharacterEntity ();
@@ -59,6 +76,7 @@ struct CharacterEntity {
 	}
 
 	bool LoadRig (const char* filename);
+	void UpdateBoneMatrices();
 
 	void Update(float dt); 
 };
