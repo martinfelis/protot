@@ -10,6 +10,12 @@
 #include "Globals.h"
 
 #include "imgui_protot_ext.h"
+#include "rbdl/rbdl.h"
+#include "rbdl/addons/luamodel/luamodel.h"
+
+namespace RigidBodyDynamics {
+	struct Model;
+}
 
 struct CharacterController {
 	enum ControllerState {
@@ -17,16 +23,16 @@ struct CharacterController {
 		ControlStateLast
 	};
 
-	bool state[ControlStateLast];
+	bool mState[ControlStateLast];
 
-	Vector3f direction = Vector3f::Zero();
+	Vector3f mDirection = Vector3f::Zero();
 
 	void reset() {
 		for (int i = 0; i < ControlStateLast; i++) {
-			state[i] = false;
+			mState[i] = false;
 		}
 
-		direction.setZero();
+		mDirection.setZero();
 	}
 
 	CharacterController() {
@@ -34,23 +40,45 @@ struct CharacterController {
 	};
 };
 
+struct Animation {
+	bool Load(const char* filename);
+	void Sample (float cur_time, VectorNf& state);
+	bool mIsLooped = true;
+	float mDuration;
+	std::vector<VectorNf> mFrames;
+	std::vector<float> mFrameTimes;
+};
+
 struct CharacterEntity {
 	/// Render entity
-	Entity *entity = nullptr;
-	Vector3f position;
-	Vector3f velocity;
-	CharacterController controller;
+	Entity *mEntity = nullptr;
+	Vector3f mPosition;
+	Vector3f mVelocity;
+	CharacterController mController;
+
+	RigidBodyDynamics::Model* mRigModel = nullptr;
+	struct RigState {
+		VectorNf q;
+	};
+	std::vector<int> mBoneFrameIndices;
+	RigState mRigState;
+
+	Animation mAnimation;
+	float mAnimTime;
 
 	CharacterEntity ();
 	~CharacterEntity ();
 
-	void reset() {
-		position.setZero();
-		velocity.setZero();
-		controller.reset();
+	void Reset() {
+		mPosition.setZero();
+		mVelocity.setZero();
+		mController.reset();
 	}
 
-	void update(float dt); 
+	bool LoadRig (const char* filename);
+	void UpdateBoneMatrices();
+
+	void Update(float dt); 
 };
 
 void ShowCharacterPropertiesWindow (CharacterEntity* character);

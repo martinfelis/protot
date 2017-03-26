@@ -1,5 +1,8 @@
 INCLUDE_DIRECTORIES (
 		${CMAKE_CURRENT_SOURCE_DIR}
+		${PROJECT_SOURCE_DIR}/3rdparty/rbdl/include
+		${PROJECT_SOURCE_DIR}/3rdparty/rbdl/
+		${PROJECT_BINARY_DIR}/3rdparty/rbdl/include
 	)
 
 ADD_LIBRARY (RenderModule SHARED 

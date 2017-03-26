@@ -159,22 +159,16 @@ const struct module_api MODULE_API = {
 };
 }
 
-void MeshHierarchy::updateMatrices(const Matrix44f &world_transform) {
-	for (uint32_t i = 0; i < meshes.size(); ++i) {
+void Skeleton::UpdateMatrices(const Matrix44f &world_transform) {
+	for (uint32_t i = 0; i < mBoneMatrices.size(); ++i) {
 		Matrix44f parent_matrix (world_transform);
-		if (parent[i] != -1) {
-			parent_matrix = meshMatrices[parent[i]];
+		if (mParent[i] != -1) {
+			parent_matrix = mBoneMatrices[mParent[i]];
 		}
 
-		meshMatrices[i] = localTransforms[i].toMatrix() * parent_matrix;
+		mBoneMatrices[i] = mLocalTransforms[i].toMatrix() * parent_matrix;
 	}
 }
-
-void MeshHierarchy::submit(const RenderState *state) {
-	for (uint32_t i = 0; i < meshes.size(); ++i) {
-		bgfxutils::meshSubmit (meshes[i], state, 1, meshMatrices[i].data());
-	}
-};
 
 // BGFX globals
 bgfx::VertexBufferHandle cube_vbh;
@@ -1259,11 +1253,6 @@ void Renderer::shutdown() {
 		entities[i] = NULL;
 	}
 
-	for (size_t i = 0; i < meshes.size(); i++) {
-		bgfxutils::meshUnload(meshes[i]);
-		meshes[i] = NULL;
-	}
-
 	for (size_t i = 0; i < lights.size(); i++) {
 		gLog ("Destroying light uniforms for light %d", i);
 		bgfx::destroyFrameBuffer(lights[i].shadowMapFB);
@@ -1535,37 +1524,66 @@ void Renderer::paintGL() {
 		float light_pos_world[3];
 		
 		// shadow map pass
-		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+		for (uint32_t j = 0; j < entities[i]->mSkeletonMeshes.Length(); ++j) {
 			bx::mtxMul(
 					lightMtx, 
-					entities[i]->mesh.meshMatrices[j].data(), 
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data(),
 					lights[0].mtxShadow
 					);
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-			bgfxutils::meshSubmit (
-					entities[i]->mesh.meshes[j], 
+			entities[i]->mSkeletonMeshes.GetMesh(j)->Submit(
 					&s_renderStates[RenderState::ShadowMap],
-					1,
-					entities[i]->mesh.meshMatrices[j].data()
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
 
 		// scene pass
-		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+		for (uint32_t j = 0; j < entities[i]->mSkeletonMeshes.Length(); ++j) {
 			bx::mtxMul(
 					lightMtx, 
-					entities[i]->mesh.meshMatrices[j].data(), 
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data(),
 					lights[0].mtxShadow
 					);
+
+			// compute world position of the light
+			Vector4f light_pos = 
+				entities[i]->mSkeletonMeshes.GetBoneMatrix(j)
+				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
+
+			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
+			bgfx::setUniform(u_color, entities[i]->mColor.data());
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-			bgfx::setUniform(u_color, entities[i]->color, 4);
-			bgfxutils::meshSubmit (
-					entities[i]->mesh.meshes[j], 
+			entities[i]->mSkeletonMeshes.GetMesh(j)->Submit(
 					&s_renderStates[RenderState::Scene],
-					1,
-					entities[i]->mesh.meshMatrices[j].data()
+					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
+
+		//
+		//
+		//
+//		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
+//			bx::mtxMul(
+//					lightMtx, 
+//					entities[i]->mesh.meshMatrices[j].data(), 
+//					lights[0].mtxShadow
+//					);
+//
+//			// compute world position of the light
+//			Vector4f light_pos = 
+//				entities[i]->mesh.meshMatrices[j] 
+//				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
+//
+//			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
+//			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
+//			bgfxutils::meshSubmit (
+//					entities[i]->mesh.meshes[j]->mBgfxMesh, 
+//					&s_renderStates[RenderState::Scene],
+//					1,
+//					entities[i]->mesh.meshMatrices[j].data()
+//					);
+//
+//		}
 	}
 
 	// render debug information
@@ -1654,7 +1672,7 @@ void Renderer::paintGL() {
 				line.UpdateBuffers();
 			}
 
-			float thickness = 0.143f;
+			float thickness = 0.05143f;
 			float miter = 0.0f;
 			float aspect = static_cast<float>(view_width) / static_cast<float>(view_height);
 
@@ -1774,36 +1792,6 @@ bool Renderer::destroyEntity(Entity* entity) {
 	}
 
 	return false;
-}
-
-bgfxutils::Mesh* Renderer::loadMesh(const char* filename) {
-	MeshIdMap::iterator mesh_iter = meshIdMap.find (filename);
-	bgfxutils::Mesh* result = NULL;
-
-	if (mesh_iter == meshIdMap.end()) {
-		std::string filename_str (filename);
-		if (filename_str.substr(filename_str.size() - 4, 4) == ".obj") {
-			std::vector<tinyobj::shape_t> shapes;
-			std::vector<tinyobj::material_t> materials;
-
-			std::string err;
-			bool result = tinyobj::LoadObj(shapes, materials, err, filename);
-
-			if (!result) {
-				std::cerr << "Error loading '" << filename << "': " << err << std::endl;
-				exit(-1);
-			}
-//			result = bgfxutils::createMeshFromVBO (vbo);
-		} else {
-			result = bgfxutils::meshLoad(filename);
-		}
-		meshes.push_back (result);
-		meshIdMap[filename] = meshes.size() - 1;
-	} else {
-		result = meshes[mesh_iter->second];
-	}
-
-	return result;
 }
 
 // debug commands

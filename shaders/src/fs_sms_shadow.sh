@@ -31,7 +31,7 @@ vec2 lit(vec3 _ld, vec3 _n, vec3 _vd, float _exp)
 
 	//spec
 	vec3 r = 2.0*ndotl*_n - _ld; //reflect(_ld, _n);
-	float rdotv = dot(r, _vd);
+	float rdotv = dot(r, _n);
 	float spec = step(0.0, ndotl) * pow(max(0.0, rdotv), _exp) * (2.0 + _exp)/8.0;
 
 	return max(vec2(ndotl, spec), 0.0);
@@ -102,7 +102,7 @@ void main()
 	float visibility = PCF(u_shadowMap, v_shadowcoord, u_shadowMapBias, texelSize);	
 
 	vec3 ambient = 0.05 * color;
-	vec3 brdf = (lc.x + lc.y) * color * visibility;
+	vec3 brdf = (lc.x * color + lc.y * color)  * visibility;
 
 #if TEXTURED
   vec4 texcolor = toLinear (texture2D(sceneDefaultTexture, v_texcoord0) );

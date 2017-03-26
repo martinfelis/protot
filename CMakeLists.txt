@@ -11,6 +11,9 @@ SET (CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 SET (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 SET (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# For YouCompleteMe
+SET (CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Enable proper C++11 flags
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
@@ -26,6 +29,10 @@ endif()
 # enable strings in GDB
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_DEBUG")
 
+# enable LuaModel addon for RBDL
+SET (RBDL_BUILD_ADDON_LUAMODEL ON)
+SET (RBDL_USE_SIMPLE_MATH ON)
+
 INCLUDE_DIRECTORIES (
 	${QT_INCLUDE_DIR}/QtOpenGL
 	${CMAKE_CURRENT_BINARY_DIR}
@@ -35,6 +42,10 @@ INCLUDE_DIRECTORIES (
 	# Required to compile RCPP related code
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx
+
+	# RBDL and its LuaModel addon
+	${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rbdl/
+	${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rbdl/include
 	)
 
 FIND_PACKAGE (X11 REQUIRED)
@@ -62,6 +73,7 @@ SUBDIRS (
 
 	3rdparty/glfw
 	3rdparty/bgfx
+	3rdparty/rbdl
 	3rdparty/googletest
 	)
 
@@ -129,11 +141,12 @@ SET (glfw_dependencies
 	)
 
 TARGET_LINK_LIBRARIES ( protot
-	#glew
 	glfw
 	${glfw_dependencies}
 	${OPENGL_LIBRARIES}
 	bgfx
 	bgfx_aux
 	glsl-optimizer
+	rbdl
+	rbdl_luamodel
 )

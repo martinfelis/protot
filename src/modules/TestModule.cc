@@ -132,7 +132,7 @@ void handle_keyboard (struct module_state *state, float dt) {
 		active_camera->poi = poi;
 	} else if (state->character != nullptr) {
 		// Movement of the character
-		CharacterController& controller = state->character->controller;
+		CharacterController& controller = state->character->mController;
 
 		controller.reset();
 
@@ -140,23 +140,23 @@ void handle_keyboard (struct module_state *state, float dt) {
 
 		// Reset the character control state:
 		if (glfwGetKey(gWindow, GLFW_KEY_W) == GLFW_PRESS) {
-			controller.direction += forward_plane;
+			controller.mDirection += forward_plane;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_S) == GLFW_PRESS) {
-			controller.direction -= forward_plane;
+			controller.mDirection -= forward_plane;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_D) == GLFW_PRESS) {
-			controller.direction += right;
+			controller.mDirection += right;
 		} 
 
 		if (glfwGetKey(gWindow, GLFW_KEY_A) == GLFW_PRESS) {
-			controller.direction -= right;
+			controller.mDirection -= right;
 		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_SPACE) == GLFW_PRESS) {
-			controller.state[CharacterController::ControlStateJump] = true;	
+			controller.mState[CharacterController::ControlStateJump] = true;	
 		}
 	}
 
@@ -168,15 +168,13 @@ void handle_keyboard (struct module_state *state, float dt) {
 
 void update_character(module_state* state, float dt) {
 	if (state->character != nullptr) {
-		state->character->update(dt);
+		state->character->Update(dt);
 	}
 }
 
 static struct module_state *module_init() {
 	std::cout << "Module init called" << std::endl;
 	module_state *state = (module_state*) malloc(sizeof(*state));
-	state->character = new CharacterEntity;
-	state->character->position = Vector3f (0.f, 0.f, 0.f);
 	state->modules_window_selected_index = -1;
 
 	fps_camera = true;
@@ -188,8 +186,8 @@ template <typename Serializer>
 static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
-	SerializeVec3(*serializer, "protot.TestModule.entity.position", state->character->position);
-	SerializeVec3(*serializer, "protot.TestModule.entity.velocity", state->character->velocity);
+	SerializeVec3(*serializer, "protot.TestModule.entity.mPosition", state->character->mPosition);
+	SerializeVec3(*serializer, "protot.TestModule.entity.mVelocity", state->character->mVelocity);
 	SerializeBool(*serializer, "protot.TestModule.character_window.visible", state->character_properties_window_visible);
 	SerializeBool(*serializer, "protot.TestModule.modules_window.visible", state->modules_window_visible);
 	SerializeBool(*serializer, "protot.TestModule.imgui_demo_window_visible", state->imgui_demo_window_visible);
@@ -205,6 +203,10 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 	std::cout << "Module reload called. State: " << state << std::endl;
 
 	cout << "Creating render entity ..." << endl;
+
+	state->character = new CharacterEntity;
+	state->character->mPosition = Vector3f (0.f, 0.f, 0.f);
+
 	// load the state of the entity
 	if (read_serializer != nullptr) {
 		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));
@@ -218,14 +220,8 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 	}
 
 	// clean up
-	cout << "destroying render entity " << state->character->entity << endl;
-	if (!gRenderer->destroyEntity (state->character->entity)) {
-		cerr << "Warning: could not destroy entity " << state->character->entity << endl;
-	} else {
-		cout << "Successfully destroyed entity " << state->character->entity << endl;
-
-	}
-	state->character->entity = nullptr;
+	state->character->mEntity = nullptr;
+	delete state->character;
 
 	std::cout << "TestModule unloaded. State: " << state << std::endl;
 }

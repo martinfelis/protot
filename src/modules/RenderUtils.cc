@@ -377,107 +377,6 @@ bgfx::TextureHandle loadTexture(const char* _name, uint32_t _flags, uint8_t _ski
 	return loadTexture(entry::getFileReader(), _name, _flags, _skip, _info);
 }
 
-void calcTangents(void* _vertices, uint16_t _numVertices, bgfx::VertexDecl _decl, const uint16_t* _indices, uint32_t _numIndices)
-{
-	struct PosTexcoord
-	{
-		float m_x;
-		float m_y;
-		float m_z;
-		float m_pad0;
-		float m_u;
-		float m_v;
-		float m_pad1;
-		float m_pad2;
-	};
-
-	float* tangents = new float[6*_numVertices];
-	memset(tangents, 0, 6*_numVertices*sizeof(float) );
-
-	PosTexcoord v0;
-	PosTexcoord v1;
-	PosTexcoord v2;
-
-	for (uint32_t ii = 0, num = _numIndices/3; ii < num; ++ii)
-	{
-		const uint16_t* indices = &_indices[ii*3];
-		uint32_t i0 = indices[0];
-		uint32_t i1 = indices[1];
-		uint32_t i2 = indices[2];
-
-		bgfx::vertexUnpack(&v0.m_x, bgfx::Attrib::Position,  _decl, _vertices, i0);
-		bgfx::vertexUnpack(&v0.m_u, bgfx::Attrib::TexCoord0, _decl, _vertices, i0);
-
-		bgfx::vertexUnpack(&v1.m_x, bgfx::Attrib::Position,  _decl, _vertices, i1);
-		bgfx::vertexUnpack(&v1.m_u, bgfx::Attrib::TexCoord0, _decl, _vertices, i1);
-
-		bgfx::vertexUnpack(&v2.m_x, bgfx::Attrib::Position,  _decl, _vertices, i2);
-		bgfx::vertexUnpack(&v2.m_u, bgfx::Attrib::TexCoord0, _decl, _vertices, i2);
-
-		const float bax = v1.m_x - v0.m_x;
-		const float bay = v1.m_y - v0.m_y;
-		const float baz = v1.m_z - v0.m_z;
-		const float bau = v1.m_u - v0.m_u;
-		const float bav = v1.m_v - v0.m_v;
-
-		const float cax = v2.m_x - v0.m_x;
-		const float cay = v2.m_y - v0.m_y;
-		const float caz = v2.m_z - v0.m_z;
-		const float cau = v2.m_u - v0.m_u;
-		const float cav = v2.m_v - v0.m_v;
-
-		const float det = (bau * cav - bav * cau);
-		const float invDet = 1.0f / det;
-
-		const float tx = (bax * cav - cax * bav) * invDet;
-		const float ty = (bay * cav - cay * bav) * invDet;
-		const float tz = (baz * cav - caz * bav) * invDet;
-
-		const float bx = (cax * bau - bax * cau) * invDet;
-		const float by = (cay * bau - bay * cau) * invDet;
-		const float bz = (caz * bau - baz * cau) * invDet;
-
-		for (uint32_t jj = 0; jj < 3; ++jj)
-		{
-			float* tanu = &tangents[indices[jj]*6];
-			float* tanv = &tanu[3];
-			tanu[0] += tx;
-			tanu[1] += ty;
-			tanu[2] += tz;
-
-			tanv[0] += bx;
-			tanv[1] += by;
-			tanv[2] += bz;
-		}
-	}
-
-	for (uint32_t ii = 0; ii < _numVertices; ++ii)
-	{
-		const float* tanu = &tangents[ii*6];
-		const float* tanv = &tangents[ii*6 + 3];
-
-		float normal[4];
-		bgfx::vertexUnpack(normal, bgfx::Attrib::Normal, _decl, _vertices, ii);
-		float ndt = bx::vec3Dot(normal, tanu);
-
-		float nxt[3];
-		bx::vec3Cross(nxt, normal, tanu);
-
-		float tmp[3];
-		tmp[0] = tanu[0] - normal[0] * ndt;
-		tmp[1] = tanu[1] - normal[1] * ndt;
-		tmp[2] = tanu[2] - normal[2] * ndt;
-
-		float tangent[4];
-		bx::vec3Norm(tangent, tmp);
-
-		tangent[3] = bx::vec3Dot(nxt, tanv) < 0.0f ? -1.0f : 1.0f;
-		bgfx::vertexPack(tangent, true, bgfx::Attrib::Tangent, _decl, _vertices, ii);
-	}
-
-	delete [] tangents;
-}
-
 struct Aabb
 {
 	float m_min[3];
@@ -984,11 +883,87 @@ Mesh *createMeshFromStdVectors (
  	return result;
 }
 
-Mesh *createCuboid (float width, float height, float depth) {
+void meshTransform (Mesh* mesh, const float *mtx) {
+//	void bgfx::vertexPack(const float _input[4], bool _inputNormalized, Attrib::Enum _attr, const VertexDecl &_decl, void *_data, uint32_t _index = 0)
+
+}
+
+
+
+}
+
+Mesh::~Mesh() {
+	if (mBgfxMesh != nullptr) {
+		mBgfxMesh->unload();
+		delete mBgfxMesh;
+		mBgfxMesh = nullptr;
+	}
+}
+
+void Mesh::Update() {
+	if (mBgfxMesh != nullptr) {
+		mBgfxMesh->unload();
+		delete mBgfxMesh;
+		mBgfxMesh = nullptr;
+	}
+
+	mBgfxMesh = bgfxutils::createMeshFromStdVectors (mVertices, mNormals, mColors);
+}
+
+void Mesh::UpdateBounds() {
+	if (mVertices.size() == 0) {
+		mBoundsMin = Vector3f (0.f, 0.f, 0.f);
+		mBoundsMax = Vector3f (0.f, 0.f, 0.f);
+
+		gLog ("Error: updating bounds for mesh with zero vertices");
+		abort();
+	}
+
+	mBoundsMin = mVertices[0].block<3,1>(0,0);
+	mBoundsMax = mVertices[0].block<3,1>(0,0);
+	
+	for (int i = 0; i < mVertices.size(); i++) {
+		for (int j = 0; j < 3; j++) {
+			mBoundsMin[j] = mBoundsMin[j] < mVertices[i][j] 
+				? mBoundsMin[j] :mVertices[i][j];
+			mBoundsMax[j] = mBoundsMax[j] > mVertices[i][j] 
+				? mBoundsMax[j] :mVertices[i][j];
+		}
+	}
+}
+
+void Mesh::Merge (const Mesh& other, const Matrix44f &transform) {
+	for (int i = 0; i < other.mVertices.size(); ++i) {
+		mVertices.push_back (transform.transpose() * other.mVertices[i]);
+		mNormals.push_back (Matrix33f(transform.block<3,3>(0,0)).transpose() * other.mNormals[i]);
+
+		if (other.mColors.size() == other.mVertices.size())
+			mColors.push_back(other.mColors[i]);
+	}
+}
+
+void Mesh::Submit (const RenderState *state, const float* matrix) const {
+	bgfxutils::meshSubmit (
+			mBgfxMesh, 
+			state,
+			1,
+			matrix);
+}
+
+void Mesh::Transform(const Matrix44f &transform) {
+	for (int i = 0; i < mVertices.size(); ++i) {
+		mVertices[i] = (transform.transpose() * mVertices[i]);
+		mNormals[i] = (Matrix33f(transform.block<3,3>(0,0)).transpose() * mNormals[i]);
+	}
+}
+
+Mesh* Mesh::sCreateCuboid (float width, float height, float depth) {
+	Mesh* result = new Mesh();
+
 	// work arrays that we fill with data
- 	std::vector<Vector4f> vertices;
- 	std::vector<Vector3f> normals;
- 	std::vector<Vector4f> colors;
+ 	std::vector<Vector4f> &vertices = result->mVertices;
+ 	std::vector<Vector3f> &normals = result->mNormals;
+ 	std::vector<Vector4f> &colors = result->mColors;
 
 	Vector4f v0 (  0.5 * width, -0.5 * height,  0.5 * depth, 1.f);
 	Vector4f v1 (  0.5 * width, -0.5 * height, -0.5 * depth, 1.f);
@@ -1097,14 +1072,18 @@ Mesh *createCuboid (float width, float height, float depth) {
 	vertices.push_back(v1);
 	normals.push_back(normal);
 
-	return createMeshFromStdVectors (vertices, normals, colors);
+	result->Update();
+
+	return result;
 }
 
-Mesh *createUVSphere (int rows, int segments, float radius) {
+Mesh* Mesh::sCreateUVSphere (int rows, int segments, float radius) {
+	Mesh* result = new Mesh();
+
 	// work arrays that we fill with data
- 	std::vector<Vector4f> vertices;
- 	std::vector<Vector3f> normals;
- 	std::vector<Vector4f> colors;
+ 	std::vector<Vector4f> &vertices = result->mVertices;
+ 	std::vector<Vector3f> &normals = result->mNormals;
+ 	std::vector<Vector4f> &colors = result->mColors;
 
 	// fill arrays
 	float row_d = 1. / (rows);
@@ -1150,14 +1129,18 @@ Mesh *createUVSphere (int rows, int segments, float radius) {
 		}
 	}
 	
-	return createMeshFromStdVectors (vertices, normals, colors);
+	result->Update();
+
+	return result;
 }
 
-Mesh *createCylinder (int segments) {
+Mesh* Mesh::sCreateCylinder (int segments) {
+	Mesh* result = new Mesh();
+
 	// work arrays that we fill with data
- 	std::vector<Vector4f> vertices;
- 	std::vector<Vector3f> normals;
- 	std::vector<Vector4f> colors;
+ 	std::vector<Vector4f> &vertices = result->mVertices;
+ 	std::vector<Vector3f> &normals = result->mNormals;
+ 	std::vector<Vector4f> &colors = result->mColors;
 
 	float delta = 2. * M_PI / static_cast<float>(segments);
 	for (unsigned int i = 0; i < segments; i++) {
@@ -1226,9 +1209,88 @@ Mesh *createCylinder (int segments) {
 		normals.push_back(normal);
 	}
 
-	return createMeshFromStdVectors (vertices, normals, colors);
+	result->Update();
+
+	return result;
 }
 
-}
+Mesh* Mesh::sCreateCapsule (int rows, int segments, float length, float radius) {
+	Mesh* result = new Mesh();
 
+	// work arrays that we fill with data
+ 	std::vector<Vector4f> &vertices = result->mVertices;
+ 	std::vector<Vector3f> &normals = result->mNormals;
+ 	std::vector<Vector4f> &colors = result->mColors;
+
+	float delta = 2. * M_PI / static_cast<float>(segments);
+	for (unsigned int i = 0; i < segments; i++) {
+		float r0 = (i - 0.5) * delta;
+		float r1 = (i + 0.5) * delta;
+
+		float c0 = cos (r0); 
+		float s0 = sin (r0); 
+
+		float c1 = cos (r1); 
+		float s1 = sin (r1); 
+
+		Vector3f normal0 (-c0, -s0, 0.f);
+		Vector3f normal1 (-c1, -s1, 0.f);
+
+		Vector4f normal0_4 (-c0, -s0, 0.f, 0.f);
+		Vector4f normal1_4 (-c1, -s1, 0.f, 0.f);
+
+		Vector4f p0 = normal0_4 + Vector4f (0., 0.,  0.5f, 1.0f);
+		Vector4f p1 = normal0_4 + Vector4f (0., 0., -0.5f, 1.0f);
+		Vector4f p2 = normal1_4 + Vector4f (0., 0.,  0.5f, 1.0f);
+		Vector4f p3 = normal1_4 + Vector4f (0., 0., -0.5f, 1.0f);
+
+    // side triangle 1
+		vertices.push_back(p0);
+		normals.push_back(normal0);
+
+		vertices.push_back(p1);
+		normals.push_back(normal0);
+
+		vertices.push_back(p2);
+		normals.push_back(normal1);
+
+		// side triangle 2
+		vertices.push_back(p2);
+		normals.push_back(normal1);
+
+		vertices.push_back(p1);
+		normals.push_back(normal0);
+
+		vertices.push_back(p3);
+		normals.push_back(normal1);
+
+		// upper end triangle
+		Vector3f normal (0.f, 0.f, 1.f);
+
+		vertices.push_back(p0);
+		normals.push_back(normal);
+
+		vertices.push_back(p2);
+		normals.push_back(normal);
+
+		vertices.push_back(Vector4f (0.f, 0.f, 0.5f, 1.0f));
+		normals.push_back(normal);
+
+		// lower end triangle
+		normal = Vector3f(0.f, 0.f, -1.f);
+
+		vertices.push_back(p3);
+		normals.push_back(normal);
+
+		vertices.push_back(p1);
+		normals.push_back(normal);
+
+		vertices.push_back(Vector4f (0.f, 0.f, -0.5f, 1.0f));
+		normals.push_back(normal);
+	}
+
+	result->Update();
+
+	return result;
+};
 
