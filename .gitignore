@@ -6,12 +6,14 @@ tags
 3rdparty/glfw/docs/**
 3rdparty/glfw/examples/**
 3rdparty/glfw/tests/**
+3rdparty/bx/tests/*-*/**
 
 3rdparty/bgfx/examples/*-*/**
 3rdparty/bgfx/examples/assets/**
 3rdparty/bgfx/examples/runtime/**
 3rdparty/bgfx/3rdparty/dxsdk/**
 3rdparty/bgfx/3rdparty/scintilla/**
+3rdparty/bgfx/3rdparty/glslang/Test/**
 
 3rdparty/RuntimeCompiledCpp/Assets/**
 3rdparty/RuntimeCompiledCpp/Aurora**
