@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2016 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -9,7 +9,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include <bgfx/bgfxplatform.h>
+#include <bgfx/platform.h>
 
 #include <bx/uint32_t.h>
 #include <bx/thread.h>
@@ -485,9 +485,12 @@ namespace entry
 
 			while (!(m_exit = [dg applicationHasTerminated]) )
 			{
-				if (bgfx::RenderFrame::Exiting == bgfx::renderFrame() )
+				@autoreleasepool
 				{
-					break;
+					if (bgfx::RenderFrame::Exiting == bgfx::renderFrame() )
+					{
+						break;
+					}
 				}
 
 				while (dispatchEvent(peekEvent() ) )

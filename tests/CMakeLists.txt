@@ -10,6 +10,7 @@ include_directories (
 set (TEST_SRCS
 	RenderModuleTests.cc
 	${GOOGLETEST_DIR}/src/gtest_main.cc
+	${CMAKE_SOURCE_DIR}/3rdparty/bx/src/fpumath.cpp
 	)
 
 add_executable ( runtests ${TEST_SRCS} )

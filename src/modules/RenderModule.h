@@ -69,8 +69,8 @@ struct Light {
 
 	bgfx::TextureHandle shadowMapTexture;
 	bgfx::FrameBufferHandle shadowMapFB;
-	float pos[4];
-	float dir[3];
+	Vector3f pos;
+	Vector3f dir;
 
 	float mtxView[16];
 	float mtxProj[16];
@@ -91,8 +91,8 @@ struct Light {
 		u_lightMtx (BGFX_INVALID_HANDLE),
 		shadowMapTexture (BGFX_INVALID_HANDLE),
 		shadowMapFB (BGFX_INVALID_HANDLE),
-		pos {0.f, 10.f, 10.f, 1.0f},
-		dir {-1.f, -1.f, -1.f},
+		pos (Vector3f(0.f, 10.f, 10.f)),
+		dir (Vector3f(-1.f, -1.f, -1.f)),
 		mtxView {
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
@@ -398,8 +398,8 @@ struct Renderer {
 	Renderer() :
 		initialized(false),
 		drawDebug(false),
-		width (0),
-		height (0)
+		view_width (0),
+		view_height (0)
 	{}
 
 	// initialize simple geometries (cube, sphere, ...)

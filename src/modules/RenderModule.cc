@@ -694,7 +694,7 @@ static float s_texelHalf = 0.0f;
 
 void screenSpaceQuad(float _textureWidth, float _textureHeight, bool _originBottomLeft = false, float _width = 1.0f, float _height = 1.0f)
 {
-	if (bgfx::checkAvailTransientVertexBuffer(3, PosColorTexCoord0Vertex::ms_decl) )
+	if (bgfx::getAvailTransientVertexBuffer(3, PosColorTexCoord0Vertex::ms_decl) )
 	{
 		bgfx::TransientVertexBuffer vb;
 		bgfx::allocTransientVertexBuffer(&vb, 3, PosColorTexCoord0Vertex::ms_decl);
@@ -1336,7 +1336,7 @@ void Renderer::paintGL() {
 
 	// lights: update view and projection matrices and shadow map parameters
 	for (uint32_t i = 0; i < lights.size(); i++) {
-		bgfx::setUniform(lights[i].u_lightPos, lights[i].pos);
+		bgfx::setUniform(lights[i].u_lightPos, lights[i].pos.data());
 		float shadow_map_params[4];
 		shadow_map_params[0] = static_cast<float>(lights[i].shadowMapSize);
 		shadow_map_params[1] = lights[0].shadowMapBias;
@@ -1427,7 +1427,7 @@ void Renderer::paintGL() {
 	// Floor.
 	bx::mtxMul(lightMtx, mtxFloor, lights[0].mtxShadow);
 	bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-	bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
+	bgfx::setUniform(lights[0].u_lightPos, lights[0].pos.data());
 
 	// Clear backbuffer and shadowmap framebuffer at beginning.
 	bgfx::setViewClear(RenderState::Skybox
@@ -1505,7 +1505,7 @@ void Renderer::paintGL() {
 			}
 
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-			bgfx::setUniform(lights[0].u_lightPos, lights[0].pos);
+			bgfx::setUniform(lights[0].u_lightPos, lights[0].pos.data());
 			bgfx::setUniform(u_color, Vector4f(1.f, 1.f, 1.f, 1.f).data(), 4);
 			bgfx::setIndexBuffer(plane_ibh);
 			bgfx::setVertexBuffer(plane_vbh);
@@ -1546,9 +1546,15 @@ void Renderer::paintGL() {
 					);
 
 			// compute world position of the light
+			Vector4f light_pos4 (
+					lights[0].pos[0],
+					lights[0].pos[1],
+					lights[0].pos[2],
+					1.0f
+					);
 			Vector4f light_pos = 
 				entities[i]->mSkeletonMeshes.GetBoneMatrix(j)
-				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
+				* light_pos4;
 
 			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
 			bgfx::setUniform(u_color, entities[i]->mColor.data());
