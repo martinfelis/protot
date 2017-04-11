@@ -334,6 +334,7 @@ void HlslScanContext::fillInKeywordMap()
     (*KeywordMap)["tbuffer"] =                 EHTokTBuffer;
     (*KeywordMap)["typedef"] =                 EHTokTypedef;
     (*KeywordMap)["this"] =                    EHTokThis;
+    (*KeywordMap)["namespace"] =               EHTokNamespace;
 
     (*KeywordMap)["true"] =                    EHTokBoolConstant;
     (*KeywordMap)["false"] =                   EHTokBoolConstant;
@@ -828,6 +829,7 @@ EHlslTokenClass HlslScanContext::tokenizeIdentifier()
     case EHTokCBuffer:
     case EHTokTBuffer:
     case EHTokThis:
+    case EHTokNamespace:
         return keyword;
 
     case EHTokBoolConstant:
@@ -874,30 +876,6 @@ EHlslTokenClass HlslScanContext::reservedWord()
         parseContext.error(loc, "Reserved word.", tokenText, "", "");
 
     return EHTokNone;
-}
-
-EHlslTokenClass HlslScanContext::identifierOrReserved(bool reserved)
-{
-    if (reserved) {
-        reservedWord();
-
-        return EHTokNone;
-    }
-
-    if (parseContext.forwardCompatible)
-        parseContext.warn(loc, "using future reserved keyword", tokenText, "");
-
-    return identifierOrType();
-}
-
-// For a keyword that was never reserved, until it suddenly
-// showed up.
-EHlslTokenClass HlslScanContext::nonreservedKeyword(int version)
-{
-    if (parseContext.version < version)
-        return identifierOrType();
-
-    return keyword;
 }
 
 } // end namespace glslang

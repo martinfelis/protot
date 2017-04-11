@@ -13,7 +13,7 @@
 
 #include <assert.h>
 
-#include <bgfx/bgfxplatform.h>
+#include <bgfx/platform.h>
 #include <bx/thread.h>
 
 #include <bx/timer.h>

@@ -1,5 +1,5 @@
 hlsl.intrinsics.promote.outputs.frag
-Shader version: 450
+Shader version: 500
 gl_FragCoord origin is upper left
 0:? Sequence
 0:20  Function Definition: @main( ( temp structure{ temp 4-component vector of float color})
@@ -95,7 +95,7 @@ gl_FragCoord origin is upper left
 0:20              0 (const int)
 0:?   Linker Objects
 0:?     'anon@0' (layout( row_major std140) uniform block{ uniform int i,  uniform uint u,  uniform float f,  uniform bool b,  uniform 2-component vector of int i2,  uniform 2-component vector of uint u2,  uniform 2-component vector of float f2,  uniform 2-component vector of bool b2,  uniform uint upos,  uniform float fpos})
-0:?     'g_tTexbfs' (layout( r32f) readonly uniform imageBuffer)
+0:?     'g_tTexbfs' (layout( r32f) uniform textureBuffer)
 0:?     'g_tTex1df4' ( uniform texture1D)
 0:?     'color' (layout( location=0) out 4-component vector of float)
 
@@ -103,7 +103,7 @@ gl_FragCoord origin is upper left
 Linked fragment stage:
 
 
-Shader version: 450
+Shader version: 500
 gl_FragCoord origin is upper left
 0:? Sequence
 0:20  Function Definition: @main( ( temp structure{ temp 4-component vector of float color})
@@ -199,7 +199,7 @@ gl_FragCoord origin is upper left
 0:20              0 (const int)
 0:?   Linker Objects
 0:?     'anon@0' (layout( row_major std140) uniform block{ uniform int i,  uniform uint u,  uniform float f,  uniform bool b,  uniform 2-component vector of int i2,  uniform 2-component vector of uint u2,  uniform 2-component vector of float f2,  uniform 2-component vector of bool b2,  uniform uint upos,  uniform float fpos})
-0:?     'g_tTexbfs' (layout( r32f) readonly uniform imageBuffer)
+0:?     'g_tTexbfs' (layout( r32f) uniform textureBuffer)
 0:?     'g_tTex1df4' ( uniform texture1D)
 0:?     'color' (layout( location=0) out 4-component vector of float)
 
@@ -215,6 +215,7 @@ gl_FragCoord origin is upper left
                               MemoryModel Logical GLSL450
                               EntryPoint Fragment 4  "main" 74
                               ExecutionMode 4 OriginUpperLeft
+                              Source HLSL 500
                               Name 4  "main"
                               Name 8  "PS_OUTPUT"
                               MemberName 8(PS_OUTPUT) 0  "color"
@@ -258,7 +259,6 @@ gl_FragCoord origin is upper left
                               Decorate 31(g_tTex1df4) DescriptorSet 0
                               Decorate 74(color) Location 0
                               Decorate 79(g_tTexbfs) DescriptorSet 0
-                              Decorate 79(g_tTexbfs) NonWritable
                2:             TypeVoid
                3:             TypeFunction 2
                6:             TypeFloat 32
@@ -289,7 +289,7 @@ gl_FragCoord origin is upper left
               68:             TypePointer Function 7(fvec4)
               73:             TypePointer Output 7(fvec4)
        74(color):     73(ptr) Variable Output
-              77:             TypeImage 6(float) Buffer nonsampled format:R32f
+              77:             TypeImage 6(float) Buffer sampled format:R32f
               78:             TypePointer UniformConstant 77
    79(g_tTexbfs):     78(ptr) Variable UniformConstant
          4(main):           2 Function None 3

@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <iostream>
 
-#include "bgfx/bgfxplatform.h"
+#include "bgfx/platform.h"
 #include "bx/timer.h"
 #include "Timer.h"
 #include "RuntimeModuleManager.h"

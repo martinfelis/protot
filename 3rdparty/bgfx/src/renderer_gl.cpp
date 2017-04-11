@@ -1153,10 +1153,10 @@ namespace bgfx { namespace gl
 			: tfi.m_internalFmt
 			;
 
-		GLsizei size = (16*16*getBitsPerPixel(_format) )/8;
+		GLsizei size = (16*16*bimg::getBitsPerPixel(bimg::TextureFormat::Enum(_format) ) )/8;
 		void* data = NULL;
 
-		if (isDepth(_format) )
+		if (bimg::isDepth(bimg::TextureFormat::Enum(_format) ) )
 		{
 			_srgb    = false;
 			_mipmaps = false;
@@ -1169,7 +1169,7 @@ namespace bgfx { namespace gl
 		flushGlError();
 		GLenum err = 0;
 
-		if (isCompressed(_format) )
+		if (bimg::isCompressed(bimg::TextureFormat::Enum(_format) ) )
 		{
 			glCompressedTexImage2D(GL_TEXTURE_2D, 0, internalFmt, 16, 16, 0, size, data);
 			err |= glGetError();
@@ -1294,9 +1294,9 @@ namespace bgfx { namespace gl
 		GLenum err = initTestTexture(_format, _srgb, false);
 
 		GLenum attachment;
-		if (isDepth(_format) )
+		if (bimg::isDepth(bimg::TextureFormat::Enum(_format) ) )
 		{
-			const ImageBlockInfo& info = getBlockInfo(_format);
+			const bimg::ImageBlockInfo& info = bimg::getBlockInfo(bimg::TextureFormat::Enum(_format) );
 			if (0 == info.depthBits)
 			{
 				attachment = GL_STENCIL_ATTACHMENT;
@@ -1412,6 +1412,16 @@ namespace bgfx { namespace gl
 		{ "Intel",                        BGFX_PCI_ID_INTEL  },
 	};
 
+	struct Workaround
+	{
+		void reset()
+		{
+			m_detachShader = true;
+		}
+
+		bool m_detachShader;
+	};
+
 	struct RendererContextGL : public RendererContextI
 	{
 		RendererContextGL()
@@ -1481,6 +1491,8 @@ namespace bgfx { namespace gl
 					break;
 				}
 			}
+
+			m_workaround.reset();
 
 			GLint numCmpFormats = 0;
 			GL_CHECK(glGetIntegerv(GL_NUM_COMPRESSED_TEXTURE_FORMATS, &numCmpFormats) );
@@ -2277,6 +2289,11 @@ namespace bgfx { namespace gl
 			return BGFX_RENDERER_OPENGL_NAME;
 		}
 
+		bool isDeviceRemoved() BX_OVERRIDE
+		{
+			return false;
+		}
+
 		void flip(HMD& _hmd)
 		{
 			if (m_flip)
@@ -2413,7 +2430,7 @@ namespace bgfx { namespace gl
 			if (m_readBackSupported)
 			{
 				const TextureGL& texture = m_textures[_handle.idx];
-				const bool compressed    = isCompressed(TextureFormat::Enum(texture.m_textureFormat) );
+				const bool compressed    = bimg::isCompressed(bimg::TextureFormat::Enum(texture.m_textureFormat) );
 
 				GL_CHECK(glBindTexture(texture.m_target, texture.m_id) );
 
@@ -2558,7 +2575,7 @@ namespace bgfx { namespace gl
 
 			if (GL_RGBA == m_readPixelsFmt)
 			{
-				imageSwizzleBgra8(data, width, height, width*4, data);
+				bimg::imageSwizzleBgra8(data, width, height, width*4, data);
 			}
 
 			g_callback->screenShot(_filePath
@@ -3127,7 +3144,7 @@ namespace bgfx { namespace gl
 
 				if (GL_RGBA == m_readPixelsFmt)
 				{
-					imageSwizzleBgra8(m_capture, m_resolution.m_width, m_resolution.m_height, m_resolution.m_width*4, m_capture);
+					bimg::imageSwizzleBgra8(m_capture, m_resolution.m_width, m_resolution.m_height, m_resolution.m_width*4, m_capture);
 				}
 
 				g_callback->captureFrame(m_capture, m_captureSize);
@@ -3519,6 +3536,8 @@ namespace bgfx { namespace gl
 		const char* m_renderer;
 		const char* m_version;
 		const char* m_glslVersion;
+
+		Workaround m_workaround;
 
 		GLuint m_currentFbo;
 
@@ -4018,7 +4037,8 @@ namespace bgfx { namespace gl
 
 		init();
 
-		if (!cached)
+		if (!cached
+		&&  s_renderGL->m_workaround.m_detachShader)
 		{
 			// Must be after init, otherwise init might fail to lookup shader
 			// info (NVIDIA Tegra 3 OpenGL ES 2.0 14.01003).
@@ -4810,9 +4830,9 @@ namespace bgfx { namespace gl
 
 	void TextureGL::create(const Memory* _mem, uint32_t _flags, uint8_t _skip)
 	{
-		ImageContainer imageContainer;
+		bimg::ImageContainer imageContainer;
 
-		if (imageParse(imageContainer, _mem->data, _mem->size) )
+		if (bimg::imageParse(imageContainer, _mem->data, _mem->size) )
 		{
 			uint8_t numMips = imageContainer.m_numMips;
 			const uint8_t startLod = uint8_t(bx::uint32_min(_skip, numMips-1) );
@@ -4822,7 +4842,7 @@ namespace bgfx { namespace gl
 			uint32_t textureHeight;
 			uint32_t textureDepth;
 			{
-				const ImageBlockInfo& ibi = getBlockInfo(TextureFormat::Enum(imageContainer.m_format) );
+				const bimg::ImageBlockInfo& ibi = bimg::getBlockInfo(bimg::TextureFormat::Enum(imageContainer.m_format) );
 				textureWidth  = bx::uint32_max(ibi.blockWidth,  imageContainer.m_width >>startLod);
 				textureHeight = bx::uint32_max(ibi.blockHeight, imageContainer.m_height>>startLod);
 				textureDepth  = 1 < imageContainer.m_depth
@@ -4888,7 +4908,7 @@ namespace bgfx { namespace gl
 				&& !s_textureFormat[m_requestedFormat].m_supported
 				&& !s_renderGL->m_textureSwizzleSupport
 				;
-			const bool compressed = isCompressed(TextureFormat::Enum(m_requestedFormat) );
+			const bool compressed = bimg::isCompressed(bimg::TextureFormat::Enum(m_requestedFormat) );
 			const bool convert    = false
 				|| m_textureFormat != m_requestedFormat
 				|| swizzle
@@ -4941,8 +4961,8 @@ namespace bgfx { namespace gl
 						: side
 						;
 
-					ImageMip mip;
-					if (imageGetRawData(imageContainer, side, lod+startLod, _mem->data, _mem->size, mip) )
+					bimg::ImageMip mip;
+					if (bimg::imageGetRawData(imageContainer, side, lod+startLod, _mem->data, _mem->size, mip) )
 					{
 						if (compressed
 						&& !convert)
@@ -4994,7 +5014,7 @@ namespace bgfx { namespace gl
 						{
 							uint32_t size = bx::uint32_max(1, (width  + 3)>>2)
 										  * bx::uint32_max(1, (height + 3)>>2)
-										  * 4*4*getBitsPerPixel(TextureFormat::Enum(m_textureFormat) )/8
+										  * 4*4* bimg::getBitsPerPixel(bimg::TextureFormat::Enum(m_textureFormat) )/8
 										  ;
 
 							compressedTexImage(imageTarget
@@ -5066,7 +5086,7 @@ namespace bgfx { namespace gl
 
 	void TextureGL::update(uint8_t _side, uint8_t _mip, const Rect& _rect, uint16_t _z, uint16_t _depth, uint16_t _pitch, const Memory* _mem)
 	{
-		const uint32_t bpp = getBitsPerPixel(TextureFormat::Enum(m_textureFormat) );
+		const uint32_t bpp = bimg::getBitsPerPixel(bimg::TextureFormat::Enum(m_textureFormat) );
 		const uint32_t rectpitch = _rect.m_width*bpp/8;
 		uint32_t srcpitch  = UINT16_MAX == _pitch ? rectpitch : _pitch;
 
@@ -5084,7 +5104,7 @@ namespace bgfx { namespace gl
 			&& !s_renderGL->m_textureSwizzleSupport
 			;
 		const bool unpackRowLength = BX_IGNORE_C4127(!!BGFX_CONFIG_RENDERER_OPENGL || s_extension[Extension::EXT_unpack_subimage].m_supported);
-		const bool compressed      = isCompressed(TextureFormat::Enum(m_requestedFormat) );
+		const bool compressed      = bimg::isCompressed(bimg::TextureFormat::Enum(m_requestedFormat) );
 		const bool convert         = false
 			|| (compressed && m_textureFormat != m_requestedFormat)
 			|| swizzle
@@ -5110,7 +5130,7 @@ namespace bgfx { namespace gl
 
 			if (!unpackRowLength)
 			{
-				imageCopy(temp, width, height, bpp, srcpitch, data);
+				bimg::imageCopy(temp, width, height, bpp, srcpitch, data);
 				data = temp;
 			}
 
@@ -5133,7 +5153,7 @@ namespace bgfx { namespace gl
 
 			if (convert)
 			{
-				imageDecodeToRgba8(temp, data, width, height, srcpitch, TextureFormat::Enum(m_requestedFormat) );
+				bimg::imageDecodeToRgba8(temp, data, width, height, srcpitch, bimg::TextureFormat::Enum(m_requestedFormat) );
 				data = temp;
 				srcpitch = rectpitch;
 			}
@@ -5141,7 +5161,7 @@ namespace bgfx { namespace gl
 			if (!unpackRowLength
 			&&  !convert)
 			{
-				imageCopy(temp, width, height, bpp, srcpitch, data);
+				bimg::imageCopy(temp, width, height, bpp, srcpitch, data);
 				data = temp;
 			}
 
@@ -5883,10 +5903,10 @@ namespace bgfx { namespace gl
 					}
 
 					GLenum attachment = GL_COLOR_ATTACHMENT0 + colorIdx;
-					TextureFormat::Enum format = (TextureFormat::Enum)texture.m_textureFormat;
-					if (isDepth(format) )
+					bimg::TextureFormat::Enum format = bimg::TextureFormat::Enum(texture.m_textureFormat);
+					if (bimg::isDepth(format) )
 					{
-						const ImageBlockInfo& info = getBlockInfo(format);
+						const bimg::ImageBlockInfo& info = bimg::getBlockInfo(format);
 						if (0 < info.stencilBits)
 						{
 							attachment = GL_DEPTH_STENCIL_ATTACHMENT;
@@ -5973,7 +5993,7 @@ namespace bgfx { namespace gl
 						if (0 != texture.m_id)
 						{
 							GLenum attachment = GL_COLOR_ATTACHMENT0 + colorIdx;
-							if (!isDepth( (TextureFormat::Enum)texture.m_textureFormat) )
+							if (!bimg::isDepth(bimg::TextureFormat::Enum(texture.m_textureFormat) ) )
 							{
 								++colorIdx;
 
@@ -6244,6 +6264,9 @@ namespace bgfx { namespace gl
 		currentState.m_stateFlags = BGFX_STATE_NONE;
 		currentState.m_stencil    = packStencil(BGFX_STENCIL_NONE, BGFX_STENCIL_NONE);
 
+		RenderBind currentBind;
+		currentBind.clear();
+
 		_render->m_hmdInitialized = m_ovr.isInitialized();
 
 		const bool hmdEnabled = m_ovr.isEnabled();
@@ -6324,7 +6347,9 @@ namespace bgfx { namespace gl
 					|| item == numItems
 					;
 
-				const RenderItem& renderItem = _render->m_renderItem[_render->m_sortValues[item] ];
+				const uint32_t itemIdx       = _render->m_sortValues[item];
+				const RenderItem& renderItem = _render->m_renderItem[itemIdx];
+				const RenderBind& renderBind = _render->m_renderItemBind[itemIdx];
 				++item;
 
 				if (viewChanged)
@@ -6499,7 +6524,7 @@ namespace bgfx { namespace gl
 						GLbitfield barrier = 0;
 						for (uint32_t ii = 0; ii < BGFX_MAX_COMPUTE_BINDINGS; ++ii)
 						{
-							const Binding& bind = compute.m_bind[ii];
+							const Binding& bind = renderBind.m_bind[ii];
 							if (invalidHandle != bind.m_idx)
 							{
 								switch (bind.m_type)
@@ -6630,6 +6655,8 @@ namespace bgfx { namespace gl
 					changedStencil = packStencil(BGFX_STENCIL_MASK, BGFX_STENCIL_MASK);
 					currentState.m_stateFlags = newFlags;
 					currentState.m_stencil    = newStencil;
+
+					currentBind.clear();
 				}
 
 				uint16_t scissor = draw.m_scissor;
@@ -6985,16 +7012,40 @@ namespace bgfx { namespace gl
 					{
 						for (uint32_t stage = 0; stage < BGFX_CONFIG_MAX_TEXTURE_SAMPLERS; ++stage)
 						{
-							const Binding& bind = draw.m_bind[stage];
-							Binding& current = currentState.m_bind[stage];
+							const Binding& bind = renderBind.m_bind[stage];
+							Binding& current = currentBind.m_bind[stage];
 							if (current.m_idx != bind.m_idx
+							||  current.m_type != bind.m_type
 							||  current.m_un.m_draw.m_textureFlags != bind.m_un.m_draw.m_textureFlags
 							||  programChanged)
 							{
 								if (invalidHandle != bind.m_idx)
 								{
-									TextureGL& texture = m_textures[bind.m_idx];
-									texture.commit(stage, bind.m_un.m_draw.m_textureFlags, _render->m_colorPalette);
+									switch (bind.m_type)
+									{
+									case Binding::Texture:
+										{
+											TextureGL& texture = m_textures[bind.m_idx];
+											texture.commit(stage, bind.m_un.m_draw.m_textureFlags, _render->m_colorPalette);
+										}
+										break;
+
+									case Binding::IndexBuffer:
+										{
+											const IndexBufferGL& buffer = m_indexBuffers[bind.m_idx];
+											GL_CHECK(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, stage, buffer.m_id) );
+											// TODO: barriers?
+										}
+										break;
+
+									case Binding::VertexBuffer:
+										{
+											const VertexBufferGL& buffer = m_vertexBuffers[bind.m_idx];
+											GL_CHECK(glBindBufferBase(GL_SHADER_STORAGE_BUFFER, stage, buffer.m_id) );
+											// TODO: barriers?
+										}
+										break;
+									}
 								}
 							}
 

@@ -72,6 +72,7 @@ SUBDIRS (
 	tests/
 
 	3rdparty/glfw
+	3rdparty/bimg
 	3rdparty/bgfx
 	3rdparty/rbdl
 	3rdparty/googletest
@@ -144,6 +145,7 @@ TARGET_LINK_LIBRARIES ( protot
 	glfw
 	${glfw_dependencies}
 	${OPENGL_LIBRARIES}
+	bimg
 	bgfx
 	bgfx_aux
 	glsl-optimizer
