@@ -119,10 +119,6 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 }
 
 static bool module_step(struct module_state *state, float dt) {
-	float deltaTime = 0.3;
-	std::ostringstream s;
-	s << "RenderModule:  2 Runtime Object 4 " << deltaTime << " update called!";
-
 	int width, height;
 	assert (gWindow != nullptr);
 	glfwGetWindowSize(gWindow, &width, &height);
@@ -136,14 +132,12 @@ static bool module_step(struct module_state *state, float dt) {
 			ImVec2(width - dock_width, dock_top_offset),
 			ImVec2(dock_width, height - dock_top_offset)
 			);
-//	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4 (0.5f, 0.5f, 0.5f, 0.5f));
 
 	state->renderer->resize (0, 20.0f, width - dock_width, height - 20.0f);
-//	state->renderer->resize (0, 20.0f, width, height - 20.0f);
+
+	ImGuizmo::Enable(true);
 
 	state->renderer->paintGL();
-
-//	ImGui::PopStyleColor();
 
 	return true;
 }
@@ -1278,6 +1272,8 @@ void Renderer::resize (int x, int y, int width, int height) {
 			cameras[i].width = static_cast<float>(width);
 			cameras[i].height = static_cast<float>(height);
 		}
+
+		ImGuizmo::SetRect(view_offset_x, view_offset_y, view_width, view_height);
 	}
 }
 
@@ -1564,32 +1560,21 @@ void Renderer::paintGL() {
 					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
+	}
 
-		//
-		//
-		//
-//		for (uint32_t j = 0; j < entities[i]->mesh.meshes.size(); ++j) {
-//			bx::mtxMul(
-//					lightMtx, 
-//					entities[i]->mesh.meshMatrices[j].data(), 
-//					lights[0].mtxShadow
-//					);
-//
-//			// compute world position of the light
-//			Vector4f light_pos = 
-//				entities[i]->mesh.meshMatrices[j] 
-//				* SimpleMath::Map<Vector4f>(lights[0].pos, 4, 1);
-//
-//			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
-//			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-//			bgfxutils::meshSubmit (
-//					entities[i]->mesh.meshes[j]->mBgfxMesh, 
-//					&s_renderStates[RenderState::Scene],
-//					1,
-//					entities[i]->mesh.meshMatrices[j].data()
-//					);
-//
-//		}
+	for (size_t i = 0; i < entities.size(); i++) {
+		Matrix44f ent_transform = entities[i]->mTransform.toMatrix();
+		Matrix44f delta_matrix;
+		ImGuizmo::Manipulate(
+				cameras[activeCameraIndex].mtxView,
+				cameras[activeCameraIndex].mtxProj,
+				ImGuizmo::TRANSLATE,
+				ImGuizmo::LOCAL,
+				ent_transform.data(),
+				delta_matrix.data()
+				);
+
+		entities[i]->mTransform.fromMatrix(ent_transform);
 	}
 
 	// render debug information
@@ -1713,7 +1698,6 @@ void Renderer::paintGL() {
 //	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
 //
 	if (ImGui::BeginDock("Render Settings")) {
-
 		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
 		}
 

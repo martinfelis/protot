@@ -178,6 +178,7 @@ int main(void)
 				gGuiInputState->mouseScroll,
 				width,
 				height);
+		ImGuizmo::BeginFrame();
 
 		static int64_t last = bx::getHPCounter();
 		int64_t pre_module_check = bx::getHPCounter();

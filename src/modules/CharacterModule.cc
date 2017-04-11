@@ -370,6 +370,8 @@ void CharacterEntity::Update(float dt) {
 
 	mVelocity = mVelocity + acceleration * dt;
 
+	mPosition = mEntity->mTransform.translation;
+
 	if (mPosition[1] == 0.0f 
 			&& mController.mState[CharacterController::ControlStateJump]) {
 		mVelocity[1] = cJumpVelocity;	
@@ -456,83 +458,85 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	assert (character != nullptr);
 	ImGui::SetNextWindowSize (ImVec2(600.f, 300.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
-	ImGui::Begin("Character");
 
-	if (ImGui::Button ("Reset")) {
-		character->Reset();
-	}
+	if(ImGui::BeginDock("Character")) {
 
-	ImGui::Protot::DragFloat4Normalized ("Offset Quat", offset_quat.data(),
-			0.01f, -1.0f, 1.0f);
-
-	ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
-	ImGui::DragFloat3 ("Velocity", character->mVelocity.data(), 0.01, -10.0f, 10.0f);
-	float angle = atan2 (-character->mVelocity[2], character->mVelocity[0]);
-	ImGui::LabelText ("", "Angle %f", angle * 180.f / M_PI);
-
-	ImGui::LabelText("", 
-			"Skeleton Bones %d", 
-			character->mEntity->mSkeleton.mLocalTransforms.size());
-
-	ImGui::LabelText("", 
-			"Rig Frames %d", 
-			character->mRigModel->mBodies.size());
-
-	bool node_open = ImGui::TreeNodeEx(
-			"DOFs",
-			0);
-	if (node_open) {
-		bool dof_modified = false;
-		for (int i = 0; i < character->mRigModel->q_size; ++i) {
-			char buf[32];
-			snprintf (buf, 32, "DOF %d", i);
-
-			if (ImGui::DragFloat (buf, &character->mRigState.q[i], 0.01, -10.0f, 10.0f)) {
-				dof_modified = true;
-			}
+		if (ImGui::Button ("Reset")) {
+			character->Reset();
 		}
 
-		if (dof_modified) {
-			VectorNd q = character->mRigState.q;
-		}
+		ImGui::Protot::DragFloat4Normalized ("Offset Quat", offset_quat.data(),
+				0.01f, -1.0f, 1.0f);
 
-		ImGui::TreePop();
-	}
+		ImGui::DragFloat3 ("Position", character->mPosition.data(), 0.01, -10.0f, 10.0f);
+		ImGui::DragFloat3 ("Velocity", character->mVelocity.data(), 0.01, -10.0f, 10.0f);
+		float angle = atan2 (-character->mVelocity[2], character->mVelocity[0]);
+		ImGui::LabelText ("", "Angle %f", angle * 180.f / M_PI);
 
-	node_open = ImGui::TreeNodeEx(
-			"Meshes",
-			0);
+		ImGui::LabelText("", 
+				"Skeleton Bones %d", 
+				character->mEntity->mSkeleton.mLocalTransforms.size());
 
-	if (node_open) {
-		for (int i = 0; i < character->mEntity->mSkeleton.Length(); ++i) {
-			char buf[32];
-			snprintf (buf, 32, "Mesh %d", i);
+		ImGui::LabelText("", 
+				"Rig Frames %d", 
+				character->mRigModel->mBodies.size());
 
-			ImGuiTreeNodeFlags node_flags = 0;
+		bool node_open = ImGui::TreeNodeEx(
+				"DOFs",
+				0);
+		if (node_open) {
+			bool dof_modified = false;
+			for (int i = 0; i < character->mRigModel->q_size; ++i) {
+				char buf[32];
+				snprintf (buf, 32, "DOF %d", i);
 
-			bool node_open = ImGui::TreeNodeEx(
-					buf,
-					node_flags);
-
-			if (node_open) {
-				Transform &transform = character->mEntity->mSkeleton.mLocalTransforms[i];
-
-				ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
-				if (ImGui::Protot::DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
-					if (isnan(transform.rotation.squaredNorm())) {
-						std::cout << "nan! " << transform.rotation.transpose() << std::endl;
-						abort();
-					}
+				if (ImGui::DragFloat (buf, &character->mRigState.q[i], 0.01, -10.0f, 10.0f)) {
+					dof_modified = true;
 				}
-				ImGui::DragFloat3 ("Scale", transform.scale.data(), 0.01, 0.001f, 10.0f);
-
-				ImGui::TreePop();
 			}
+
+			if (dof_modified) {
+				VectorNd q = character->mRigState.q;
+			}
+
+			ImGui::TreePop();
 		}
-		ImGui::TreePop();
+
+		node_open = ImGui::TreeNodeEx(
+				"Meshes",
+				0);
+
+		if (node_open) {
+			for (int i = 0; i < character->mEntity->mSkeleton.Length(); ++i) {
+				char buf[32];
+				snprintf (buf, 32, "Mesh %d", i);
+
+				ImGuiTreeNodeFlags node_flags = 0;
+
+				bool node_open = ImGui::TreeNodeEx(
+						buf,
+						node_flags);
+
+				if (node_open) {
+					Transform &transform = character->mEntity->mSkeleton.mLocalTransforms[i];
+
+					ImGui::DragFloat3 ("Position", transform.translation.data(), 0.01, -10.0f, 10.0f);
+					if (ImGui::Protot::DragFloat4Normalized ("Rotation", transform.rotation.data(), 0.001, -1.0f, 1.0f)) {
+						if (isnan(transform.rotation.squaredNorm())) {
+							std::cout << "nan! " << transform.rotation.transpose() << std::endl;
+							abort();
+						}
+					}
+					ImGui::DragFloat3 ("Scale", transform.scale.data(), 0.01, 0.001f, 10.0f);
+
+					ImGui::TreePop();
+				}
+			}
+			ImGui::TreePop();
+		}
 	}
 
-	ImGui::End();
+	ImGui::EndDock();
 }
 
 static struct module_state *module_init() {
