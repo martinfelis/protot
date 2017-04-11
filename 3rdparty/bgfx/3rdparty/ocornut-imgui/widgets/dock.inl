@@ -856,7 +856,12 @@ namespace ImGui
 		void rootDock(const ImVec2& pos, const ImVec2& size)
 		{
 			Dock* root = getRootDock();
-			if (!root) return;
+
+			// martin: make sure we have a root dock
+			if (!root)
+				root = &getDock("Root", true);
+
+			root->status = Status_Docked;
 
 			ImVec2 min_size = root->getMinSize();
 			ImVec2 requested_size = size;
@@ -901,7 +906,6 @@ namespace ImGui
 		void tryDockToStoredLocation(Dock& dock)
 		{
 			if (dock.status == Status_Docked) return;
-			if (dock.location[0] == 0) return;
 
 			Dock* tmp = getRootDock();
 			if (!tmp) return;
@@ -921,7 +925,8 @@ namespace ImGui
 		bool begin(const char* label, bool* opened, ImGuiWindowFlags extra_flags)
 		{
 			Dock& dock = getDock(label, !opened || *opened);
-			if (!dock.opened && (!opened || *opened)) tryDockToStoredLocation(dock);
+			// martin: tweak docking for better defaults
+			if (!dock.opened || (!opened || *opened)) tryDockToStoredLocation(dock);
 			dock.last_frame = ImGui::GetFrameCount();
 			if (strcmp(dock.label, label) != 0)
 			{
