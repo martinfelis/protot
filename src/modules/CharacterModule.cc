@@ -291,9 +291,6 @@ bool CharacterEntity::LoadRig(const char* filename) {
 						vi, frame_name.c_str());
 			}
 
-
-
-
 			Transform mesh_transform;
 			if (visual_table["scale"].exists()) {
 				gLog("  Warning: keyword scale not supported for visual %d of frame %s",
@@ -352,7 +349,7 @@ bool CharacterEntity::LoadRig(const char* filename) {
 
 static float cur_time = 0.0f;
 
-void CharacterEntity::Update(float dt) {
+void CharacterEntity::ApplyCharacterController(float dt) {
 	Vector3f mController_acceleration (
 			mController.mDirection[0] * cGroundAcceleration,
 			mController.mDirection[1] * cGroundAcceleration,
@@ -411,7 +408,29 @@ void CharacterEntity::Update(float dt) {
 		mAnimTime = mAnimation.mDuration * 0.125f;
 		mRigState.q.setZero();
 	}
+}
 
+void CharacterEntity::UpdateIKConstraintSet() {
+	if (mIKConstraints.size() == 0)
+		return;
+
+	UpdateIKConstraintSet();
+
+	bool result = false;
+	VectorNd q_init (mRigState.q);
+	VectorNd q_res (mRigState.q);
+	result = RigidBodyDynamics::InverseKinematics(
+			*mRigModel,
+			q_init,
+			mIKConstraintSet,
+			q_res
+			);
+	mRigState.q = q_res;
+}
+
+void CharacterEntity::Update(float dt) {
+	ApplyCharacterController(dt);
+	ApplyIKConstraints();
 	UpdateBoneMatrices();
 
 	cur_time += dt;

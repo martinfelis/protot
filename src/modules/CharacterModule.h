@@ -49,6 +49,13 @@ struct Animation {
 	std::vector<float> mFrameTimes;
 };
 
+struct IKConstraint {
+	bool mEnabled = true;
+	int mEffectorBodyId;
+	Vector3f mEffectorLocalOffset;
+	Vector3f mEffectorWorldTarget;
+};
+
 struct CharacterEntity {
 	/// Render entity
 	Entity *mEntity = nullptr;
@@ -63,6 +70,9 @@ struct CharacterEntity {
 	std::vector<int> mBoneFrameIndices;
 	RigState mRigState;
 
+	std::vector<IKConstraint> mIKConstraints;
+	RigidBodyDynamics::InverseKinematicsConstraintSet mIKConstraintSet;
+
 	Animation mAnimation;
 	float mAnimTime;
 
@@ -76,6 +86,10 @@ struct CharacterEntity {
 	}
 
 	bool LoadRig (const char* filename);
+	void UpdateIKConstraintSet();
+	
+	void ApplyCharacterController(float dt);
+	void ApplyIKConstraints();
 	void UpdateBoneMatrices();
 
 	void Update(float dt); 
