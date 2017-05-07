@@ -160,6 +160,11 @@ CharacterEntity::CharacterEntity() {
 	load_result = mAnimation.Load(cAnimFile);
 	assert (load_result);
 
+	gLog ("Initializing IK constraints");
+	IKConstraint constraint;
+	constraint.mEffectorBodyId = mRigModel->GetBodyId("FootRight");
+	mIKConstraints.push_back(constraint);
+
 	mAnimTime = 0.0f;
 }
 
@@ -410,7 +415,60 @@ void CharacterEntity::ApplyCharacterController(float dt) {
 	}
 }
 
+void CharacterEntity::UpdateIKGizmos() {
+	for (int i = 0; i < mIKConstraints.size(); ++i) {
+		IKConstraint& constraint = mIKConstraints[i];
+		Transform ik_handle_transform;
+		ik_handle_transform.translation = constraint.mEffectorWorldTarget;
+		Matrix44f ent_transform = ik_handle_transform.toMatrix(); 
+
+		Camera *active_camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
+
+		ImGuizmo::Manipulate(
+				active_camera->mtxView,
+				active_camera->mtxProj,
+				ImGuizmo::TRANSLATE,
+				ImGuizmo::LOCAL,
+				ent_transform.data()
+				);
+
+		ik_handle_transform.fromMatrix(ent_transform);
+		constraint.mEffectorWorldTarget = ik_handle_transform.translation;
+	}
+}
+
 void CharacterEntity::UpdateIKConstraintSet() {
+	if (mIKConstraints.size() * 3 != mIKConstraintSet.num_constraints) {
+		mIKConstraintSet.ClearConstraints();
+		for (int i = 0; i < mIKConstraints.size(); ++i) {
+			const IKConstraint& constraint = mIKConstraints[i];
+			mIKConstraintSet.AddPointConstraint(
+					constraint.mEffectorBodyId,
+					constraint.mEffectorLocalOffset,
+					constraint.mEffectorWorldTarget
+					);
+		}
+
+		mIKConstraintSet.lambda = 1.0e-3;
+		mIKConstraintSet.max_steps = 2;
+		mIKConstraintSet.step_tol = 1.0e-5;
+
+		mIKConstraintSet.Bind(*mRigModel);
+	} else {
+		for (int i = 0; i < mIKConstraints.size(); ++i) {
+			const IKConstraint& constraint = mIKConstraints[i];
+			mIKConstraintSet.body_ids[i] = constraint.mEffectorBodyId;
+			mIKConstraintSet.body_points[i] = constraint.mEffectorLocalOffset;
+			mIKConstraintSet.target_positions[i] = Vector3d (
+					constraint.mEffectorWorldTarget[0],
+					-constraint.mEffectorWorldTarget[2],
+					constraint.mEffectorWorldTarget[1]
+					);
+		}
+	}
+}
+
+void CharacterEntity::ApplyIKConstraints() {
 	if (mIKConstraints.size() == 0)
 		return;
 
@@ -426,9 +484,42 @@ void CharacterEntity::UpdateIKConstraintSet() {
 			q_res
 			);
 	mRigState.q = q_res;
+
+	for (int i = 0; i < mIKConstraints.size(); ++i) {
+		const IKConstraint& constraint = mIKConstraints[i];
+		UpdateKinematicsCustom (
+				*mRigModel, &q_res, nullptr, nullptr);
+
+		Vector3f effector_pos = CalcBodyToBaseCoordinates(
+				*mRigModel, 
+				q_res, 
+				constraint.mEffectorBodyId, 
+				constraint.mEffectorLocalOffset,
+				false
+				);
+
+		gRenderer->drawDebugSphere (
+				effector_pos,
+				0.05f,
+				Vector4f (0.f, 1.f, 0.f, 1.0f)
+				);
+
+		gRenderer->drawDebugSphere (
+				constraint.mEffectorWorldTarget,
+				0.05f,
+				Vector4f (1.f, 0.f, 0.f, 1.0f)
+				);
+
+		gRenderer->drawDebugLine (
+				effector_pos,
+				constraint.mEffectorWorldTarget,
+				Vector3f (1.f, 0.f, 1.f)
+				);
+	}
 }
 
 void CharacterEntity::Update(float dt) {
+	UpdateIKGizmos();
 	ApplyCharacterController(dt);
 	ApplyIKConstraints();
 	UpdateBoneMatrices();
@@ -553,7 +644,37 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 			}
 			ImGui::TreePop();
 		}
+
+		node_open = ImGui::TreeNodeEx(
+				"IK Effectors",
+				0);
+
+		if (node_open) {
+			for (int i = 0; i < character->mIKConstraints.size(); ++i) {
+				IKConstraint& constraint = character->mIKConstraints[i];
+
+				char buf[32];
+				snprintf (buf, 32, "Constraint %d", i);
+
+				ImGuiTreeNodeFlags node_flags = 0;
+
+				bool node_open = ImGui::TreeNodeEx(
+						buf,
+						node_flags);
+
+				if (node_open) {
+					Transform &transform = character->mEntity->mSkeleton.mLocalTransforms[i];
+
+					ImGui::DragFloat3 ("Local Offset", constraint.mEffectorLocalOffset.data(), 0.01, 0.001f, 10.0f);
+					ImGui::DragFloat3 ("Target", constraint.mEffectorWorldTarget.data(), 0.01, -10.0f, 10.0f);
+
+					ImGui::TreePop();
+				}
+			}
+			ImGui::TreePop();
+		}
 	}
+
 
 	ImGui::EndDock();
 }

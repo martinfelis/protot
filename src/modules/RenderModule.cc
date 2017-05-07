@@ -1277,32 +1277,6 @@ void Renderer::resize (int x, int y, int width, int height) {
 	}
 }
 
-void Renderer::paintGLSimple() {
-	// Set view 0 default viewport.
-	bgfx::setViewRect(0, view_offset_x, view_offset_y, view_width, view_height);
-
-	// This dummy draw call is here to make sure that view 0 is cleared
-	// if no other draw calls are submitted to view 0.
-	bgfx::touch(0);
-
-	int64_t now = bx::getHPCounter();
-	static int64_t last = now;
-	const int64_t frameTime = now - last;
-	last = now;
-	const double freq = double(bx::getHPFrequency() );
-	const double toMs = 1000.0/freq;
-
-	// Use debug font to print information about this example.
-	bgfx::dbgTextPrintf(0, 1, 0x4f, "bgfx/examples/00-helloworld");
-	bgfx::dbgTextPrintf(0, 2, 0x6f, "Description: Initialization and debug text.");
-	bgfx::dbgTextPrintf(0, 3, 0x8f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
-
-	// Advance to next frame. Rendering thread will be kicked to
-	// process submitted rendering primitives.
-	bgfx::frame();
-	bgfx::dbgTextClear();
-}
-
 void Renderer::paintGL() {
 	int64_t now = bx::getHPCounter();
 	static int64_t last = now;
@@ -1560,21 +1534,6 @@ void Renderer::paintGL() {
 					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
-	}
-
-	for (size_t i = 0; i < entities.size(); i++) {
-		Matrix44f ent_transform = entities[i]->mTransform.toMatrix();
-		Matrix44f delta_matrix;
-		ImGuizmo::Manipulate(
-				cameras[activeCameraIndex].mtxView,
-				cameras[activeCameraIndex].mtxProj,
-				ImGuizmo::TRANSLATE,
-				ImGuizmo::LOCAL,
-				ent_transform.data(),
-				delta_matrix.data()
-				);
-
-		entities[i]->mTransform.fromMatrix(ent_transform);
 	}
 
 	// render debug information

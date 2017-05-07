@@ -50,10 +50,10 @@ struct Animation {
 };
 
 struct IKConstraint {
-	bool mEnabled = true;
-	int mEffectorBodyId;
-	Vector3f mEffectorLocalOffset;
-	Vector3f mEffectorWorldTarget;
+	bool mKeepRootFixed = true;
+	int mEffectorBodyId = 0;
+	Vector3f mEffectorLocalOffset = Vector3f::Zero();
+	Vector3f mEffectorWorldTarget = Vector3f::Zero();
 };
 
 struct CharacterEntity {
@@ -86,10 +86,13 @@ struct CharacterEntity {
 	}
 
 	bool LoadRig (const char* filename);
-	void UpdateIKConstraintSet();
-	
+
 	void ApplyCharacterController(float dt);
+	
+	void UpdateIKGizmos();
+	void UpdateIKConstraintSet();
 	void ApplyIKConstraints();
+
 	void UpdateBoneMatrices();
 
 	void Update(float dt); 
