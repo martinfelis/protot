@@ -34,6 +34,7 @@
 #include "Serializer.h"
 
 using namespace std;
+using namespace SimpleMath::GL;
 
 typedef Matrix44f Matrix44f;
 typedef Vector4f Vector4f;
@@ -850,6 +851,33 @@ void Renderer::createGeometries() {
 	plane_ibh = bgfx::createIndexBuffer(
 			bgfx::makeRef(s_planeIndices, sizeof(s_planeIndices) )
 			);
+
+//	debugBoneMesh.Merge(
+//			*Mesh::sCreateCuboid (1., 1., 1.),
+//			TranslateMat44(0.f, .0f, 0.5f)
+//			);
+
+	Mesh* sphere = Mesh::sCreateUVSphere (4, 4, 0.1f);
+
+	debugBoneMesh.Merge(
+			*sphere,
+			TranslateMat44(0.f, .0f, 0.0f)
+			);
+
+	debugBoneMesh.Merge(
+			*sphere,
+			TranslateMat44(0.f, .0f, 1.0f)
+			);
+
+	Mesh* cuboid = Mesh::sCreateCuboid (0.1f, 0.1f, 1.0f);
+	debugBoneMesh.Merge(
+			*cuboid,
+			TranslateMat44(0.f, .0f, 0.5f)
+			);
+
+	delete sphere;
+	debugBoneMesh.Update();
+	delete cuboid;
 }
 
 Path::~Path() {
@@ -1397,7 +1425,6 @@ void Renderer::paintGL() {
 	// Floor.
 	bx::mtxMul(lightMtx, mtxFloor, lights[0].mtxShadow);
 	bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-	bgfx::setUniform(lights[0].u_lightPos, lights[0].pos.data());
 
 	// Clear backbuffer and shadowmap framebuffer at beginning.
 	bgfx::setViewClear(RenderState::Skybox
@@ -1475,7 +1502,6 @@ void Renderer::paintGL() {
 			}
 
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
-			bgfx::setUniform(lights[0].u_lightPos, lights[0].pos.data());
 			bgfx::setUniform(u_color, Vector4f(1.f, 1.f, 1.f, 1.f).data(), 4);
 			bgfx::setIndexBuffer(plane_ibh);
 			bgfx::setVertexBuffer(plane_vbh);
@@ -1490,6 +1516,9 @@ void Renderer::paintGL() {
 		
 	// render entities
 	for (size_t i = 0; i < entities.size(); i++) {
+		if (entities[i]->mDrawEntity == false)
+			continue;
+
 		float mtxLightViewProjInv[16];
 		float light_pos_world[3];
 		
@@ -1534,6 +1563,7 @@ void Renderer::paintGL() {
 					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
+
 	}
 
 	// render debug information
@@ -1572,6 +1602,12 @@ void Renderer::paintGL() {
 			bgfx::setVertexBuffer(cube_vbh);
 			bgfx::setState(st.m_state);
 			bgfx::submit(st.m_viewId, st.m_program.program);
+		}
+
+		// render debug skeletons
+		for (size_t i = 0; i < entities.size(); i++) {
+			debugBoneMesh.Submit(&s_renderStates[RenderState::Scene],
+					entities[i]->mTransform.toMatrix().data());
 		}
 
 		// debug commands

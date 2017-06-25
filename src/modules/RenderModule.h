@@ -313,6 +313,7 @@ struct Entity {
 	Vector4f mColor;
 	Skeleton mSkeleton;
 	SkeletonMeshes mSkeletonMeshes;
+	bool mDrawEntity = false;
 
 	Entity() :
 		mColor (1.f, 1.f, 1.f, 1.f ),
@@ -392,6 +393,8 @@ struct Renderer {
 	std::vector<Light> lights;
 	std::vector<Path> debugPaths;
 	std::vector<DebugCommand> debugCommands;
+
+	Mesh debugBoneMesh;
 
 	uint16_t activeCameraIndex;
 

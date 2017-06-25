@@ -452,8 +452,6 @@ void CharacterEntity::UpdateIKConstraintSet() {
 		mIKConstraintSet.lambda = 1.0e-3;
 		mIKConstraintSet.max_steps = 2;
 		mIKConstraintSet.step_tol = 1.0e-5;
-
-		mIKConstraintSet.Bind(*mRigModel);
 	} else {
 		for (int i = 0; i < mIKConstraints.size(); ++i) {
 			const IKConstraint& constraint = mIKConstraints[i];
@@ -521,7 +519,7 @@ void CharacterEntity::ApplyIKConstraints() {
 void CharacterEntity::Update(float dt) {
 	UpdateIKGizmos();
 	ApplyCharacterController(dt);
-	ApplyIKConstraints();
+//	ApplyIKConstraints();
 	UpdateBoneMatrices();
 
 	cur_time += dt;
@@ -574,6 +572,8 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 		if (ImGui::Button ("Reset")) {
 			character->Reset();
 		}
+
+		ImGui::Checkbox("Render", &character->mEntity->mDrawEntity);
 
 		ImGui::Protot::DragFloat4Normalized ("Offset Quat", offset_quat.data(),
 				0.01f, -1.0f, 1.0f);
