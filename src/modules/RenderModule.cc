@@ -1050,7 +1050,7 @@ void Renderer::setupShaders() {
 	memcpy(IBL::uniforms.m_lightDir, IBL::settings.m_lightDir, 3*sizeof(float) );
 	memcpy(IBL::uniforms.m_lightCol, IBL::settings.m_lightCol, 3*sizeof(float) );
 
-	s_renderStates[RenderState::Skybox].m_program = RenderProgram("shaders/src/vs_ibl_skybox.sc", "shaders/src/fs_ibl_skybox.sc");
+	s_renderStates[RenderState::Skybox].m_program = RenderProgram("shaders/skybox/vs_ibl_skybox.sc", "shaders/skybox/fs_ibl_skybox.sc");
 
 	// Get renderer capabilities info.
 	const bgfx::Caps* caps = bgfx::getCaps();
@@ -1061,9 +1061,9 @@ void Renderer::setupShaders() {
 	if (shadowSamplerSupported)
 	{
 		// Depth textures and shadow samplers are supported.
-		s_renderStates[RenderState::ShadowMap].m_program = RenderProgram("shaders/src/vs_sms_mesh.sc", "shaders/src/fs_sms_shadow.sc");
-		s_renderStates[RenderState::Scene].m_program = RenderProgram("shaders/src/vs_sms_mesh.sc",   "shaders/src/fs_sms_mesh.sc");
-		s_renderStates[RenderState::SceneTextured].m_program = RenderProgram("shaders/src/vs_sms_mesh_textured.sc",   "shaders/src/fs_sms_mesh_textured.sc");
+		s_renderStates[RenderState::ShadowMap].m_program = RenderProgram("shaders/shadowmap/vs_sms_mesh.sc", "shaders/shadowmap/fs_sms_shadow.sc");
+		s_renderStates[RenderState::Scene].m_program = RenderProgram("shaders/scene/vs_sms_mesh.sc",   "shaders/scene/fs_sms_mesh.sc");
+		s_renderStates[RenderState::SceneTextured].m_program = RenderProgram("shaders/scene/vs_sms_mesh_textured.sc",   "shaders/scene/fs_sms_mesh_textured.sc");
 
 		lights[0].shadowMapTexture= bgfx::createTexture2D(lights[0].shadowMapSize, lights[0].shadowMapSize, false, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_COMPARE_LEQUAL);
 		bgfx::TextureHandle fbtextures[] = { lights[0].shadowMapTexture };
@@ -1073,24 +1073,14 @@ void Renderer::setupShaders() {
 	{
 		// Depth textures and shadow samplers are not supported. Use float
 		// depth packing into color buffer instead.
-		s_renderStates[RenderState::ShadowMap].m_program.program = bgfxutils::loadProgram("vs_sms_shadow_pd", "fs_sms_shadow_pd");
-		s_renderStates[RenderState::Scene].m_program.program = bgfxutils::loadProgram("vs_sms_mesh",      "fs_sms_mesh_pd");
-		s_renderStates[RenderState::SceneTextured].m_program.program = bgfxutils::loadProgram("vs_sms_mesh_textured",      "fs_sms_mesh_pd_textured");
-
-		lights[0].shadowMapTexture = bgfx::createTexture2D(lights[0].shadowMapSize, lights[0].shadowMapSize, false, 1, bgfx::TextureFormat::BGRA8, BGFX_TEXTURE_RT);
-		bgfx::TextureHandle fbtextures[] =
-		{
-			lights[0].shadowMapTexture,
-			bgfx::createTexture2D(lights[0].shadowMapSize, lights[0].shadowMapSize, false, 1, bgfx::TextureFormat::D16, BGFX_TEXTURE_RT_WRITE_ONLY),
-		};
-		lights[0].shadowMapFB = bgfx::createFrameBuffer(BX_COUNTOF(fbtextures), fbtextures, true);
+		assert(false);
 	}
 
 	s_renderStates[RenderState::Lines].m_program = RenderProgram("shaders/lines/vs_lines.sc", "shaders/lines/fs_lines.sc");
 
 	s_renderStates[RenderState::LinesOccluded].m_program = RenderProgram("shaders/lines/vs_lines.sc", "shaders/lines/fs_lines_occluded.sc");
 
-	s_renderStates[RenderState::Debug].m_program = RenderProgram("shaders/src/vs_debug.sc", "shaders/src/fs_debug.sc");
+	s_renderStates[RenderState::Debug].m_program = RenderProgram("shaders/debug/vs_debug.sc", "shaders/debug/fs_debug.sc");
 }
 
 void Renderer::setupRenderPasses() {
@@ -1689,9 +1679,6 @@ void Renderer::paintGL() {
 	// process submitted rendering primitives.
 	bgfx::frame();
 
-//	ImGui::SetNextWindowSize (ImVec2(400.f, 300.0f), ImGuiSetCond_Once);
-//	ImGui::SetNextWindowPos (ImVec2(10.f, 300.0f), ImGuiSetCond_Once);
-//
 	if (ImGui::BeginDock("Render Settings")) {
 		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
 		}

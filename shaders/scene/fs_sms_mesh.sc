@@ -1,4 +1,4 @@
-$input v_position
+$input v_view, v_normal, v_shadowcoord
 
 /*
  * Copyright 2013-2014 Dario Manesku. All rights reserved.
@@ -7,8 +7,5 @@ $input v_position
 
 #include "../common/common.sh"
 
-void main()
-{
-	float depth = v_position.z/v_position.w * 0.5 + 0.5;
-	gl_FragColor = packFloatToRgba(depth);
-}
+#define SHADOW_PACKED_DEPTH 0
+#include "fs_sms_shadow.sh"
