@@ -979,15 +979,7 @@ void Path::UpdateBuffers() {
 	assert (bgfx::isValid(mIndexBufferHandle));
 }
 
-void Renderer::setupShaders() {
-	// Create uniforms
-	sceneDefaultTextureSampler = bgfx::createUniform("sceneDefaultTexture", bgfx::UniformType::Int1);
-	u_mtx        = bgfx::createUniform("u_mtx",        bgfx::UniformType::Mat4);
-	u_flags      = bgfx::createUniform("u_flags",      bgfx::UniformType::Vec4);
-	u_camPos     = bgfx::createUniform("u_camPos",     bgfx::UniformType::Vec4);
-	s_texCube    = bgfx::createUniform("s_texCube",    bgfx::UniformType::Int1);
-	s_texCubeIrr = bgfx::createUniform("s_texCubeIrr", bgfx::UniformType::Int1);
-
+void Renderer::setupTextures() {
 	int grid_size = 1024;
 	int grid_border = 12;
 	uint8_t grid_color_border [4] = {32, 32, 32, 255};
@@ -1018,6 +1010,16 @@ void Renderer::setupShaders() {
 	sceneDefaultTexture = bgfx::createTexture2D(grid_size, grid_size, false, 1, bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_NONE, bgfx::copy (texture_data, grid_size * grid_size * 4));
 
 	delete[] texture_data;
+}
+
+void Renderer::setupShaders() {
+	// Create uniforms
+	sceneDefaultTextureSampler = bgfx::createUniform("sceneDefaultTexture", bgfx::UniformType::Int1);
+	u_mtx        = bgfx::createUniform("u_mtx",        bgfx::UniformType::Mat4);
+	u_flags      = bgfx::createUniform("u_flags",      bgfx::UniformType::Vec4);
+	u_camPos     = bgfx::createUniform("u_camPos",     bgfx::UniformType::Vec4);
+	s_texCube    = bgfx::createUniform("s_texCube",    bgfx::UniformType::Int1);
+	s_texCubeIrr = bgfx::createUniform("s_texCubeIrr", bgfx::UniformType::Int1);
 
 //	sceneDefaultTexture = bgfxutils::loadTexture("fieldstone-rgba.dds");
 
@@ -1217,6 +1219,8 @@ void Renderer::initialize(int width, int height) {
 
 	createGeometries();
 
+	setupTextures();
+
 	setupShaders();
 
 	setupRenderPasses();
@@ -1365,6 +1369,7 @@ void Renderer::paintGL() {
 			0.5f, 0.5f, 0.5f, 1.0f,
 		};
 
+		// compute mtxShadow = View * Proj * Crop
 		float mtxTmp[16];
 		bx::mtxMul(mtxTmp,    lights[i].mtxProj, mtxCrop);
 		bx::mtxMul(lights[i].mtxShadow, lights[i].mtxView, mtxTmp);
@@ -1509,11 +1514,8 @@ void Renderer::paintGL() {
 		if (entities[i]->mDrawEntity == false)
 			continue;
 
-		float mtxLightViewProjInv[16];
-		float light_pos_world[3];
-		
-		// shadow map pass
 		for (uint32_t j = 0; j < entities[i]->mSkeletonMeshes.Length(); ++j) {
+			// shadow map pass
 			bx::mtxMul(
 					lightMtx, 
 					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data(),
@@ -1524,15 +1526,9 @@ void Renderer::paintGL() {
 					&s_renderStates[RenderState::ShadowMap],
 					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
-		}
 
-		// scene pass
-		for (uint32_t j = 0; j < entities[i]->mSkeletonMeshes.Length(); ++j) {
-			bx::mtxMul(
-					lightMtx, 
-					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data(),
-					lights[0].mtxShadow
-					);
+			// scene pass
+			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 
 			// compute world position of the light
 			Vector4f light_pos4 (
@@ -1544,16 +1540,17 @@ void Renderer::paintGL() {
 			Vector4f light_pos = 
 				entities[i]->mSkeletonMeshes.GetBoneMatrix(j)
 				* light_pos4;
+			
+			gLog ("light pos: %5.2f, %5.2f, %5.2f", 
+					light_pos[0], light_pos[1], light_pos[2]);
 
-			bgfx::setUniform(lights[0].u_lightPos, light_pos.data());
+			bgfx::setUniform(lights[0].u_lightPos, light_pos4.data());
 			bgfx::setUniform(u_color, entities[i]->mColor.data());
-			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			entities[i]->mSkeletonMeshes.GetMesh(j)->Submit(
 					&s_renderStates[RenderState::Scene],
 					entities[i]->mSkeletonMeshes.GetBoneMatrix(j).data()
 					);
 		}
-
 	}
 
 	// render debug information

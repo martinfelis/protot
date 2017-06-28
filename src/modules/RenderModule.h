@@ -313,7 +313,7 @@ struct Entity {
 	Vector4f mColor;
 	Skeleton mSkeleton;
 	SkeletonMeshes mSkeletonMeshes;
-	bool mDrawEntity = false;
+	bool mDrawEntity = true;
 
 	Entity() :
 		mColor (1.f, 1.f, 1.f, 1.f ),
@@ -407,6 +407,8 @@ struct Renderer {
 
 	// initialize simple geometries (cube, sphere, ...)
 	void createGeometries();
+	// create default textures
+	void setupTextures();
 	// create uniforms, load shaders, and create render targets
 	void setupShaders();
 	// setup renderpasses and wire up render targets

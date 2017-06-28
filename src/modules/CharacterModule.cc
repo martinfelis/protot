@@ -689,7 +689,6 @@ template <typename Serializer>
 static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
-//	SerializeVec3(*serializer, "protot.TestModule.entity.mPosition", state->character->mPosition);
 }
 
 static void module_finalize(struct module_state *state) {
