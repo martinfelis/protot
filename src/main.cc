@@ -143,7 +143,6 @@ int main(void)
 	imguiCreate();
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
-	ImGui::InitDockContext();
 
 	// Timer
 	Timer timer;

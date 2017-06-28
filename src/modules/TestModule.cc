@@ -228,7 +228,7 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 
 void ShowModulesWindow(struct module_state *state) {
 //	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4 (0.5f, 0.5f, 0.5f, 0.8f));
-	if (ImGui::BeginDock("Modules")) {
+//	if (ImGui::BeginDock("Modules")) {
 		//	ImGui::Columns(2);
 		int selected = state->modules_window_selected_index;
 		for (int i = 0; i < gModuleManager->mModules.size(); i++) {
@@ -276,9 +276,9 @@ void ShowModulesWindow(struct module_state *state) {
 				selected_module->id = 0;
 			}
 		}
-	}
+//	}
 
-	ImGui::EndDock();
+//	ImGui::EndDock();
 
 //		ImGui::PopStyleColor ();
 

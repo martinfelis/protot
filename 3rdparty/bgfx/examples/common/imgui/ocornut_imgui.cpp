@@ -255,12 +255,17 @@ struct OcornutImguiContext
 			, bgfx::copy(data, width*height*4)
 			);
 
-		ImGui::InitDockContext();
+// Disabled (martin) to use different docking system
+// https://github.com/vassvik/imgui_docking_minimal
+//		ImGui::InitDockContext();
 	}
 
 	void destroy()
 	{
-		ImGui::ShutdownDockContext();
+// Disabled (martin) to use different docking system
+// https://github.com/vassvik/imgui_docking_minimal
+//		ImGui::ShutdownDockContext();
+
 		ImGui::Shutdown();
 
 		bgfx::destroyUniform(s_tex);

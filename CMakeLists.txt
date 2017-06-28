@@ -39,7 +39,6 @@ INCLUDE_DIRECTORIES (
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 
-	# Required to compile RCPP related code
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx
 
@@ -64,6 +63,7 @@ INCLUDE_DIRECTORIES (
 	3rdparty/bgfx/3rdparty/glsl-optimizer/include/
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/
+	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgui_docking_minimal/include
 	${CMAKE_CURRENT_BINARY_DIR}/src
 	)
 
@@ -86,6 +86,7 @@ SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
 
 	3rdparty/glfw/deps/glad.c
+	3rdparty/imgui_docking_minimal/imgui/imgui_dock.cpp
 	)
 
 SET (PROTOT_SOURCE_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})

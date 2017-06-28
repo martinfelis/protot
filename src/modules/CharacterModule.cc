@@ -567,7 +567,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	ImGui::SetNextWindowSize (ImVec2(600.f, 300.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
 
-	if(ImGui::BeginDock("Character")) {
+//	if(ImGui::BeginDock("Character")) {
 
 		if (ImGui::Button ("Reset")) {
 			character->Reset();
@@ -673,10 +673,10 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 			}
 			ImGui::TreePop();
 		}
-	}
+//	}
 
 
-	ImGui::EndDock();
+//	ImGui::EndDock();
 }
 
 static struct module_state *module_init() {

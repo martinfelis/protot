@@ -127,14 +127,14 @@ static bool module_step(struct module_state *state, float dt) {
 
 	bgfx::reset (width, height);
 
-	int dock_top_offset = 20.0f;
+	int dock_top_offset = 0.0f;
 	int dock_width = 400;
-	ImGui::RootDock(
-			ImVec2(width - dock_width, dock_top_offset),
-			ImVec2(dock_width, height - dock_top_offset)
-			);
+//	ImGui::RootDock(
+//			ImVec2(width - dock_width, dock_top_offset),
+//			ImVec2(dock_width, height - dock_top_offset)
+//			);
 
-	state->renderer->resize (0, 20.0f, width - dock_width, height - 20.0f);
+	state->renderer->resize (0, dock_top_offset, width - dock_width, height - dock_top_offset);
 
 	ImGuizmo::Enable(true);
 
@@ -1704,7 +1704,7 @@ void Renderer::paintGL() {
 	// process submitted rendering primitives.
 	bgfx::frame();
 
-	if (ImGui::BeginDock("Render Settings")) {
+//	if (ImGui::BeginDock("Render Settings")) {
 		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
 		}
 
@@ -1735,9 +1735,9 @@ void Renderer::paintGL() {
 					0.10f
 					);
 		}
-	}
+//	}
 
-	ImGui::EndDock();
+//	ImGui::EndDock();
 
 	// clear debug commands as they have to be issued every frame
 	debugCommands.clear();
