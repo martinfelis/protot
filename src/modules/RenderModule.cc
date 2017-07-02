@@ -1334,6 +1334,15 @@ void Renderer::resize (int x, int y, int width, int height) {
 		}
 
 		ImGuizmo::SetRect(view_offset_x, view_offset_y, view_width, view_height);
+
+		if (bgfx::isValid(sceneViewBuffer)) {
+			bgfx::setViewFrameBuffer(RenderState::Skybox, sceneViewBuffer);
+			bgfx::setViewFrameBuffer(RenderState::Scene, sceneViewBuffer);
+			bgfx::setViewFrameBuffer(RenderState::SceneTextured, sceneViewBuffer);
+			bgfx::setViewFrameBuffer(RenderState::Lines, sceneViewBuffer);
+			bgfx::setViewFrameBuffer(RenderState::LinesOccluded, sceneViewBuffer);
+			bgfx::setViewFrameBuffer(RenderState::Debug, sceneViewBuffer);
+		}
 	}
 }
 
@@ -1751,10 +1760,13 @@ void Renderer::paintGL() {
 }
 
 void Renderer::DrawGui() {
-   ImGuiStyle& style = ImGui::GetStyle();
+	static float docking_offset_x = 600.0f;
+
+	ImGuiStyle& style = ImGui::GetStyle();
 	if (ImGui::GetIO().DisplaySize.y > 0) {
-		ImVec2 pos = ImVec2(0, 25);
+		ImVec2 pos = ImVec2(docking_offset_x, 25);
 		ImVec2 size = ImGui::GetIO().DisplaySize;
+		size.x -= pos.x;
 		size.y -= pos.y;
 		ImGui::RootDock(pos, ImVec2(size.x, size.y - 25.0f));
 
@@ -1771,14 +1783,57 @@ void Renderer::DrawGui() {
 	}
 	ImGui::EndDock();
 
-	if (ImGui::BeginDock("Dummy1", &show_scene1)) {
-		ImGui::Text("Placeholder!");
+	if (ImGui::BeginDock("Scene", &show_scene1)) {
+		ImVec2 size = ImGui::GetContentRegionAvail();
+		ImVec2 pos = ImGui::GetWindowPos();
+
+		if ((size.x > 0 && size.y > 0) &&
+				(view_texture_width != size.x || view_texture_height != size.y)) {
+			if (bgfx::isValid(sceneViewBuffer)) {
+				gLog("Destroying old view frame buffer of size %f, %f",
+						view_texture_width, view_texture_height);
+				bgfx::destroyFrameBuffer(sceneViewBuffer);
+			}
+
+			sceneViewTexture = bgfx::createTexture2D(
+					size.x, size.y,
+					false, 1,
+					bgfx::TextureFormat::RGBA8
+					);
+			sceneDepthTexture = bgfx::createTexture2D(
+					size.x, size.y,
+					false, 1,
+					bgfx::TextureFormat::D16
+					);
+
+			view_texture_width = size.x;
+			view_texture_height = size.y;
+			view_offset_x = pos.x;
+			view_offset_y = pos.y;
+			view_width = size.x;
+			view_height = size.y;
+
+			assert(view_texture_width > 0.0f);
+			assert(view_texture_height > 0.0f);
+
+			gLog("Creating view frame buffer of size %f, %f",
+					view_texture_width, view_texture_height);
+
+			bgfx::TextureHandle fbtextures[] = { sceneViewTexture, sceneDepthTexture };
+
+			sceneViewBuffer = bgfx::createFrameBuffer(
+				BX_COUNTOF(fbtextures), fbtextures, true
+				);
+		} else {
+
+			ImGui::Image(sceneViewTexture,
+					size,
+					ImVec2(0.0f, 1.0f),
+					ImVec2(1.0f, 0.0f)
+					);
+		}
 	}
 	ImGui::EndDock();
-//	if (ImGui::BeginDock("Dummy2", &show_scene2)) {
-//		ImGui::Text("Placeholder2!");
-//	}
-//	ImGui::EndDock();
 }
 
 bool Renderer::updateShaders() {

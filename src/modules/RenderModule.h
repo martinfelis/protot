@@ -384,6 +384,12 @@ struct Renderer {
 	bgfx::UniformHandle sceneDefaultTextureSampler;
 	bgfx::TextureHandle sceneDefaultTexture;
 
+	float view_texture_width = 1;
+	float view_texture_height = 1;
+	bgfx::TextureHandle sceneViewTexture;
+	bgfx::TextureHandle sceneDepthTexture;
+	bgfx::FrameBufferHandle sceneViewBuffer;
+
 	LightProbe mLightProbes[LightProbe::Count];
 	LightProbe::Enum mCurrentLightProbe;
 
@@ -402,8 +408,10 @@ struct Renderer {
 		initialized(false),
 		drawDebug(false),
 		view_width (0),
-		view_height (0)
-	{}
+		view_height (0),
+		sceneViewBuffer(BGFX_INVALID_HANDLE),
+		sceneViewTexture(BGFX_INVALID_HANDLE)
+	{ }
 
 	// initialize simple geometries (cube, sphere, ...)
 	void createGeometries();
