@@ -417,6 +417,7 @@ struct Renderer {
 	void initialize(int width, int height);
 	void shutdown();
 	void paintGL();
+	void DrawGui();
 	void resize (int x, int y, int width, int height);
 
 	// check whether shader files were modified and reload them. Returns

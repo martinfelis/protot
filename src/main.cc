@@ -15,6 +15,7 @@
 #include "Timer.h"
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
+#include "imgui_dock.h"
 
 #include "Globals.h"
 #include "Serializer.h"
@@ -143,6 +144,7 @@ int main(void)
 	imguiCreate();
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
+	ImGui::LoadDock();
 
 	// Timer
 	Timer timer;
@@ -228,6 +230,9 @@ int main(void)
 
 	gRenderer = nullptr;
 
+  ImGui::SaveDock();
+	ImGui::ShutdownDock();
 	imguiDestroy();
+
 	bgfx::shutdown();
 }

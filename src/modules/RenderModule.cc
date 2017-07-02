@@ -2,7 +2,9 @@
 #include "Globals.h"
 #include "RenderModule.h"
 #include "3rdparty/ocornut-imgui/imgui.h"
+#include "3rdparty/ocornut-imgui/imgui_internal.h"
 #include "imgui/imgui.h"
+#include "imgui_dock.h"
 #define GLFW_EXPOSE_NATIVE_GLX
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3.h>
@@ -42,6 +44,10 @@ typedef Matrix33f Matrix33f;
 typedef Vector3f Vector3f;
 typedef MatrixNNf MatrixNNf;
 typedef VectorNf VectorNf;
+
+static bool show_scene0 = true;
+static bool show_scene1 = true;
+static bool show_scene2 = true;
 
 struct Renderer;
 
@@ -128,7 +134,7 @@ static bool module_step(struct module_state *state, float dt) {
 	bgfx::reset (width, height);
 
 	int dock_top_offset = 0.0f;
-	int dock_width = 400;
+	int dock_width = 0;
 //	ImGui::RootDock(
 //			ImVec2(width - dock_width, dock_top_offset),
 //			ImVec2(dock_width, height - dock_top_offset)
@@ -139,6 +145,7 @@ static bool module_step(struct module_state *state, float dt) {
 	ImGuizmo::Enable(true);
 
 	state->renderer->paintGL();
+	state->renderer->DrawGui();
 
 	return true;
 }
@@ -1700,10 +1707,6 @@ void Renderer::paintGL() {
 		}
 	}
 
-	// Advance to next frame. Rendering thread will be kicked to
-	// process submitted rendering primitives.
-	bgfx::frame();
-
 //	if (ImGui::BeginDock("Render Settings")) {
 		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
 		}
@@ -1739,8 +1742,43 @@ void Renderer::paintGL() {
 
 //	ImGui::EndDock();
 
+	// Advance to next frame. Rendering thread will be kicked to
+	// process submitted rendering primitives.
+	bgfx::frame();
+
 	// clear debug commands as they have to be issued every frame
 	debugCommands.clear();
+}
+
+void Renderer::DrawGui() {
+   ImGuiStyle& style = ImGui::GetStyle();
+	if (ImGui::GetIO().DisplaySize.y > 0) {
+		ImVec2 pos = ImVec2(0, 25);
+		ImVec2 size = ImGui::GetIO().DisplaySize;
+		size.y -= pos.y;
+		ImGui::RootDock(pos, ImVec2(size.x, size.y - 25.0f));
+
+		// Draw status bar (no docking)
+		ImGui::SetNextWindowSize(ImVec2(size.x, 25.0f), ImGuiSetCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(0, size.y - 32.0f), ImGuiSetCond_Always);
+		ImGui::Begin("statusbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize);
+		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+		ImGui::End();
+	}
+
+	if (ImGui::BeginDock("Docks", &show_scene0))  {
+		ImGui::Print();
+	}
+	ImGui::EndDock();
+
+	if (ImGui::BeginDock("Dummy1", &show_scene1)) {
+		ImGui::Text("Placeholder!");
+	}
+	ImGui::EndDock();
+//	if (ImGui::BeginDock("Dummy2", &show_scene2)) {
+//		ImGui::Text("Placeholder2!");
+//	}
+//	ImGui::EndDock();
 }
 
 bool Renderer::updateShaders() {
