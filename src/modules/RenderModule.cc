@@ -1333,7 +1333,7 @@ void Renderer::resize (int x, int y, int width, int height) {
 			cameras[i].height = static_cast<float>(height);
 		}
 
-		ImGuizmo::SetRect(view_offset_x, view_offset_y, view_width, view_height);
+		gLog ("Resizing to %d,%d size %d,%d", x, y, width, height);
 
 		if (bgfx::isValid(sceneViewBuffer)) {
 			bgfx::setViewFrameBuffer(RenderState::Skybox, sceneViewBuffer);
@@ -1824,6 +1824,11 @@ void Renderer::DrawGui() {
 			sceneViewBuffer = bgfx::createFrameBuffer(
 				BX_COUNTOF(fbtextures), fbtextures, true
 				);
+
+			ImGuizmo::SetRect(
+					view_offset_x, view_offset_y,
+					view_texture_width, view_texture_height
+					);
 		} else {
 
 			ImGui::Image(sceneViewTexture,
