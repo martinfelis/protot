@@ -135,10 +135,6 @@ static bool module_step(struct module_state *state, float dt) {
 
 	int dock_top_offset = 0.0f;
 	int dock_width = 0;
-//	ImGui::RootDock(
-//			ImVec2(width - dock_width, dock_top_offset),
-//			ImVec2(dock_width, height - dock_top_offset)
-//			);
 
 	state->renderer->resize (0, dock_top_offset, width - dock_width, height - dock_top_offset);
 
@@ -1325,15 +1321,13 @@ void Renderer::resize (int x, int y, int width, int height) {
 	if (initialized) {
 		this->view_offset_x = x;
 		this->view_offset_y = y;
-		this->view_width = width;
-		this->view_height = height;
+		this->view_width = view_texture_width;
+		this->view_height = view_texture_height;
 
 		for (uint32_t i = 0; i < cameras.size(); i++) {
-			cameras[i].width = static_cast<float>(width);
-			cameras[i].height = static_cast<float>(height);
+			cameras[i].width = static_cast<float>(view_texture_width);
+			cameras[i].height = static_cast<float>(view_texture_height);
 		}
-
-		gLog ("Resizing to %d,%d size %d,%d", x, y, width, height);
 
 		if (bgfx::isValid(sceneViewBuffer)) {
 			bgfx::setViewFrameBuffer(RenderState::Skybox, sceneViewBuffer);
