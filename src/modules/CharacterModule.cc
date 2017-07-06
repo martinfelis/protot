@@ -11,6 +11,7 @@
 #include "RuntimeModule.h"
 #include "Globals.h"
 #include "modules/RenderModule.h"
+#include "imgui_dock.h"
 #include "Serializer.h"
 #include "Timer.h"
 
@@ -45,6 +46,7 @@ const float cCharacterHeight = 1.8f;
 const float cCharacterWidth = 1.f;
 const char* cRigModelFile = "data/models/model.lua";
 const char* cAnimFile = "data/models/anim.csv";
+static bool sCharacterDock = true;
 
 static VectorNf sRigQ;
 Quaternion offset_quat;
@@ -567,7 +569,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 	ImGui::SetNextWindowSize (ImVec2(600.f, 300.0f), ImGuiSetCond_Once);
 	ImGui::SetNextWindowPos (ImVec2(400.f, 16.0f), ImGuiSetCond_Once);
 
-//	if(ImGui::BeginDock("Character")) {
+	if (ImGui::BeginDock("Character", &sCharacterDock)) {
 
 		if (ImGui::Button ("Reset")) {
 			character->Reset();
@@ -673,10 +675,9 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 			}
 			ImGui::TreePop();
 		}
-//	}
+	}
 
-
-//	ImGui::EndDock();
+	ImGui::EndDock();
 }
 
 static struct module_state *module_init() {

@@ -45,9 +45,9 @@ typedef Vector3f Vector3f;
 typedef MatrixNNf MatrixNNf;
 typedef VectorNf VectorNf;
 
-static bool show_scene0 = true;
-static bool show_scene1 = true;
-static bool show_scene2 = true;
+static bool sDockInfoDock = true;
+static bool sSceneDock = true;
+static bool sRenderDock = true;
 
 struct Renderer;
 
@@ -1710,7 +1710,7 @@ void Renderer::paintGL() {
 		}
 	}
 
-//	if (ImGui::BeginDock("Render Settings")) {
+	if (ImGui::BeginDock("Render Settings"), &sRenderDock) {
 		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
 		}
 
@@ -1741,9 +1741,9 @@ void Renderer::paintGL() {
 					0.10f
 					);
 		}
-//	}
+	}
 
-//	ImGui::EndDock();
+	ImGui::EndDock();
 
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.
@@ -1772,12 +1772,12 @@ void Renderer::DrawGui() {
 		ImGui::End();
 	}
 
-	if (ImGui::BeginDock("Docks", &show_scene0))  {
+	if (ImGui::BeginDock("Dock Info", &sDockInfoDock))  {
 		ImGui::Print();
 	}
 	ImGui::EndDock();
 
-	if (ImGui::BeginDock("Scene", &show_scene1)) {
+	if (ImGui::BeginDock("Scene", &sSceneDock)) {
 		ImVec2 size = ImGui::GetContentRegionAvail();
 		ImVec2 pos = ImGui::GetWindowPos();
 
