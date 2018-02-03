@@ -13,7 +13,8 @@ ADD_DEFINITIONS ("-DENTRY_CONFIG_USE_GLFW=1")
 ADD_DEFINITIONS ("-D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS")
 
 INCLUDE_DIRECTORIES (
-	${CMAKE_CURRENT_SOURCE_DIR}/bx/include
+	${CMAKE_CURRENT_SOURCE_DIR}/../bx/include
+	${CMAKE_CURRENT_SOURCE_DIR}/../bx/3rdparty
 	${CMAKE_CURRENT_SOURCE_DIR}/../bimg/include
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/khronos
 	${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -44,18 +45,14 @@ SET (BGFX_SOURCES
 	)
 
 SET (BGFX_AUX_SOURCES
-	examples/common/entry/dbg.cpp
 	examples/common/nanovg/nanovg.cpp
 	examples/common/nanovg/nanovg_bgfx.cpp
 	examples/common/imgui/imgui.cpp
-	examples/common/imgui/ocornut_imgui.cpp
 	3rdparty/ib-compress/indexbuffercompression.cpp
 	3rdparty/ib-compress/indexbufferdecompression.cpp
-	3rdparty/stb/stb_image.c
 	3rdparty/ocornut-imgui/imgui.cpp
 	3rdparty/ocornut-imgui/imgui_draw.cpp
 	3rdparty/ocornut-imgui/imgui_demo.cpp
-	3rdparty/ocornut-imgui/imgui_node_graph_test.cpp
 	)
 
 ADD_LIBRARY ( bgfx SHARED ${BGFX_SOURCES} )
@@ -93,13 +90,13 @@ SET ( glslang_SRCS
 	#	3rdparty/glslang/StandAlone/StandAlone.cpp
 	#	3rdparty/glslang/StandAlone/ResourceLimits.cpp
 	#	3rdparty/glslang/StandAlone/spirv-remap.cpp
-	3rdparty/glslang/hlsl/hlslGrammar.cpp
-	3rdparty/glslang/hlsl/hlslParseHelper.cpp
-	3rdparty/glslang/hlsl/hlslParseables.cpp
-	3rdparty/glslang/hlsl/hlslTokenStream.cpp
-	3rdparty/glslang/hlsl/hlslAttributes.cpp
-	3rdparty/glslang/hlsl/hlslOpMap.cpp
-	3rdparty/glslang/hlsl/hlslScanContext.cpp
+	#	3rdparty/glslang/hlsl/hlslGrammar.cpp
+	#	3rdparty/glslang/hlsl/hlslParseHelper.cpp
+	#	3rdparty/glslang/hlsl/hlslParseables.cpp
+	#	3rdparty/glslang/hlsl/hlslTokenStream.cpp
+	#	3rdparty/glslang/hlsl/hlslAttributes.cpp
+	#	3rdparty/glslang/hlsl/hlslOpMap.cpp
+	#	3rdparty/glslang/hlsl/hlslScanContext.cpp
 	3rdparty/glslang/glslang/OSDependent/Unix/ossource.cpp
 	#	3rdparty/glslang/glslang/OSDependent/Windows/ossource.cpp
 	#	3rdparty/glslang/glslang/OSDependent/Windows/main.cpp
@@ -110,6 +107,7 @@ SET ( glslang_SRCS
 	3rdparty/glslang/glslang/MachineIndependent/Intermediate.cpp
 	3rdparty/glslang/glslang/MachineIndependent/limits.cpp
 	3rdparty/glslang/glslang/MachineIndependent/Scan.cpp
+	3rdparty/glslang/glslang/MachineIndependent/attribute.cpp
 	3rdparty/glslang/glslang/MachineIndependent/glslang_tab.cpp
 	3rdparty/glslang/glslang/MachineIndependent/SymbolTable.cpp
 	3rdparty/glslang/glslang/MachineIndependent/ParseHelper.cpp
@@ -125,13 +123,11 @@ SET ( glslang_SRCS
 	3rdparty/glslang/glslang/MachineIndependent/ParseContextBase.cpp
 	3rdparty/glslang/glslang/MachineIndependent/linkValidate.cpp
 	3rdparty/glslang/glslang/MachineIndependent/ShaderLang.cpp
-	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpMemory.cpp
-	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpTokens.cpp
 	3rdparty/glslang/glslang/MachineIndependent/preprocessor/Pp.cpp
-	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpContext.cpp
-	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpSymbols.cpp
 	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpAtom.cpp
+	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpContext.cpp
 	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpScanner.cpp
+	3rdparty/glslang/glslang/MachineIndependent/preprocessor/PpTokens.cpp
 	3rdparty/glslang/glslang/MachineIndependent/propagateNoContraction.cpp
 	)
 

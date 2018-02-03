@@ -335,8 +335,8 @@ struct LightProbe
 
 	void destroy()
 	{
-		bgfx::destroyTexture(m_tex);
-		bgfx::destroyTexture(m_texIrr);
+		bgfx::destroy(m_tex);
+		bgfx::destroy(m_texIrr);
 	}
 
 	bgfx::TextureHandle m_tex;

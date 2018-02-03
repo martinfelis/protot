@@ -1,5 +1,5 @@
 --
--- Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+-- Copyright 2010-2018 Branimir Karadzic. All rights reserved.
 -- License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
 --
 
@@ -23,7 +23,7 @@ project "glslang"
 	configuration { "vs*" }
 		buildoptions {
 			"/wd4005", -- warning C4005: '_CRT_SECURE_NO_WARNINGS': macro redefinition
-			"/wd4100", -- error C4100: 'inclusionDepth' : unreferenced formal parameter
+			"/wd4100", -- warning C4100: 'inclusionDepth' : unreferenced formal parameter
 			"/wd4127", -- warning C4127: conditional expression is constant
 			"/wd4244", -- warning C4244: '=': conversion from 'int' to 'char', possible loss of data
 			"/wd4456", -- warning C4456: declaration of 'feature' hides previous local declaration
@@ -34,9 +34,9 @@ project "glslang"
 
 	configuration { "not vs*" }
 		buildoptions {
-			"-Wno-deprecated-register",
+--			"-Wno-deprecated-register",
 			"-Wno-ignored-qualifiers",
-			"-Wno-inconsistent-missing-override",
+--			"-Wno-inconsistent-missing-override",
 			"-Wno-missing-field-initializers",
 			"-Wno-reorder",
 			"-Wno-return-type",
@@ -44,6 +44,7 @@ project "glslang"
 			"-Wno-sign-compare",
 			"-Wno-undef",
 			"-Wno-unknown-pragmas",
+			"-Wno-unused-function",
 			"-Wno-unused-parameter",
 			"-Wno-unused-variable",
 		}
@@ -211,6 +212,11 @@ project "fcpp"
 			"/wd4244", -- warning C4244: '=': conversion from 'const flex_int32_t' to 'YY_CHAR', possible loss of data
 			"/wd4701", -- warning C4701: potentially uninitialized local variable 'lower' used
 			"/wd4706", -- warning C4706: assignment within conditional expression
+		}
+
+	configuration { "not vs*" }
+		buildoptions {
+			"-Wno-implicit-fallthrough",
 		}
 
 	configuration {}

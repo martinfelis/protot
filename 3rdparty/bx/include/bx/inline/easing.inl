@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
@@ -29,9 +29,19 @@ namespace bx
 		return _t;
 	}
 
+	inline float easeStep(float _t)
+	{
+		return _t < 0.5f ? 0.0f : 1.0f;
+	}
+
+	inline float easeSmoothStep(float _t)
+	{
+		return square(_t)*(3.0f - 2.0f*_t);
+	}
+
 	inline float easeInQuad(float _t)
 	{
-		return fsq(_t);
+		return square(_t);
 	}
 
 	inline float easeOutQuad(float _t)
@@ -111,7 +121,7 @@ namespace bx
 
 	inline float easeInSine(float _t)
 	{
-		return 1.0f - fcos(_t*piHalf);
+		return 1.0f - cos(_t*kPiHalf);
 	}
 
 	inline float easeOutSine(float _t)
@@ -131,7 +141,7 @@ namespace bx
 
 	inline float easeInExpo(float _t)
 	{
-		return fpow(2.0f, 10.0f * (_t - 1.0f) ) - 0.001f;
+		return pow(2.0f, 10.0f * (_t - 1.0f) ) - 0.001f;
 	}
 
 	inline float easeOutExpo(float _t)
@@ -151,7 +161,7 @@ namespace bx
 
 	inline float easeInCirc(float _t)
 	{
-		return -(fsqrt(1.0f - _t*_t) - 1.0f);
+		return -(sqrt(1.0f - _t*_t) - 1.0f);
 	}
 
 	inline float easeOutCirc(float _t)
@@ -171,7 +181,7 @@ namespace bx
 
 	inline float easeOutElastic(float _t)
 	{
-		return fpow(2.0f, -10.0f*_t)*fsin( (_t-0.3f/4.0f)*(2.0f*pi)/0.3f) + 1.0f;
+		return pow(2.0f, -10.0f*_t)*sin( (_t-0.3f/4.0f)*(2.0f*kPi)/0.3f) + 1.0f;
 	}
 
 	inline float easeInElastic(float _t)
@@ -191,7 +201,7 @@ namespace bx
 
 	inline float easeInBack(float _t)
 	{
-		return easeInCubic(_t) - _t*fsin(_t*pi);
+		return easeInCubic(_t) - _t*sin(_t*kPi);
 	}
 
 	inline float easeOutBack(float _t)

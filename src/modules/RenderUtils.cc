@@ -11,14 +11,14 @@
 #include <tinystl/string.h>
 namespace stl = tinystl;
 
+#include <bx/allocator.h>
+#include <bx/commandline.h>
+#include <bx/file.h>
 #include <bx/readerwriter.h>
-#include <bx/fpumath.h>
+#include <bx/math.h>
 #include <bx/string.h>
-#include <bx/crtimpl.h>
 #include "entry/dbg.h"
 #include <ib-compress/indexbufferdecompression.h>
-
-#include "shaderc.h"
 
 #include "RenderModule.h"
 #include "RenderUtils.h"
@@ -48,7 +48,7 @@ namespace entry {
 		BX_PRAGMA_DIAGNOSTIC_PUSH();
 		BX_PRAGMA_DIAGNOSTIC_IGNORED_MSVC(4459); // warning C4459: declaration of 's_allocator' hides global declaration
 		BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wshadow");
-		static bx::CrtAllocator s_allocator;
+		static bx::DefaultAllocator s_allocator;
 		return &s_allocator;
 		BX_PRAGMA_DIAGNOSTIC_POP();
 	}
@@ -57,7 +57,7 @@ namespace entry {
 	bx::FileReaderI* getFileReader()
 	{
 		if (s_fileReader == NULL) {
-			s_fileReader = new bx::CrtFileReader;
+			s_fileReader = new bx::FileReader;
 		}
 		return s_fileReader;
 	}
@@ -65,7 +65,7 @@ namespace entry {
 	bx::FileWriterI* getFileWriter()
 	{
 		if (s_fileWriter == NULL) {
-			s_fileWriter = new bx::CrtFileWriter;
+			s_fileWriter = new bx::FileWriter;
 		}
 		return s_fileWriter;
 	}
@@ -153,6 +153,12 @@ static void* loadMem(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const
 	DBG("Failed to load %s.", _filePath);
 	return NULL;
 }
+
+int compileShader(bx::CommandLine& _cmdLine, bx::ReaderSeekerI* _reader, bx::WriterI* _writer) {
+	assert(false);
+	return -1;
+}
+
 
 static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name)
 {
@@ -307,9 +313,9 @@ bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const char* _name, uin
 
 	gLog ("Loading texture %s", filePath);
 
-	if (NULL != bx::stristr(_name, ".dds")
-	||  NULL != bx::stristr(_name, ".pvr")
-	||  NULL != bx::stristr(_name, ".ktx") )
+	if (NULL != bx::strFindI(_name, ".dds")
+	||  NULL != bx::strFindI(_name, ".pvr")
+	||  NULL != bx::strFindI(_name, ".ktx") )
 	{
 		const bgfx::Memory* mem = loadMem(_reader, filePath);
 		if (NULL != mem)
@@ -417,8 +423,8 @@ struct Group
 
 	void reset()
 	{
-		m_vbh.idx = bgfx::invalidHandle;
-		m_ibh.idx = bgfx::invalidHandle;
+		m_vbh.idx = BGFX_INVALID_HANDLE;
+		m_ibh.idx = BGFX_INVALID_HANDLE;
 		m_prims.clear();
 	}
 
@@ -455,10 +461,10 @@ struct Mesh
 			case BGFX_CHUNK_MAGIC_VB:
 				{
 					read(_reader, group.m_sphere);
-					read(_reader, group.m_aabb);
-					read(_reader, group.m_obb);
+					read(_reader, &group.m_aabb, sizeof(Aabb));
+					read(_reader, &group.m_obb, sizeof(Obb));
 
-					read(_reader, m_decl);
+					read(_reader, &m_decl, sizeof(bgfx::VertexDecl));
 
 					uint16_t stride = m_decl.getStride();
 
@@ -553,11 +559,11 @@ struct Mesh
 		for (GroupArray::const_iterator it = m_groups.begin(), itEnd = m_groups.end(); it != itEnd; ++it)
 		{
 			const Group& group = *it;
-			bgfx::destroyVertexBuffer(group.m_vbh);
+			bgfx::destroy(group.m_vbh);
 
 			if (bgfx::isValid(group.m_ibh) )
 			{
-				bgfx::destroyIndexBuffer(group.m_ibh);
+				bgfx::destroy(group.m_ibh);
 			}
 		}
 		m_groups.clear();
@@ -585,7 +591,7 @@ struct Mesh
 
 			bgfx::setTransform(cached);
 			bgfx::setIndexBuffer(group.m_ibh);
-			bgfx::setVertexBuffer(group.m_vbh);
+			bgfx::setVertexBuffer(0, group.m_vbh);
 			bgfx::setState(_state);
 			bgfx::submit(_id, _program);
 		}
@@ -614,7 +620,7 @@ struct Mesh
 							);
 				}
 				bgfx::setIndexBuffer(group.m_ibh);
-				bgfx::setVertexBuffer(group.m_vbh);
+				bgfx::setVertexBuffer(0, group.m_vbh);
 				bgfx::setState(state.m_state);
 				bgfx::submit(state.m_viewId, state.m_program.program);
 			}

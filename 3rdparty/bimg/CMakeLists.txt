@@ -18,6 +18,7 @@ SET (BIMG_SOURCES
 	#	src/image_encode.cpp
 	src/image_decode.cpp
 	src/image.cpp
+	src/image_gnf.cpp
 	)
 
 ADD_LIBRARY ( bimg SHARED ${BIMG_SOURCES} )

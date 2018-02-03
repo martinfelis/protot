@@ -71,6 +71,7 @@ namespace ImGui
 				, active(true)
 				, status(Status_Float)
 				, opened(false)
+				, first(true)
 			{
 				location[0] = 0;
 				children[0] = children[1] = NULL;
@@ -233,7 +234,10 @@ namespace ImGui
 			ImU32 id = ImHash(label, 0);
 			for (int i = 0; i < m_docks.size(); ++i)
 			{
-				if (m_docks[i]->id == id) return *m_docks[i];
+        if (m_docks[i]->id == id)
+        {
+          return *m_docks[i];
+        }
 			}
 
 			Dock* new_dock = (Dock*)MemAlloc(sizeof(Dock));
@@ -365,18 +369,22 @@ namespace ImGui
 			ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 				ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
 				ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar |
-				ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_ShowBorders | 
+				ImGuiWindowFlags_NoScrollWithMouse |
 				ImGuiWindowFlags_NoBringToFrontOnFocus;
 			Dock* root = getRootDock();
+			const ImVec2& displaySize = GetIO().DisplaySize;
 			if (root)
 			{
-				SetNextWindowPos(root->pos);
-				SetNextWindowSize(root->size);
+				const ImVec2 percentage(displaySize.x / root->size.x, displaySize.y / root->size.y );
+				const ImVec2 rescaledPos = root->pos * percentage;
+				const ImVec2 rescaledSize = root->size * percentage;
+				SetNextWindowPos(rescaledPos);
+				SetNextWindowSize(rescaledSize);
 			}
 			else
 			{
 				SetNextWindowPos(ImVec2(0, 0));
-				SetNextWindowSize(GetIO().DisplaySize);
+				SetNextWindowSize(displaySize);
 			}
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
 			Begin("###DockPanel", NULL, flags);
@@ -504,8 +512,6 @@ namespace ImGui
 
 			Begin("##Overlay",
 					NULL,
-					ImVec2(0, 0),
-					0.f,
 					ImGuiWindowFlags_Tooltip | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
 					ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings |
 					ImGuiWindowFlags_AlwaysAutoResize);
@@ -856,12 +862,7 @@ namespace ImGui
 		void rootDock(const ImVec2& pos, const ImVec2& size)
 		{
 			Dock* root = getRootDock();
-
-			// martin: make sure we have a root dock
-			if (!root)
-				root = &getDock("Root", true);
-
-			root->status = Status_Docked;
+			if (!root) return;
 
 			ImVec2 min_size = root->getMinSize();
 			ImVec2 requested_size = size;
@@ -906,6 +907,7 @@ namespace ImGui
 		void tryDockToStoredLocation(Dock& dock)
 		{
 			if (dock.status == Status_Docked) return;
+			if (dock.location[0] == 0) return;
 
 			Dock* tmp = getRootDock();
 			if (!tmp) return;
@@ -925,8 +927,7 @@ namespace ImGui
 		bool begin(const char* label, bool* opened, ImGuiWindowFlags extra_flags)
 		{
 			Dock& dock = getDock(label, !opened || *opened);
-			// martin: tweak docking for better defaults
-			if (!dock.opened || (!opened || *opened)) tryDockToStoredLocation(dock);
+			if (!dock.opened && (!opened || *opened)) tryDockToStoredLocation(dock);
 			dock.last_frame = ImGui::GetFrameCount();
 			if (strcmp(dock.label, label) != 0)
 			{
@@ -965,9 +966,7 @@ namespace ImGui
 				SetNextWindowSize(dock.size);
 				bool ret = Begin(label,
 						opened,
-						dock.size,
-						-1.0f,
-						ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_ShowBorders | extra_flags);
+						ImGuiWindowFlags_NoCollapse | extra_flags);
 				m_end_action = EndAction_End;
 				dock.pos = GetWindowPos();
 				dock.size = GetWindowSize();

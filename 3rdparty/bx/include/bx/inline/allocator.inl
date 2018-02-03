@@ -1,11 +1,20 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
 #ifndef BX_ALLOCATOR_H_HEADER_GUARD
 #	error "Must be included from bx/allocator.h"
 #endif // BX_ALLOCATOR_H_HEADER_GUARD
+
+inline void* operator new(size_t, bx::PlacementNewTag, void* _ptr)
+{
+	return _ptr;
+}
+
+inline void operator delete(void*, bx::PlacementNewTag, void*) throw()
+{
+}
 
 namespace bx
 {

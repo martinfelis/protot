@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
@@ -68,18 +68,29 @@
 #	define BX_FUNCTION __PRETTY_FUNCTION__
 #	define BX_LIKELY(_x)   __builtin_expect(!!(_x), 1)
 #	define BX_UNLIKELY(_x) __builtin_expect(!!(_x), 0)
-#	define BX_NO_INLINE __attribute__( (noinline) )
-#	define BX_NO_RETURN __attribute__( (noreturn) )
+#	define BX_NO_INLINE   __attribute__( (noinline) )
+#	define BX_NO_RETURN   __attribute__( (noreturn) )
+#	define BX_CONST_FUNC  __attribute__( (const) )
+
+#	if BX_COMPILER_GCC >= 70000
+#		define BX_FALLTHROUGH __attribute__( (fallthrough) )
+#	else
+#		define BX_FALLTHROUGH BX_NOOP()
+#	endif // BX_COMPILER_GCC >= 70000
+
 #	define BX_NO_VTABLE
-#	define BX_OVERRIDE
 #	define BX_PRINTF_ARGS(_format, _args) __attribute__( (format(__printf__, _format, _args) ) )
+
 #	if BX_CLANG_HAS_FEATURE(cxx_thread_local)
 #		define BX_THREAD_LOCAL __thread
 #	endif // BX_COMPILER_CLANG
+
 #	if (!BX_PLATFORM_OSX && (BX_COMPILER_GCC >= 40200)) || (BX_COMPILER_GCC >= 40500)
 #		define BX_THREAD_LOCAL __thread
 #	endif // BX_COMPILER_GCC
+
 #	define BX_ATTRIBUTE(_x) __attribute__( (_x) )
+
 #	if BX_CRT_MSVC
 #		define __stdcall
 #	endif // BX_CRT_MSVC
@@ -92,8 +103,9 @@
 #	define BX_UNLIKELY(_x) (_x)
 #	define BX_NO_INLINE __declspec(noinline)
 #	define BX_NO_RETURN
+#	define BX_CONST_FUNC  __declspec(noalias)
+#	define BX_FALLTHROUGH BX_NOOP()
 #	define BX_NO_VTABLE __declspec(novtable)
-#	define BX_OVERRIDE override
 #	define BX_PRINTF_ARGS(_format, _args)
 #	define BX_THREAD_LOCAL __declspec(thread)
 #	define BX_ATTRIBUTE(_x)
@@ -114,7 +126,14 @@
 #define BX_NOOP(...) BX_MACRO_BLOCK_BEGIN BX_MACRO_BLOCK_END
 
 ///
-#define BX_UNUSED_1(_a1) BX_MACRO_BLOCK_BEGIN (void)(true ? (void)0 : ( (void)(_a1) ) ); BX_MACRO_BLOCK_END
+#define BX_UNUSED_1(_a1)                                              \
+	BX_MACRO_BLOCK_BEGIN                                              \
+		BX_PRAGMA_DIAGNOSTIC_PUSH();                                  \
+		/*BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wuseless-cast");*/ \
+		(void)(true ? (void)0 : ( (void)(_a1) ) );                    \
+		BX_PRAGMA_DIAGNOSTIC_POP();                                   \
+	BX_MACRO_BLOCK_END
+
 #define BX_UNUSED_2(_a1, _a2) BX_UNUSED_1(_a1); BX_UNUSED_1(_a2)
 #define BX_UNUSED_3(_a1, _a2, _a3) BX_UNUSED_2(_a1, _a2); BX_UNUSED_1(_a3)
 #define BX_UNUSED_4(_a1, _a2, _a3, _a4) BX_UNUSED_3(_a1, _a2, _a3); BX_UNUSED_1(_a4)

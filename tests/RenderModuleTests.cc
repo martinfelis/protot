@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 #include "TestUtils.h"
 
-#include "bx/fpumath.h"
+#include "bx/math.h"
 #include "src/math_types.h"
 #include "src/modules/RenderModule.h"
 

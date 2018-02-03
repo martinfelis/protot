@@ -1,5 +1,5 @@
 --
--- Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+-- Copyright 2010-2018 Branimir Karadzic. All rights reserved.
 -- License: https://github.com/bkaradzic/bx#license-bsd-2-clause
 --
 
@@ -15,6 +15,7 @@ project "bimg_encode"
 	}
 
 	files {
+		path.join(BIMG_DIR, "include/**"),
 		path.join(BIMG_DIR, "src/image_encode.*"),
 		path.join(BIMG_DIR, "3rdparty/libsquish/**.cpp"),
 		path.join(BIMG_DIR, "3rdparty/libsquish/**.h"),

@@ -19,7 +19,7 @@
 #include <bx/thread.h>
 
 #include <bx/timer.h>
-#include <bx/fpumath.h>
+#include <bx/math.h>
 #include <bx/uint32_t.h>
 #include <bx/string.h>
 #include <dbg.h>
@@ -203,7 +203,7 @@ namespace IBL {
 
 		void destroy()
 		{
-			bgfx::destroyUniform(u_params);
+			bgfx::destroy(u_params);
 		}
 
 		union
@@ -267,7 +267,6 @@ namespace IBL {
 			m_showSpecColorWheel = true;
 			m_metalOrSpec = 0;
 			m_meshSelection = 0;
-			m_crossCubemapPreview = ImguiCubemap::Latlong;
 		}
 
 		float m_envRotCurr;
@@ -291,7 +290,6 @@ namespace IBL {
 		bool m_showSpecColorWheel;
 		uint8_t m_metalOrSpec;
 		uint8_t m_meshSelection;
-		ImguiCubemap::Enum m_crossCubemapPreview;
 	};
 
 	Settings settings;
@@ -388,7 +386,7 @@ bool RenderProgram::reload() {
 
 	if (bgfx::isValid(new_handle)) {
 		if (bgfx::isValid(program)) {
-			bgfx::destroyProgram(program);
+			bgfx::destroy(program);
 		}
 
 		gLog ("Reload of shaders %s and %s success!", 
@@ -741,7 +739,7 @@ void screenSpaceQuad(float _textureWidth, float _textureHeight, bool _originBott
 		vertex[2].m_u = maxu;
 		vertex[2].m_v = maxv;
 
-		bgfx::setVertexBuffer(&vb);
+		bgfx::setVertexBuffer(0, &vb);
 	}
 }
 
@@ -756,11 +754,15 @@ void Camera::updateMatrices() {
 		bx::mtxOrthoRh(mtxProj, 
 				-width * 0.5f, width * 0.5f,
 				-height * 0.5f, height * 0.5f, 
-				near, far);
+				near, far,
+				0.0f,
+				bgfx::getCaps()->homogeneousDepth);
 	} else {
 		float aspect = static_cast<float>(width) / height;
 		float mtx_proj[16];
-		bx::mtxProjRh(mtxProj, fov, aspect, near, far);
+		bx::mtxProjRh(mtxProj, fov, aspect,
+				near, far,
+				bgfx::getCaps()->homogeneousDepth);
 	}
 
 	// environment matrix
@@ -885,10 +887,10 @@ void Renderer::createGeometries() {
 
 Path::~Path() {
 	if (bgfx::isValid(mVertexBufferHandle))
-		bgfx::destroyDynamicVertexBuffer(mVertexBufferHandle);
+		bgfx::destroy(mVertexBufferHandle);
 
 	if (bgfx::isValid(mIndexBufferHandle))
-		bgfx::destroyDynamicIndexBuffer(mIndexBufferHandle);
+		bgfx::destroy(mIndexBufferHandle);
 }
 
 void Path::UpdateBuffers() {
@@ -1269,28 +1271,28 @@ void Renderer::initialize(int width, int height) {
 }
 
 void Renderer::shutdown() {
-	bgfx::destroyIndexBuffer(cube_ibh);
-	bgfx::destroyIndexBuffer(cube_edges_ibh);
-	bgfx::destroyVertexBuffer(cube_vbh);
-	bgfx::destroyIndexBuffer(plane_ibh);
-	bgfx::destroyVertexBuffer(plane_vbh);
+	bgfx::destroy(cube_ibh);
+	bgfx::destroy(cube_edges_ibh);
+	bgfx::destroy(cube_vbh);
+	bgfx::destroy(plane_ibh);
+	bgfx::destroy(plane_vbh);
 
-	bgfx::destroyUniform(u_camPos);
-	bgfx::destroyUniform(u_flags);
-	bgfx::destroyUniform(u_mtx);
+	bgfx::destroy(u_camPos);
+	bgfx::destroy(u_flags);
+	bgfx::destroy(u_mtx);
 
 	IBL::uniforms.destroy();
 
-	bgfx::destroyUniform(s_texCube);
-	bgfx::destroyUniform(s_texCubeIrr);
+	bgfx::destroy(s_texCube);
+	bgfx::destroy(s_texCubeIrr);
 
-	bgfx::destroyUniform(u_time);
-	bgfx::destroyUniform(u_color);
-	bgfx::destroyUniform(u_line_params);
+	bgfx::destroy(u_time);
+	bgfx::destroy(u_color);
+	bgfx::destroy(u_line_params);
 
 	for (uint8_t ii = 0; ii < RenderState::Count; ++ii) {
 		if (bgfx::isValid(s_renderStates[ii].m_program.program)) {
-			bgfx::destroyProgram(s_renderStates[ii].m_program.program);
+			bgfx::destroy(s_renderStates[ii].m_program.program);
 		}
 	}
 
@@ -1305,12 +1307,12 @@ void Renderer::shutdown() {
 
 	for (size_t i = 0; i < lights.size(); i++) {
 		gLog ("Destroying light uniforms for light %d", i);
-		bgfx::destroyFrameBuffer(lights[i].shadowMapFB);
+		bgfx::destroy(lights[i].shadowMapFB);
 
-		bgfx::destroyUniform(lights[i].u_shadowMap);
-		bgfx::destroyUniform(lights[i].u_shadowMapParams);
-		bgfx::destroyUniform(lights[i].u_lightPos);
-		bgfx::destroyUniform(lights[i].u_lightMtx);
+		bgfx::destroy(lights[i].u_shadowMap);
+		bgfx::destroy(lights[i].u_shadowMapParams);
+		bgfx::destroy(lights[i].u_lightPos);
+		bgfx::destroy(lights[i].u_lightMtx);
 	}
 	lights.clear();
 
@@ -1398,7 +1400,10 @@ void Renderer::paintGL() {
 		bx::mtxOrthoRh(lights[i].mtxProj, 
 				lights[i].area, -lights[i].area, 
 				lights[i].area, -lights[i].area, 
-				lights[i].near, lights[i].far);
+				lights[i].near, lights[i].far,
+				0.0,
+				bgfx::getCaps()->homogeneousDepth
+				);
 
 		// lights: shadow matrix
 		const float sy = flipV ? 0.5f : -0.5f;
@@ -1420,7 +1425,8 @@ void Renderer::paintGL() {
 	float view[16];
 	float proj[16];
 	bx::mtxIdentity(view);
-	bx::mtxOrthoRh(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f);
+	bx::mtxOrthoRh(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f, 0.0, bgfx::getCaps()->homogeneousDepth
+);
 
 	bgfx::setViewRect(RenderState::Skybox, view_offset_x, view_offset_y, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Skybox, view, proj);
@@ -1489,8 +1495,8 @@ void Renderer::paintGL() {
 		// Skybox pass
 		memcpy (IBL::uniforms.m_cameraPos, cameras[activeCameraIndex].eye.data(), 3 * sizeof(float));
 
-		const float amount = bx::fmin(0.012/0.12f, 1.0f);
-		IBL::settings.m_envRotCurr = bx::flerp(IBL::settings.m_envRotCurr, IBL::settings.m_envRotDest, amount);
+		const float amount = bx::min(0.012f/0.12f, 1.0f);
+		IBL::settings.m_envRotCurr = bx::lerp(IBL::settings.m_envRotCurr, IBL::settings.m_envRotDest, amount);
 
 
 		float mtxEnvRot[16];
@@ -1540,7 +1546,7 @@ void Renderer::paintGL() {
 			bgfx::setUniform(lights[0].u_lightMtx, lightMtx);
 			bgfx::setUniform(u_color, Vector4f(1.f, 1.f, 1.f, 1.f).data(), 4);
 			bgfx::setIndexBuffer(plane_ibh);
-			bgfx::setVertexBuffer(plane_vbh);
+			bgfx::setVertexBuffer(0, plane_vbh);
 			bgfx::setState(st.m_state);
 			bgfx::submit(st.m_viewId, st.m_program.program);
 		}
@@ -1607,7 +1613,7 @@ void Renderer::paintGL() {
 			bgfx::setTransform(mtxLightViewProjInv);
 
 			bgfx::setIndexBuffer(cube_edges_ibh);
-			bgfx::setVertexBuffer(cube_vbh);
+			bgfx::setVertexBuffer(0, cube_vbh);
 			bgfx::setState(st.m_state);
 			bgfx::submit(st.m_viewId, st.m_program.program);
 		}
@@ -1624,7 +1630,7 @@ void Renderer::paintGL() {
 			bgfx::setTransform(mtxCameraViewProjInv);
 
 			bgfx::setIndexBuffer(cube_edges_ibh);
-			bgfx::setVertexBuffer(cube_vbh);
+			bgfx::setVertexBuffer(0, cube_vbh);
 			bgfx::setState(st.m_state);
 			bgfx::submit(st.m_viewId, st.m_program.program);
 		}
@@ -1694,7 +1700,7 @@ void Renderer::paintGL() {
 
 			bgfx::setUniform(u_line_params, params.data(), 1);
 			bgfx::setIndexBuffer(line.mIndexBufferHandle);
-			bgfx::setVertexBuffer(line.mVertexBufferHandle);
+			bgfx::setVertexBuffer(0, line.mVertexBufferHandle);
 			bgfx::setState(st.m_state);
 			bgfx::submit(st.m_viewId, st.m_program.program);
 
@@ -1702,7 +1708,7 @@ void Renderer::paintGL() {
 			bgfx::setState(s_renderStates[RenderState::LinesOccluded].m_state);
 			bgfx::setUniform(u_line_params, params.data(), 1);
 			bgfx::setIndexBuffer(line.mIndexBufferHandle);
-			bgfx::setVertexBuffer(line.mVertexBufferHandle);
+			bgfx::setVertexBuffer(0, line.mVertexBufferHandle);
 				bgfx::submit(
 					s_renderStates[RenderState::LinesOccluded].m_viewId,
 					s_renderStates[RenderState::LinesOccluded].m_program.program
@@ -1710,40 +1716,40 @@ void Renderer::paintGL() {
 		}
 	}
 
-	if (ImGui::BeginDock("Render Settings"), &sRenderDock) {
-		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
-		}
+// 	if (ImGui::BeginDock("Render Settings"), &sRenderDock) {
+// 		if(ImGui::DragFloat3 ("Light0 Pos", lights[0].pos.data(), 1.0f, -10.0f, 10.0f)) {
+// 		}
+// 
+// 		if(ImGui::DragFloat3 ("Light0 Dir", lights[0].dir.data(), 1.0f, -10.0f, 10.0f)) {
+// 		}
+// 
+// 		float light_at[3];
+// 		light_at[0] = lights[0].dir[0] - lights[0].pos[0];
+// 		light_at[1] = lights[0].dir[1] - lights[0].pos[1];
+// 		light_at[2] = lights[0].dir[2] - lights[0].pos[2];
+// 
+// 		if(ImGui::DragFloat3 ("Light0 At", light_at, 1.0f, -10.0f, 10.0f)) {
+// 			lights[0].dir[0] =  lights[0].pos[0]- light_at[0];
+// 			lights[0].dir[1] =  lights[0].pos[1]- light_at[1];
+// 			lights[0].dir[2] =  lights[0].pos[2]- light_at[2];
+// 		}
+// 
+// 		assert (lights.size() == 1);
+// 
+// 		ImGui::Checkbox("Draw Floor", &drawFloor);
+// 		ImGui::Checkbox("Draw Skybox", &drawSkybox);
+// 		ImGui::Checkbox("Draw Debug", &drawDebug);
+// 
+// 		for (int i = 0; i < lights.size(); i++) {
+// 			ImGui::SliderFloat("Bias", 
+// 					&lights[i].shadowMapBias,
+// 					0.0001f,
+// 					0.10f
+// 					);
+// 		}
+// 	}
 
-		if(ImGui::DragFloat3 ("Light0 Dir", lights[0].dir.data(), 1.0f, -10.0f, 10.0f)) {
-		}
-
-		float light_at[3];
-		light_at[0] = lights[0].dir[0] - lights[0].pos[0];
-		light_at[1] = lights[0].dir[1] - lights[0].pos[1];
-		light_at[2] = lights[0].dir[2] - lights[0].pos[2];
-
-		if(ImGui::DragFloat3 ("Light0 At", light_at, 1.0f, -10.0f, 10.0f)) {
-			lights[0].dir[0] =  lights[0].pos[0]- light_at[0];
-			lights[0].dir[1] =  lights[0].pos[1]- light_at[1];
-			lights[0].dir[2] =  lights[0].pos[2]- light_at[2];
-		}
-
-		assert (lights.size() == 1);
-
-		ImGui::Checkbox("Draw Floor", &drawFloor);
-		ImGui::Checkbox("Draw Skybox", &drawSkybox);
-		ImGui::Checkbox("Draw Debug", &drawDebug);
-
-		for (int i = 0; i < lights.size(); i++) {
-			ImGui::SliderFloat("Bias", 
-					&lights[i].shadowMapBias,
-					0.0001f,
-					0.10f
-					);
-		}
-	}
-
-	ImGui::EndDock();
+//	ImGui::EndDock();
 
 	// Advance to next frame. Rendering thread will be kicked to
 	// process submitted rendering primitives.
@@ -1762,77 +1768,77 @@ void Renderer::DrawGui() {
 		ImVec2 size = ImGui::GetIO().DisplaySize;
 		size.x -= pos.x;
 		size.y -= pos.y;
-		ImGui::RootDock(pos, ImVec2(size.x, size.y - 25.0f));
+		// TODO(martin): init dock
 
 		// Draw status bar (no docking)
-		ImGui::SetNextWindowSize(ImVec2(size.x, 25.0f), ImGuiSetCond_Always);
-		ImGui::SetNextWindowPos(ImVec2(0, size.y - 32.0f), ImGuiSetCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(size.x, 25.0f), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(0, size.y - 32.0f), ImGuiCond_Always);
 		ImGui::Begin("statusbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize);
 		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
 		ImGui::End();
 	}
 
-	if (ImGui::BeginDock("Dock Info", &sDockInfoDock))  {
-		ImGui::Print();
-	}
-	ImGui::EndDock();
+//	if (ImGui::BeginDock("Dock Info", &sDockInfoDock))  {
+//		ImGui::Print();
+//	}
+//	ImGui::EndDock();
 
-	if (ImGui::BeginDock("Scene", &sSceneDock)) {
-		ImVec2 size = ImGui::GetContentRegionAvail();
-		ImVec2 pos = ImGui::GetWindowPos();
-
-		if ((size.x > 0 && size.y > 0) &&
-				(view_texture_width != size.x || view_texture_height != size.y)) {
-			if (bgfx::isValid(sceneViewBuffer)) {
-				gLog("Destroying old view frame buffer of size %f, %f",
-						view_texture_width, view_texture_height);
-				bgfx::destroyFrameBuffer(sceneViewBuffer);
-			}
-
-			sceneViewTexture = bgfx::createTexture2D(
-					size.x, size.y,
-					false, 1,
-					bgfx::TextureFormat::RGBA8
-					);
-			sceneDepthTexture = bgfx::createTexture2D(
-					size.x, size.y,
-					false, 1,
-					bgfx::TextureFormat::D16
-					);
-
-			view_texture_width = size.x;
-			view_texture_height = size.y;
-			view_offset_x = pos.x;
-			view_offset_y = pos.y;
-			view_width = size.x;
-			view_height = size.y;
-
-			assert(view_texture_width > 0.0f);
-			assert(view_texture_height > 0.0f);
-
-			gLog("Creating view frame buffer of size %f, %f",
-					view_texture_width, view_texture_height);
-
-			bgfx::TextureHandle fbtextures[] = { sceneViewTexture, sceneDepthTexture };
-
-			sceneViewBuffer = bgfx::createFrameBuffer(
-				BX_COUNTOF(fbtextures), fbtextures, true
-				);
-
-			ImGuizmo::SetRect(
-					view_offset_x, view_offset_y,
-					view_texture_width, view_texture_height
-					);
-		} else {
-
-			ImGui::Image(sceneViewTexture,
-					size,
-					ImVec2(0.0f, 1.0f),
-					ImVec2(1.0f, 0.0f)
-					);
-		}
-	}
-	ImGui::EndDock();
+//	if (ImGui::BeginDock("Scene", &sSceneDock)) {
+//		ImVec2 size = ImGui::GetContentRegionAvail();
+//		ImVec2 pos = ImGui::GetWindowPos();
+//
+//		if ((size.x > 0 && size.y > 0) &&
+//				(view_texture_width != size.x || view_texture_height != size.y)) {
+//			if (bgfx::isValid(sceneViewBuffer)) {
+//				gLog("Destroying old view frame buffer of size %f, %f",
+//						view_texture_width, view_texture_height);
+//				bgfx::destroy(sceneViewBuffer);
+//			}
+//
+//			sceneViewTexture = bgfx::createTexture2D(
+//					size.x, size.y,
+//					false, 1,
+//					bgfx::TextureFormat::RGBA8
+//					);
+//			sceneDepthTexture = bgfx::createTexture2D(
+//					size.x, size.y,
+//					false, 1,
+//					bgfx::TextureFormat::D16
+//					);
+//
+//			view_texture_width = size.x;
+//			view_texture_height = size.y;
+//			view_offset_x = pos.x;
+//			view_offset_y = pos.y;
+//			view_width = size.x;
+//			view_height = size.y;
+//
+//			assert(view_texture_width > 0.0f);
+//			assert(view_texture_height > 0.0f);
+//
+//			gLog("Creating view frame buffer of size %f, %f",
+//					view_texture_width, view_texture_height);
+//
+//			bgfx::TextureHandle fbtextures[] = { sceneViewTexture, sceneDepthTexture };
+//
+//			sceneViewBuffer = bgfx::createFrameBuffer(
+//				BX_COUNTOF(fbtextures), fbtextures, true
+//				);
+//
+//			ImGuizmo::SetRect(
+//					view_offset_x, view_offset_y,
+//					view_texture_width, view_texture_height
+//					);
+//		} else {
+//
+//			ImGui::Image(sceneViewTexture,
+//					size,
+//					ImVec2(0.0f, 1.0f),
+//					ImVec2(1.0f, 0.0f)
+//					);
+//		}
+//	}
+//	ImGui::EndDock();
 }
 
 bool Renderer::updateShaders() {

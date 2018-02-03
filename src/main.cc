@@ -144,7 +144,6 @@ int main(void)
 	imguiCreate();
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
-	ImGui::LoadDock();
 
 	// Timer
 	Timer timer;
@@ -230,7 +229,6 @@ int main(void)
 
 	gRenderer = nullptr;
 
-  ImGui::SaveDock();
 	ImGui::ShutdownDock();
 	imguiDestroy();
 

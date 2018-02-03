@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
@@ -24,6 +24,9 @@ namespace bx
 
 	///
 	void debugPrintfData(const void* _data, uint32_t _size, const char* _format, ...);
+
+	///
+	struct WriterI* getDebugOut();
 
 } // namespace bx
 

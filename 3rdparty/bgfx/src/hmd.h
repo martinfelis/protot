@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -48,7 +48,7 @@ namespace bgfx
 		virtual void updateInput(HMD& _hmd) = 0;
 		virtual void recenter() = 0;
 
-		virtual bool createSwapChain(const VRDesc& _desc, int _msaaSamples, int _mirrorWidth, int _mirrorHeight);
+		virtual bool createSwapChain(const VRDesc& _desc, int _msaaSamples, int _mirrorWidth, int _mirrorHeight) = 0;
 		virtual void destroySwapChain() = 0;
 		virtual void destroyMirror() = 0;
 		virtual void makeRenderTargetActive(const VRDesc& _desc) = 0;

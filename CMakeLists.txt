@@ -63,7 +63,7 @@ INCLUDE_DIRECTORIES (
 	3rdparty/bgfx/3rdparty/glsl-optimizer/include/
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/
 	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/
-	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/imgui_docking_minimal/include
+	3rdparty/imgui_dock/
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx/3rdparty/ocornut-imgui
 	${CMAKE_CURRENT_BINARY_DIR}/src
 	)
@@ -80,14 +80,10 @@ SUBDIRS (
 	)
 
 SET ( protot_SRCS
-	src/shaderc_compile.cpp
-	src/shaderc_glsl.cpp
-	src/shaderc_hlsl.cpp
-
 	src/RuntimeModuleManager.cc
 
 	3rdparty/glfw/deps/glad.c
-	3rdparty/imgui_docking_minimal/src/imgui_dock.cpp
+	3rdparty/imgui_dock/imgui_dock.cpp
 	)
 
 SET (PROTOT_SOURCE_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})

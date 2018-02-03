@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bx#license-bsd-2-clause
  */
 
@@ -59,6 +59,12 @@ namespace bx
 
 		///
 		bool hasArg(bool& _value, const char _short, const char* _long = NULL) const;
+
+		///
+		int32_t getNum() const;
+
+		///
+		char const* get(int32_t _idx) const;
 
 	private:
 		///

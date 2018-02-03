@@ -2,7 +2,7 @@
 #include "Globals.h"
 #include "3rdparty/ocornut-imgui/imgui.h"
 #include "imgui/imgui.h"
-#include <bx/fpumath.h>
+#include <bx/math.h>
 #include <GLFW/glfw3.h>
 #include "SimpleMath/SimpleMath.h"
 #include "SimpleMath/SimpleMathMap.h"
@@ -313,7 +313,7 @@ static bool module_step(struct module_state *state, float dt) {
 	}
 
 	if (state->imgui_demo_window_visible) {
-		ImGui::ShowTestWindow();
+		ImGui::ShowDemoWindow();
 	}
 
 	handle_mouse(state);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2018 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
  */
 
@@ -15,7 +15,8 @@ namespace bgfx
 		bx::WriterI* writer = reinterpret_cast<bx::WriterI*>(_userData);
 		char temp[512];
 		toString(temp, sizeof(temp), _instruction);
-		bx::write(writer, temp, (int32_t)bx::strnlen(temp) );
+		bx::write(writer, temp, (int32_t)bx::strLen(temp) );
+		bx::write(writer, '\n');
 		return true;
 	}
 
@@ -24,7 +25,8 @@ namespace bgfx
 		bx::WriterI* writer = reinterpret_cast<bx::WriterI*>(_userData);
 		char temp[512];
 		toString(temp, sizeof(temp), _instruction);
-		bx::write(writer, temp, (int32_t)bx::strnlen(temp) );
+		bx::write(writer, temp, (int32_t)bx::strLen(temp) );
+		bx::write(writer, '\n');
 		return true;
 	}
 
@@ -33,7 +35,8 @@ namespace bgfx
 		bx::WriterI* writer = reinterpret_cast<bx::WriterI*>(_userData);
 		char temp[512];
 		toString(temp, sizeof(temp), _instruction);
-		bx::write(writer, temp, (int32_t)bx::strnlen(temp) );
+		bx::write(writer, temp, (int32_t)bx::strLen(temp) );
+		bx::write(writer, '\n');
 		return true;
 	}
 
@@ -107,7 +110,7 @@ namespace bgfx
 				bx::read(_reader, regCount, _err);
 			}
 
-			uint16_t shaderSize;
+			uint32_t shaderSize;
 			bx::read(_reader, shaderSize, _err);
 
 			if (!_err->isOk() ) { return; }

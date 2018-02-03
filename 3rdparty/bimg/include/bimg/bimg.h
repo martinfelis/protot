@@ -1,6 +1,6 @@
 /*
- * Copyright 2011-2017 Branimir Karadzic. All rights reserved.
- * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
+ * Copyright 2011-2018 Branimir Karadzic. All rights reserved.
+ * License: https://github.com/bkaradzic/bimg#license-bsd-2-clause
  */
 
 #ifndef BIMG_IMAGE_H_HEADER_GUARD
@@ -8,6 +8,8 @@
 
 #include <stdint.h> // uint32_t
 #include <stdlib.h> // NULL
+
+#define BIMG_API_VERSION UINT32_C(5)
 
 namespace bx
 {
@@ -114,7 +116,7 @@ namespace bimg
 			RGBA4,
 			RGB5A1,
 			RGB10A2,
-			R11G11B10F,
+			RG11B10F,
 
 			UnknownDepth, // Depth formats below.
 
@@ -128,6 +130,23 @@ namespace bimg
 			D0S8,
 
 			Count
+		};
+	};
+
+	///
+	struct Orientation
+	{
+		///
+		enum Enum
+		{
+			R0,
+			R90,
+			R180,
+			R270,
+			HFlip,
+			HFlipR90,
+			HFlipR270,
+			VFlip,
 		};
 	};
 
@@ -154,6 +173,7 @@ namespace bimg
 		void*           m_data;
 
 		TextureFormat::Enum m_format;
+		Orientation::Enum m_orientation;
 
 		uint32_t m_size;
 		uint32_t m_offset;
@@ -174,6 +194,7 @@ namespace bimg
 		TextureFormat::Enum m_format;
 		uint32_t m_width;
 		uint32_t m_height;
+		uint32_t m_depth;
 		uint32_t m_blockSize;
 		uint32_t m_size;
 		uint8_t  m_bpp;
@@ -209,6 +230,9 @@ namespace bimg
 
 	/// Returns true if texture format is valid.
 	bool isValid(TextureFormat::Enum _format);
+
+	/// returns true if texture format encoding is float.
+	bool isFloat(TextureFormat::Enum _format);
 
 	/// Returns bits per pixel.
 	uint8_t getBitsPerPixel(TextureFormat::Enum _format);
@@ -265,7 +289,8 @@ namespace bimg
 		  void* _dst
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _depth
+		, uint32_t _srcPitch
 		, const void* _src
 		);
 
@@ -274,7 +299,8 @@ namespace bimg
 		  void* _dst
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _depth
+		, uint32_t _srcPitch
 		, const void* _src
 		);
 
@@ -283,7 +309,8 @@ namespace bimg
 		  void* _dst
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _depth
+		, uint32_t _srcPitch
 		, const void* _src
 		);
 
@@ -292,7 +319,8 @@ namespace bimg
 		  void* _dst
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _depth
+		, uint32_t _srcPitch
 		, const void* _src
 		);
 
@@ -301,17 +329,18 @@ namespace bimg
 		  void* _dst
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _srcPitch
 		, const void* _src
 		);
 
 	///
 	void imageSwizzleBgra8(
 		  void* _dst
+		, uint32_t _dstPitch
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
 		, const void* _src
+		, uint32_t _srcPitch
 		);
 
 	///
@@ -319,6 +348,7 @@ namespace bimg
 		  void* _dst
 		, uint32_t _height
 		, uint32_t _srcPitch
+		, uint32_t _depth
 		, const void* _src
 		, uint32_t _dstPitch
 		);
@@ -328,10 +358,17 @@ namespace bimg
 		  void* _dst
 		, uint32_t _width
 		, uint32_t _height
+		, uint32_t _depth
 		, uint32_t _bpp
-		, uint32_t _pitch
+		, uint32_t _srcPitch
 		, const void* _src
 		);
+
+	///
+	PackFn getPack(TextureFormat::Enum _format);
+
+	///
+	UnpackFn getUnpack(TextureFormat::Enum _format);
 
 	///
 	bool imageConvert(
@@ -359,6 +396,7 @@ namespace bimg
 		, UnpackFn _unpack
 		, uint32_t _width
 		, uint32_t _height
+		, uint32_t _depth
 		, uint32_t _srcPitch
 		);
 
@@ -370,6 +408,7 @@ namespace bimg
 		, TextureFormat::Enum _srcFormat
 		, uint32_t _width
 		, uint32_t _height
+		, uint32_t _depth
 		);
 
 	///
@@ -406,11 +445,11 @@ namespace bimg
 		);
 
 	///
-	void imageWriteTga(
+	int32_t imageWriteTga(
 		  bx::WriterI* _writer
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _srcPitch
 		, const void* _src
 		, bool _grayscale
 		, bool _yflip
@@ -418,7 +457,28 @@ namespace bimg
 		);
 
 	///
-	void imageWriteKtx(
+	int32_t imageWritePng(
+		  bx::WriterI* _writer
+		, uint32_t _width
+		, uint32_t _height
+		, uint32_t _srcPitch
+		, const void* _src
+		, bool _grayscale
+		, bool _yflip
+		, bx::Error* _err = NULL
+		);
+
+	///
+	int32_t imageWriteDds(
+		  bx::WriterI* _writer
+		, ImageContainer& _imageContainer
+		, const void* _data
+		, uint32_t _size
+		, bx::Error* _err
+		);
+
+	///
+	int32_t imageWriteKtx(
 		  bx::WriterI* _writer
 		, TextureFormat::Enum _format
 		, bool _cubeMap
@@ -426,12 +486,13 @@ namespace bimg
 		, uint32_t _height
 		, uint32_t _depth
 		, uint8_t _numMips
+		, uint32_t _numLayers
 		, const void* _src
 		, bx::Error* _err = NULL
 		);
 
 	///
-	void imageWriteKtx(
+	int32_t imageWriteKtx(
 		  bx::WriterI* _writer
 		, ImageContainer& _imageContainer
 		, const void* _data
@@ -443,6 +504,7 @@ namespace bimg
 	bool imageParse(
 		  ImageContainer& _imageContainer
 		, bx::ReaderSeekerI* _reader
+		, bx::Error* _err
 		);
 
 	///
@@ -450,6 +512,7 @@ namespace bimg
 		  ImageContainer& _imageContainer
 		, const void* _data
 		, uint32_t _size
+		, bx::Error* _err = NULL
 		);
 
 	///
@@ -457,6 +520,7 @@ namespace bimg
 		  bx::AllocatorI* _allocator
 		, const void* _src
 		, uint32_t _size
+		, bx::Error* _err
 		);
 
 	///
@@ -464,6 +528,7 @@ namespace bimg
 		  bx::AllocatorI* _allocator
 		, const void* _src
 		, uint32_t _size
+		, bx::Error* _err
 		);
 
 	///
@@ -471,7 +536,28 @@ namespace bimg
 		  bx::AllocatorI* _allocator
 		, const void* _src
 		, uint32_t _size
+		, bx::Error* _err
 		);
+
+	///
+	ImageContainer* imageParseGnf(
+		  bx::AllocatorI* _allocator
+		, const void* _src
+		, uint32_t _size
+		, bx::Error* _err
+		);
+
+	///
+	void imageDecodeToR8(
+		  bx::AllocatorI* _allocator
+		, void* _dst
+		, const void* _src
+		, uint32_t _width
+		, uint32_t _height
+		, uint32_t _depth
+		, uint32_t _dstPitch
+		, TextureFormat::Enum _srcFormat
+	);
 
 	///
 	void imageDecodeToBgra8(
@@ -479,7 +565,7 @@ namespace bimg
 		, const void* _src
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _dstPitch
 		, TextureFormat::Enum _format
 		);
 
@@ -489,7 +575,7 @@ namespace bimg
 		, const void* _src
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _dstPitch
 		, TextureFormat::Enum _format
 		);
 
@@ -500,7 +586,8 @@ namespace bimg
 		, const void* _src
 		, uint32_t _width
 		, uint32_t _height
-		, uint32_t _pitch
+		, uint32_t _depth
+		, uint32_t _dstPitch
 		, TextureFormat::Enum _format
 		);
 
@@ -512,6 +599,14 @@ namespace bimg
 		, const void* _data
 		, uint32_t _size
 		, ImageMip& _mip
+		);
+
+	///
+	ImageContainer* imageCubemapFromLatLongRgba32F(
+		  bx::AllocatorI* _allocator
+		, const ImageContainer& _input
+		, bool _useBilinearInterpolation
+		, bx::Error* _err
 		);
 
 } // namespace bimg

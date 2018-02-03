@@ -1,4 +1,5 @@
 #include <limits>
+#include <cmath>
 
 template<typename T>
 ::testing::AssertionResult MatrixClose(
@@ -19,12 +20,12 @@ template<typename T>
 	bool failed = false;
 	for (size_t i = 0; i < expected.rows(); ++i) {
 		for (size_t j = 0; j < expected.cols(); ++j) {
-			float diff = fabs(expected(i,j) - actual(i,j));
+			float diff = std::fabs(expected(i,j) - actual(i,j));
 
 			// special case: expected is 0. In that we cannot normalize
 			if (
 					(expected(i,j) == 0.0f && diff > relative_error_precision)
-					|| (diff / fabs(expected(i,j)) > relative_error_precision)
+					|| (diff / std::fabs(expected(i,j)) > relative_error_precision)
 					) {
 				failed = true;
 				fail_j = j;
