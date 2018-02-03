@@ -1,46 +1,86 @@
 diff --git a/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h b/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h
-index daebb8d..10cfcee 100644
+index 10cfcee..c5e8b59 100644
 --- a/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h
 +++ b/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h
-@@ -44,7 +44,7 @@ namespace ImGui
+@@ -44,7 +44,8 @@ namespace ImGui
  
  #include "widgets/color_picker.h"
  #include "widgets/color_wheel.h"
--// #include "widgets/dock.h"
-+#include "widgets/dock.h"
+-#include "widgets/dock.h"
++// bgfxmod(martin): disable imgui docking shipped by bgfx
++// #include "widgets/dock.h"
  #include "widgets/file_list.h"
  #include "widgets/gizmo.h"
  #include "widgets/memory_editor.h"
 diff --git a/3rdparty/bgfx/examples/common/imgui/imgui.cpp b/3rdparty/bgfx/examples/common/imgui/imgui.cpp
-index b634b87..2cf78ad 100644
+index 2cf78ad..d5462c7 100644
 --- a/3rdparty/bgfx/examples/common/imgui/imgui.cpp
 +++ b/3rdparty/bgfx/examples/common/imgui/imgui.cpp
-@@ -299,10 +299,13 @@ struct OcornutImguiContext
- 			, 0
+@@ -300,12 +300,14 @@ struct OcornutImguiContext
  			, bgfx::copy(data, width*height*4)
  			);
-+
-+		ImGui::InitDockContext();
+ 
+-		ImGui::InitDockContext();
++// bgfxmod(martin): disable imgui docking shipped by bgfx
++//		ImGui::InitDockContext();
  	}
  
  	void destroy()
  	{
-+		ImGui::ShutdownDockContext();
+-		ImGui::ShutdownDockContext();
++// bgfxmod(martin): disable imgui docking shipped by bgfx
++//		ImGui::ShutdownDockContext();
  		ImGui::Shutdown();
  
  		bgfx::destroy(s_tex);
-diff --git a/3rdparty/bgfx/src/amalgamated.cpp b/3rdparty/bgfx/src/amalgamated.cpp
-index 542436d..6d81fc6 100644
---- a/3rdparty/bgfx/src/amalgamated.cpp
-+++ b/3rdparty/bgfx/src/amalgamated.cpp
-@@ -19,8 +19,8 @@
- #include "renderer_gl.cpp"
- #include "renderer_vk.cpp"
- #include "renderer_gnm.cpp"
--// #include "shader_dxbc.cpp"
--// #include "shader_dx9bc.cpp"
-+#include "shader_dxbc.cpp"
-+#include "shader_dx9bc.cpp"
- #include "shader_spirv.cpp"
- #include "topology.cpp"
- #include "vertexdecl.cpp"
+diff --git a/3rdparty/bgfx/local_modifications.diff b/3rdparty/bgfx/local_modifications.diff
+index 2dd606b..e69de29 100644
+--- a/3rdparty/bgfx/local_modifications.diff
++++ b/3rdparty/bgfx/local_modifications.diff
+@@ -1,46 +0,0 @@
+-diff --git a/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h b/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h
+-index daebb8d..10cfcee 100644
+---- a/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h
+-+++ b/3rdparty/bgfx/3rdparty/ocornut-imgui/imgui_user.h
+-@@ -44,7 +44,7 @@ namespace ImGui
+- 
+- #include "widgets/color_picker.h"
+- #include "widgets/color_wheel.h"
+--// #include "widgets/dock.h"
+-+#include "widgets/dock.h"
+- #include "widgets/file_list.h"
+- #include "widgets/gizmo.h"
+- #include "widgets/memory_editor.h"
+-diff --git a/3rdparty/bgfx/examples/common/imgui/imgui.cpp b/3rdparty/bgfx/examples/common/imgui/imgui.cpp
+-index b634b87..2cf78ad 100644
+---- a/3rdparty/bgfx/examples/common/imgui/imgui.cpp
+-+++ b/3rdparty/bgfx/examples/common/imgui/imgui.cpp
+-@@ -299,10 +299,13 @@ struct OcornutImguiContext
+- 			, 0
+- 			, bgfx::copy(data, width*height*4)
+- 			);
+-+
+-+		ImGui::InitDockContext();
+- 	}
+- 
+- 	void destroy()
+- 	{
+-+		ImGui::ShutdownDockContext();
+- 		ImGui::Shutdown();
+- 
+- 		bgfx::destroy(s_tex);
+-diff --git a/3rdparty/bgfx/src/amalgamated.cpp b/3rdparty/bgfx/src/amalgamated.cpp
+-index 542436d..6d81fc6 100644
+---- a/3rdparty/bgfx/src/amalgamated.cpp
+-+++ b/3rdparty/bgfx/src/amalgamated.cpp
+-@@ -19,8 +19,8 @@
+- #include "renderer_gl.cpp"
+- #include "renderer_vk.cpp"
+- #include "renderer_gnm.cpp"
+--// #include "shader_dxbc.cpp"
+--// #include "shader_dx9bc.cpp"
+-+#include "shader_dxbc.cpp"
+-+#include "shader_dx9bc.cpp"
+- #include "shader_spirv.cpp"
+- #include "topology.cpp"
+- #include "vertexdecl.cpp"

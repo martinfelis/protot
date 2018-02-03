@@ -300,12 +300,14 @@ struct OcornutImguiContext
 			, bgfx::copy(data, width*height*4)
 			);
 
-		ImGui::InitDockContext();
+// bgfxmod(martin): disable imgui docking shipped by bgfx
+//		ImGui::InitDockContext();
 	}
 
 	void destroy()
 	{
-		ImGui::ShutdownDockContext();
+// bgfxmod(martin): disable imgui docking shipped by bgfx
+//		ImGui::ShutdownDockContext();
 		ImGui::Shutdown();
 
 		bgfx::destroy(s_tex);
