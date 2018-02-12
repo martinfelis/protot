@@ -114,6 +114,7 @@ void Renderer::Shutdown() {
 	assert(false);
 }
 void Renderer::RenderGl() {
+	gLog("blaa");
 	assert(false);
 }
 

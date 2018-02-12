@@ -46,7 +46,6 @@ INCLUDE_DIRECTORIES (
 	3rdparty/glfw/include
 	3rdparty/tinyobjloader
 	3rdparty/imgui_dock
-	3rdparty/glad/include
 	${CMAKE_CURRENT_BINARY_DIR}/src
 
 	3rdparty/imgui
@@ -65,8 +64,6 @@ SUBDIRS (
 SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
 	src/Utils.cc
-
-	3rdparty/glad/src/glad.c
 
 	3rdparty/imgui/imgui.cpp
 	3rdparty/imgui/imgui_draw.cpp
