@@ -4,7 +4,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "3rdparty/ocornut-imgui/imgui.h"
 #include "imgui/imgui.h"
 #include <bx/math.h>
 

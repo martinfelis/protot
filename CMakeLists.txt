@@ -1,4 +1,4 @@
-PROJECT ( MESHUP )
+PROJECT ( Protot )
 
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 
@@ -29,22 +29,12 @@ endif()
 # enable strings in GDB
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_DEBUG")
 
-# enable LuaModel addon for RBDL
-SET (RBDL_BUILD_ADDON_LUAMODEL ON)
-SET (RBDL_USE_SIMPLE_MATH ON)
-
 INCLUDE_DIRECTORIES (
-	${QT_INCLUDE_DIR}/QtOpenGL
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/src
 
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
-	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx
-
-	# RBDL and its LuaModel addon
-	${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rbdl/
-	${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rbdl/include
 	)
 
 FIND_PACKAGE (X11 REQUIRED)
@@ -54,18 +44,14 @@ FIND_PACKAGE (Threads REQUIRED)
 INCLUDE_DIRECTORIES ( 
 	3rdparty/glfw/deps
 	3rdparty/glfw/include
-	3rdparty/bx/include
-	3rdparty/bgfx/include
-	3rdparty/bgfx/examples/common
-	3rdparty/bgfx/examples/common/entry
-	3rdparty/bgfx/3rdparty
 	3rdparty/tinyobjloader
-	3rdparty/bgfx/3rdparty/glsl-optimizer/include/
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/
-	3rdparty/imgui_dock/
-	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx/3rdparty/ocornut-imgui
+	3rdparty/imgui_dock
+	3rdparty/glad/include
 	${CMAKE_CURRENT_BINARY_DIR}/src
+
+	3rdparty/imgui
+	3rdparty/imgui/examples/opengl3_example
+	3rdparty/imgui/examples/libs/gl3w
 	)
 
 SUBDIRS ( 
@@ -73,9 +59,6 @@ SUBDIRS (
 	tests/
 
 	3rdparty/glfw
-	3rdparty/bimg
-	3rdparty/bgfx
-	3rdparty/rbdl
 	3rdparty/googletest
 	)
 
@@ -83,7 +66,14 @@ SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
 	src/Utils.cc
 
-	3rdparty/glfw/deps/glad.c
+	3rdparty/glad/src/glad.c
+
+	3rdparty/imgui/imgui.cpp
+	3rdparty/imgui/imgui_draw.cpp
+	3rdparty/imgui/imgui_demo.cpp
+	3rdparty/imgui/examples/libs/gl3w/GL/gl3w.c
+	3rdparty/imgui/examples/opengl3_example/imgui_impl_glfw_gl3.cpp
+
 	3rdparty/imgui_dock/imgui_dock.cpp
 	)
 
@@ -96,35 +86,9 @@ CONFIGURE_FILE (
 
 ADD_EXECUTABLE (protot src/main.cc ${protot_SRCS})
 
-file(GLOB glcpp-library_sources 
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/main/*.c
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/mesa/program/*.c
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/glsl/glcpp/*.c 
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/glsl/*.cpp 
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/glsl/*.c
-	3rdparty/bgfx/3rdparty/glsl-optimizer/src/util/*.c
-	)
-
-list(REMOVE_ITEM glcpp-library_sources ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/bgfx/3rdparty/glsl-optimizer/src/glsl/main.cpp)
-
-ADD_LIBRARY (glsl-optimizer
-	${glcpp-library_sources}
-
-	3rdparty/bgfx/3rdparty/fcpp/cpp1.c
-	3rdparty/bgfx/3rdparty/fcpp/cpp2.c
-	3rdparty/bgfx/3rdparty/fcpp/cpp3.c
-	3rdparty/bgfx/3rdparty/fcpp/cpp4.c
-	3rdparty/bgfx/3rdparty/fcpp/cpp5.c
-	3rdparty/bgfx/3rdparty/fcpp/cpp6.c
-	)
-
 SET_TARGET_PROPERTIES ( ${PROJECT_EXECUTABLES} PROPERTIES
 	LINKER_LANGUAGE CXX
 	INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" 
-)
-
-SET_TARGET_PROPERTIES ( glsl-optimizer PROPERTIES
-	COMPILE_FLAGS "-fno-strict-aliasing"
 )
 
 MESSAGE (STATUS "glfw libraries: ${X11_X11_LIB}")
@@ -144,10 +108,4 @@ TARGET_LINK_LIBRARIES ( protot
 	glfw
 	${glfw_dependencies}
 	${OPENGL_LIBRARIES}
-	bimg
-	bgfx
-	bgfx_aux
-	glsl-optimizer
-	rbdl
-	rbdl_luamodel
 )

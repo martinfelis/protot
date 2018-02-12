@@ -1,5 +1,4 @@
-#define GLFW_EXPOSE_NATIVE_GLX
-#define GLFW_EXPOSE_NATIVE_X11
+#include <GL/gl3w.h>    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
@@ -11,14 +10,11 @@
 #include <iostream>
 #include <sstream>
 
-#include "bgfx/platform.h"
-#include "bx/timer.h"
-#include "bx/process.h"
-#include "bx/error.h"
 #include "Timer.h"
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
 #include "imgui_dock.h"
+#include "imgui_impl_glfw_gl3.h"
 
 #include "Globals.h"
 #include "Serializer.h"
@@ -38,28 +34,9 @@ double mouse_scroll_y = 0.;
 
 using namespace std;
 
-namespace bgfx {
-	inline void glfwSetWindow(GLFWwindow* _window)
-	{
-		bgfx::PlatformData pd;
-#	if BX_PLATFORM_LINUX || BX_PLATFORM_BSD
-		pd.ndt          = glfwGetX11Display();
-		pd.nwh          = (void*)(uintptr_t)glfwGetGLXWindow(_window);
-		pd.context      = glfwGetGLXContext(_window);
-#	elif BX_PLATFORM_OSX
-		pd.ndt          = NULL;
-		pd.nwh          = glfwGetCocoaWindow(_window);
-		pd.context      = glfwGetNSGLContext(_window);
-#	elif BX_PLATFORM_WINDOWS
-		pd.ndt          = NULL;
-		pd.nwh          = glfwGetWin32Window(_window);
-		pd.context      = NULL;
-#	endif // BX_PLATFORM_WINDOWS
-		pd.backBuffer   = NULL;
-		pd.backBufferDS = NULL;
-		bgfx::setPlatformData(pd);
-	}
-}
+// extern "C" {
+// GLAPI int gladLoadGL(void);
+// }
 
 static void error_callback(int error, const char* description)
 {
@@ -118,12 +95,19 @@ int main(void)
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 	glfwWindowHint(GLFW_SAMPLES, 16);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#if __APPLE__
+   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
 	gWindow = glfwCreateWindow(800, 600, "ProtoT", NULL, NULL);
 	glfwMakeContextCurrent(gWindow);
+	glfwSwapInterval(1);
+	gl3wInit();
+
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
 
@@ -133,25 +117,12 @@ int main(void)
 	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
 	std::cout << "GLSL Version  : " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
 
-	// Initialize BGFX
-	bgfx::glfwSetWindow(gWindow);
-	bgfx::renderFrame();
-
-	bool result = bgfx::init();
-	if (!result) {
-		std::cerr << "Error: could not initialize renderer!" << std::endl;
-		exit (EXIT_FAILURE);
-	}
-
-	uint32_t debug = BGFX_DEBUG_TEXT;
-	uint32_t reset = BGFX_RESET_VSYNC | BGFX_RESET_MAXANISOTROPY | BGFX_RESET_MSAA_X16;
-	bgfx::reset (width, height, reset);
-	bgfx::setDebug(debug);
-
 	// imgui initialization.
-	imguiCreate();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
+	ImGui_ImplGlfwGL3_Init(gWindow, false);
 
 	// Timer
 	Timer timer;
@@ -162,8 +133,8 @@ int main(void)
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
-	module_manager.RegisterModule("src/modules/libCharacterModule.so");
-	module_manager.RegisterModule("src/modules/libTestModule.so");
+//	module_manager.RegisterModule("src/modules/libCharacterModule.so");
+//	module_manager.RegisterModule("src/modules/libTestModule.so");
 
 	// Setup global variables
 	gModuleManager = &module_manager;
@@ -172,8 +143,10 @@ int main(void)
 
 	// Load modules
 	module_manager.LoadModules();
-
-	int64_t time_offset = bx::getHPCounter();
+	
+	double frame_time_last = glfwGetTime();
+	double frame_time_current = frame_time_last;
+	double frame_delta_time = 0.0;
 	uint64_t frame_counter = 0;
 
 	while(!glfwWindowShouldClose(gWindow)) {
@@ -182,44 +155,30 @@ int main(void)
 		// Start the imgui frame such that widgets can be submitted
 		handle_mouse();
 		glfwGetWindowSize(gWindow, &width, &height);
-		bgfx::reset (width, height);
-		bgfx::touch(0);
 
-		imguiBeginFrame (gGuiInputState->mouseX,
-				gGuiInputState->mouseY,
-				gGuiInputState->mouseButton,
-				gGuiInputState->mouseScroll,
-				width,
-				height);
-		ImGuizmo::BeginFrame();
+		glfwPollEvents();
+		ImGui_ImplGlfwGL3_NewFrame();
 
-		static int64_t last = bx::getHPCounter();
-		int64_t pre_module_check = bx::getHPCounter();
 
-//		if (module_manager.CheckModulesChanged()) {
-//			gLog("Detected module update at frame %d. Unloading all modules.", frame_counter);
-//			module_manager.UnloadModules();
-//			// We need to sleep to make sure we load the new files
-//			module_manager.LoadModules();
-//			// We need to update our last timestamp to ignore the delay due
-//			// to reloading of the modules.
-//			last = bx::getHPCounter();
-//		}
+//		imguiBeginFrame (gGuiInputState->mouseX,
+//				gGuiInputState->mouseY,
+//				gGuiInputState->mouseButton,
+//				gGuiInputState->mouseScroll,
+//				width,
+//				height);
 
-		// update time that was passed without module reloading
-		int64_t now = bx::getHPCounter();
-		int64_t module_update = now - pre_module_check;
+		if (module_manager.CheckModulesChanged()) {
+			gLog("Detected module update at frame %d. Unloading all modules.", frame_counter);
+			module_manager.UnloadModules();
+			// We need to sleep to make sure we load the new files
+			module_manager.LoadModules();
+		}
 
-		int64_t frameTime = (now - last);
-		// make sure we do not have negative updates in the very first update
-		if (now != last)
-			frameTime = frameTime - module_update;
-
-		last = now;
-		const double freq = double(bx::getHPFrequency() );
-		const double toMs = 1000.0/freq;
-
-		gTimer->mFrameTime = (float)(frameTime / freq);
+		frame_time_last = frame_time_current;
+		frame_time_current = glfwGetTime();
+		frame_delta_time = frame_time_current - frame_time_last;
+		
+		gTimer->mFrameTime = (float)(frame_delta_time);
 		if (!gTimer->mPaused) {
 			gTimer->mDeltaTime = gTimer->mFrameTime;
 			gTimer->mCurrentTime = gTimer->mCurrentTime + gTimer->mDeltaTime;
@@ -245,11 +204,22 @@ int main(void)
 				ImGui::Text("HEllo 1");
 			}
 			ImGui::EndDock();
+
+			if (ImGui::BeginDock("dock2")) {
+				ImGui::Text("HEllo2");
+			}
+			ImGui::EndDock();
+
+			if (ImGui::BeginDock("dock3")) {
+				ImGui::Text("HEllo3");
+			}
+			ImGui::EndDock();
+
+
 #endif
 
 			module_manager.Update(gTimer->mDeltaTime);
 
-			glfwPollEvents();
 #ifdef USE_DOCKS
 			ImGui::EndDockspace();
 		}
@@ -257,18 +227,15 @@ int main(void)
 		ImGui::End();
 #endif
 
-		// submit the imgui widgets
-		imguiEndFrame();
-
-		// Advance to next frame. Rendering thread will be kicked to
-		// process submitted rendering primitives.
-		bgfx::frame();
+		ImGui::Render();
 
 		usleep(16000);
 
 		if (frame_counter > 1) {
 			gLog ("End of frame %d", frame_counter);
 		}
+
+		glfwSwapBuffers(gWindow);
 	}
 
 	module_manager.UnregisterModules();
@@ -276,7 +243,8 @@ int main(void)
 	gRenderer = nullptr;
 
 	ImGui::ShutdownDock();
-	imguiDestroy();
 
-	bgfx::shutdown();
+	ImGui_ImplGlfwGL3_Shutdown();
+	ImGui::DestroyContext();
+	glfwTerminate();
 }
