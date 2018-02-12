@@ -376,16 +376,12 @@ struct Renderer {
 	bool drawDebug;
 	bool drawFloor = true;
 	bool drawSkybox = true;
-	uint32_t view_offset_x = 0;
-	uint32_t view_offset_y = 0;
 	uint32_t view_width = 1;
 	uint32_t view_height = 1;
 
 	bgfx::UniformHandle sceneDefaultTextureSampler;
 	bgfx::TextureHandle sceneDefaultTexture;
 
-	float view_texture_width = 1;
-	float view_texture_height = 1;
 	bgfx::TextureHandle sceneViewTexture;
 	bgfx::TextureHandle sceneDepthTexture;
 	bgfx::FrameBufferHandle sceneViewBuffer;
@@ -426,7 +422,7 @@ struct Renderer {
 	void shutdown();
 	void paintGL();
 	void DrawGui();
-	void resize (int x, int y, int width, int height);
+	void resize (int width, int height);
 
 	// check whether shader files were modified and reload them. Returns
 	// true on success, otherwise false

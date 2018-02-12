@@ -152,11 +152,11 @@ CharacterEntity::CharacterEntity() {
 	bool load_result = LoadRig (cRigModelFile);
 	assert (load_result);
 
-	cout << "Creating render entity mesh ..." << endl;
+	gLog ("Creating render entity mesh...");
 
 	//	mState->character->entity->mesh = bgfxutils::createCuboid (1.f, 1.f, 1.f);
 	//	mState->character->entity->mesh = bgfxutils::createCylinder (20);
-	cout << "Creating render entity mesh ... success!" << endl;
+	gLog ("Creating render entity mesh... success!");
 
 	gLog ("Loading Animation %s", cAnimFile);
 	load_result = mAnimation.Load(cAnimFile);
@@ -185,7 +185,7 @@ bool CharacterEntity::LoadRig(const char* filename) {
 
 	bool load_result = LuaModelReadFromTable (model_table, mRigModel, false);
 
-	gLog ("Creating rig model from %s ... %s", filename, load_result ? "success" : "failed!");
+//	gLog ("Creating rig model from %s ... %s", filename, load_result ? "success" : "failed!");
 	gLog ("Rig model has %d degrees of freedom", mRigModel->qdot_size);
 	mRigState.q = VectorNd::Zero (mRigModel->q_size);
 
@@ -681,7 +681,7 @@ void ShowCharacterPropertiesWindow (CharacterEntity* character) {
 }
 
 static struct module_state *module_init() {
-	std::cout << "Module init called" << std::endl;
+	gLog ("%s %s called", __FILE__, __FUNCTION__);
 	module_state *state = (module_state*) malloc(sizeof(*state));
 	return state;
 }
@@ -693,12 +693,12 @@ static void module_serialize (
 }
 
 static void module_finalize(struct module_state *state) {
-	std::cout << "Module finalize called" << std::endl;
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 	free(state);
 }
 
 static void module_reload(struct module_state *state, void* read_serializer) {
-	std::cout << "Module reload called. State: " << state << std::endl;
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 	// load the state of the entity
 	if (read_serializer != nullptr) {
 		module_serialize(state, static_cast<ReadSerializer*>(read_serializer));

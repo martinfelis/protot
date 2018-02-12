@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cassert>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -49,11 +53,29 @@ inline double gGetTimeSinceStart () {
 	return gGetCurrentTime() - gTimeAtStart;
 }
 
+extern FILE *gLogFile;
+
+void LoggingInit();
+
+const int cLogBufferSize = 1024;
+
 inline void gLog (const char* format, ...) {
+	assert(gLogFile != NULL);
+
+
 	fprintf (stdout, "%11.6f: ", gGetTimeSinceStart());
+	fprintf (gLogFile,"%11.6f: ", gGetTimeSinceStart());
+ 
 	va_list argptr;
+
+	char buffer[cLogBufferSize];
 	va_start(argptr, format);
-	vfprintf(stdout, format, argptr);
+	vsnprintf(buffer, cLogBufferSize, format, argptr);
 	va_end(argptr);
-	fprintf (stdout, "\n");
+	
+	fprintf(stdout, "%s\n", buffer);
+	fprintf(gLogFile, "%s\n", buffer);
+
+	fflush(gLogFile);
+
 }

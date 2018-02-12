@@ -9,9 +9,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <iostream>
+#include <sstream>
 
 #include "bgfx/platform.h"
 #include "bx/timer.h"
+#include "bx/process.h"
+#include "bx/error.h"
 #include "Timer.h"
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
@@ -19,6 +22,7 @@
 
 #include "Globals.h"
 #include "Serializer.h"
+#include "FileModificationObserver.h"
 
 Timer* gTimer = nullptr;
 Renderer* gRenderer = nullptr;
@@ -103,6 +107,8 @@ int main(void)
 	gTimeAtStart = gGetCurrentTime();
 	std::cout << "Time at start: " << gTimeAtStart << std::endl;
 
+	LoggingInit();
+
 	WriteSerializer out_serializer;
 	ReadSerializer in_serializer;
 
@@ -127,18 +133,20 @@ int main(void)
 	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
 	std::cout << "GLSL Version  : " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
 
-	// Initialize Renderer	
+	// Initialize BGFX
 	bgfx::glfwSetWindow(gWindow);
 	bgfx::renderFrame();
-
-	uint32_t debug = BGFX_DEBUG_TEXT;
-	uint32_t reset = BGFX_RESET_VSYNC;
 
 	bool result = bgfx::init();
 	if (!result) {
 		std::cerr << "Error: could not initialize renderer!" << std::endl;
 		exit (EXIT_FAILURE);
 	}
+
+	uint32_t debug = BGFX_DEBUG_TEXT;
+	uint32_t reset = BGFX_RESET_VSYNC | BGFX_RESET_MAXANISOTROPY | BGFX_RESET_MSAA_X16;
+	bgfx::reset (width, height, reset);
+	bgfx::setDebug(debug);
 
 	// imgui initialization.
 	imguiCreate();
@@ -166,11 +174,16 @@ int main(void)
 	module_manager.LoadModules();
 
 	int64_t time_offset = bx::getHPCounter();
+	uint64_t frame_counter = 0;
 
 	while(!glfwWindowShouldClose(gWindow)) {
+		frame_counter++;
+
 		// Start the imgui frame such that widgets can be submitted
 		handle_mouse();
 		glfwGetWindowSize(gWindow, &width, &height);
+		bgfx::reset (width, height);
+		bgfx::touch(0);
 
 		imguiBeginFrame (gGuiInputState->mouseX,
 				gGuiInputState->mouseY,
@@ -183,16 +196,16 @@ int main(void)
 		static int64_t last = bx::getHPCounter();
 		int64_t pre_module_check = bx::getHPCounter();
 
-		if (module_manager.CheckModulesChanged()) {
-			std::cout << "Detected module update. Unloading all modules." << std::endl;
-			module_manager.UnloadModules();
-			// We need to sleep to make sure we load the new files
-			module_manager.LoadModules();
-			// We need to update our last timestamp to ignore the delay due
-			// to reloading of the modules.
-			last = bx::getHPCounter();
-		}
-	
+//		if (module_manager.CheckModulesChanged()) {
+//			gLog("Detected module update at frame %d. Unloading all modules.", frame_counter);
+//			module_manager.UnloadModules();
+//			// We need to sleep to make sure we load the new files
+//			module_manager.LoadModules();
+//			// We need to update our last timestamp to ignore the delay due
+//			// to reloading of the modules.
+//			last = bx::getHPCounter();
+//		}
+
 		// update time that was passed without module reloading
 		int64_t now = bx::getHPCounter();
 		int64_t module_update = now - pre_module_check;
@@ -215,14 +228,47 @@ int main(void)
 		}
 
 		assert (gTimer->mDeltaTime >= 0.0f);
-		module_manager.Update(gTimer->mDeltaTime);
+#ifdef USE_DOCKS
+		ImGui::SetNextWindowPos(ImVec2(0.0f, 20.0f));
+		int width, height;
+		glfwGetWindowSize(gWindow, &width, &height);
+		ImGui::SetNextWindowSize(ImVec2(width, height));
+		if (ImGui::Begin("DockArea", NULL,
+					ImGuiWindowFlags_NoTitleBar
+					| ImGuiWindowFlags_NoResize
+					| ImGuiWindowFlags_NoMove
+					| ImGuiWindowFlags_NoBringToFrontOnFocus
+					)) {
+			ImGui::BeginDockspace();
 
-		glfwPollEvents();
+			if (ImGui::BeginDock("dock1")) {
+				ImGui::Text("HEllo 1");
+			}
+			ImGui::EndDock();
+#endif
+
+			module_manager.Update(gTimer->mDeltaTime);
+
+			glfwPollEvents();
+#ifdef USE_DOCKS
+			ImGui::EndDockspace();
+		}
+
+		ImGui::End();
+#endif
 
 		// submit the imgui widgets
 		imguiEndFrame();
 
-    usleep(16000);
+		// Advance to next frame. Rendering thread will be kicked to
+		// process submitted rendering primitives.
+		bgfx::frame();
+
+		usleep(16000);
+
+		if (frame_counter > 1) {
+			gLog ("End of frame %d", frame_counter);
+		}
 	}
 
 	module_manager.UnregisterModules();

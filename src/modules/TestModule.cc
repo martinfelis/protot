@@ -173,7 +173,7 @@ void update_character(module_state* state, float dt) {
 }
 
 static struct module_state *module_init() {
-	std::cout << "Module init called" << std::endl;
+	gLog ("%s %s called", __FILE__, __FUNCTION__);
 	module_state *state = (module_state*) malloc(sizeof(*state));
 	state->modules_window_selected_index = -1;
 
@@ -195,14 +195,14 @@ static void module_serialize (
 }
 
 static void module_finalize(struct module_state *state) {
-	std::cout << "Module finalize called" << std::endl;
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 	free(state);
 }
 
 static void module_reload(struct module_state *state, void* read_serializer) {
-	std::cout << "Module reload called. State: " << state << std::endl;
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 
-	cout << "Creating render entity ..." << endl;
+	gLog ("Creating render entity");
 
 	state->character = new CharacterEntity;
 	state->character->mPosition = Vector3f (0.f, 0.f, 0.f);
@@ -214,16 +214,17 @@ static void module_reload(struct module_state *state, void* read_serializer) {
 }
 
 static void module_unload(struct module_state *state, void* write_serializer) {
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 	// serialize the state of the entity
 	if (write_serializer != nullptr) {
+		gLog ("Serializing state");
 		module_serialize(state, static_cast<WriteSerializer*>(write_serializer));
 	}
 
 	// clean up
 	state->character->mEntity = nullptr;
 	delete state->character;
-
-	std::cout << "TestModule unloaded. State: " << state << std::endl;
+	gLog ("Cleanup complete");
 }
 
 void ShowModulesWindow(struct module_state *state) {
@@ -297,6 +298,7 @@ static bool module_step(struct module_state *state, float dt) {
 	{
 		ImGui::Checkbox("Modules", &state->modules_window_visible);
 		ImGui::Checkbox("ImGui Demo", &state->imgui_demo_window_visible);
+		gLog ("show demo: %d", state->imgui_demo_window_visible == true);
 		ImGui::Checkbox("Character", &state->character_properties_window_visible);
 		
 		ImGui::EndMenu();

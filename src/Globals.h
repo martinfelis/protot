@@ -3,6 +3,9 @@
 #include "math_types.h"
 #include "Utils.h"
 
+#define USE_DOCKS 1
+
+
 struct Timer;
 extern Timer* gTimer;
 

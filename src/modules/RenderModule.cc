@@ -5,10 +5,6 @@
 #include "3rdparty/ocornut-imgui/imgui_internal.h"
 #include "imgui/imgui.h"
 #include "imgui_dock.h"
-#define GLFW_EXPOSE_NATIVE_GLX
-#define GLFW_EXPOSE_NATIVE_X11
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
 
 #include "SimpleMath/SimpleMath.h"
 #include "SimpleMath/SimpleMathMap.h"
@@ -56,7 +52,7 @@ struct module_state {
 };
 
 static struct module_state *module_init() {
-	gLog ("RenderModule init called.");
+	gLog ("%s %s called", __FILE__, __FUNCTION__);
 	assert (gWindow != nullptr && "Cannot initialize renderer module without gWindow!");
 
 	module_state *state = (module_state*) malloc(sizeof(*state));
@@ -82,7 +78,7 @@ static void module_serialize (
 }
 
 static void module_finalize(struct module_state *state) {
-	gLog ("RenderModule finalize called");
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 
 	assert (state->renderer != nullptr);
 	delete state->renderer;
@@ -91,14 +87,12 @@ static void module_finalize(struct module_state *state) {
 }
 
 static void module_reload(struct module_state *state, void *read_serializer) {
-	gLog ("RenderModule reload called");
+	gLog ("%s %s called (state %p)", __FILE__, __FUNCTION__, state);
 	assert (gWindow != nullptr);
-	int width, height;
-	glfwGetWindowSize(gWindow, &width, &height);
 
 	gLog ("Renderer initialize");
 	assert (state != nullptr);
-	state->renderer->initialize(width, height);
+	state->renderer->initialize(100, 100);
 	gRenderer = state->renderer;
 
 	// load the state of the module
@@ -128,20 +122,12 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 static bool module_step(struct module_state *state, float dt) {
 	int width, height;
 	assert (gWindow != nullptr);
-	glfwGetWindowSize(gWindow, &width, &height);
 	state->renderer->updateShaders();
-
-	bgfx::reset (width, height);
-
-	int dock_top_offset = 0.0f;
-	int dock_width = 0;
-
-	state->renderer->resize (0, dock_top_offset, width - dock_width, height - dock_top_offset);
 
 	ImGuizmo::Enable(true);
 
-	state->renderer->paintGL();
 	state->renderer->DrawGui();
+	state->renderer->paintGL();
 
 	return true;
 }
@@ -203,7 +189,8 @@ namespace IBL {
 
 		void destroy()
 		{
-			bgfx::destroy(u_params);
+			if (bgfx::isValid(u_params))
+				bgfx::destroy(u_params);
 		}
 
 		union
@@ -335,6 +322,7 @@ bool RenderProgram::checkModified() const {
 	// early out if we don't have filenames
 	if (vertexShaderFileName == ""
 			|| fragmentShaderFileName == "") {
+		gLog ("Warning! RenderProgram has no shader filenames specified!");
 		return false;
 	}
 
@@ -379,7 +367,7 @@ bool RenderProgram::reload() {
 	fragmentShaderFileModTime = fragment_mtime;
 
 	bgfx::ProgramHandle new_handle = 
-		bgfxutils::loadProgramFromFiles (
+		bgfxutils::loadProgram (
 				vertexShaderFileName.c_str(),
 				fragmentShaderFileName.c_str()
 				);
@@ -1058,8 +1046,8 @@ void Renderer::setupShaders() {
 	memcpy(IBL::uniforms.m_lightCol, IBL::settings.m_lightCol, 3*sizeof(float) );
 
 	s_renderStates[RenderState::Skybox].m_program = RenderProgram(
-			"shaders/skybox/vs_ibl_skybox.sc", 
-			"shaders/skybox/fs_ibl_skybox.sc"
+			"vs_ibl_skybox.sc", 
+			"fs_ibl_skybox.sc"
 			);
 
 	// Get renderer capabilities info.
@@ -1073,18 +1061,18 @@ void Renderer::setupShaders() {
 		// Depth textures and shadow samplers are supported.
 		s_renderStates[RenderState::ShadowMap].m_program = 
 			RenderProgram(
-					"shaders/shadowmap/vs_sms_mesh.sc",
-					"shaders/shadowmap/fs_sms_shadow.sc"
+					"vs_sms_mesh.sc",
+					"fs_sms_shadow.sc"
 					);
 		s_renderStates[RenderState::Scene].m_program = 
 			RenderProgram(
-					"shaders/scene/vs_sms_mesh.sc",   
-					"shaders/scene/fs_sms_mesh.sc"
+					"vs_sms_mesh.sc",   
+					"fs_sms_mesh.sc"
 					);
 		s_renderStates[RenderState::SceneTextured].m_program = 
 			RenderProgram(
-					"shaders/scene/vs_sms_mesh_textured.sc",
-					"shaders/scene/fs_sms_mesh_textured.sc"
+					"vs_sms_mesh_textured.sc",
+					"fs_sms_mesh_textured.sc"
 					);
 
 		// Setup render target for the shadow maps
@@ -1106,19 +1094,23 @@ void Renderer::setupShaders() {
 	}
 
 	s_renderStates[RenderState::Lines].m_program = RenderProgram(
-			"shaders/lines/vs_lines.sc", 
-			"shaders/lines/fs_lines.sc"
+			"vs_lines.sc", 
+			"fs_lines.sc"
 			);
 
 	s_renderStates[RenderState::LinesOccluded].m_program = RenderProgram(
-			"shaders/lines/vs_lines.sc", 
-			"shaders/lines/fs_lines_occluded.sc"
+			"vs_lines.sc", 
+			"fs_lines_occluded.sc"
 			);
 
 	s_renderStates[RenderState::Debug].m_program = RenderProgram(
-			"shaders/debug/vs_debug.sc", 
-			"shaders/debug/fs_debug.sc"
+			"vs_debug.sc", 
+			"fs_debug.sc"
 			);
+
+	for (int i = 0, n = RenderState::Count; i < n; ++i) {
+		s_renderStates[i].m_program.reload();
+	}
 }
 
 void Renderer::setupRenderPasses() {
@@ -1165,13 +1157,13 @@ void Renderer::setupRenderPasses() {
 
 class BGFXCallbacks: public bgfx::CallbackI {
 	virtual void fatal (bgfx::Fatal::Enum _code, const char *_str) {
-		std::cerr << "Fatal (" << _code << "): " << _str << std::endl;
+		gLog ("Fatal bgfx error (code %d): %s", _code, _str);
 	}
 
 	virtual void traceVargs (const char *_filePath, uint16_t _line, const char* _format, va_list _argList) {
 		char output_buffer[255];
 		vsprintf (output_buffer, _format, _argList);
-		std::cerr << "Trace " << _filePath << ":" << _line << " : " << output_buffer;
+		gLog ("bgfx trace: %s:%d:%s", _filePath, _line, output_buffer);
 	}
 
 	virtual uint32_t cacheReadSize(uint64_t _id) {
@@ -1198,39 +1190,9 @@ class BGFXCallbacks: public bgfx::CallbackI {
 	};
 };
 
-namespace bgfx {
-	inline void glfwSetWindow(GLFWwindow* _window)
-	{
-		bgfx::PlatformData pd;
-#	if BX_PLATFORM_LINUX || BX_PLATFORM_BSD
-		pd.ndt          = glfwGetX11Display();
-		pd.nwh          = (void*)(uintptr_t)glfwGetGLXWindow(_window);
-		pd.context      = glfwGetGLXContext(_window);
-#	elif BX_PLATFORM_OSX
-		pd.ndt          = NULL;
-		pd.nwh          = glfwGetCocoaWindow(_window);
-		pd.context      = glfwGetNSGLContext(_window);
-#	elif BX_PLATFORM_WINDOWS
-		pd.ndt          = NULL;
-		pd.nwh          = glfwGetWin32Window(_window);
-		pd.context      = NULL;
-#	endif // BX_PLATFORM_WINDOWS
-		pd.backBuffer   = NULL;
-		pd.backBufferDS = NULL;
-		bgfx::setPlatformData(pd);
-	}
-}
-
-
 void Renderer::initialize(int width, int height) {
 	this->view_width = width;
 	this->view_height = height;
-
-	uint32_t debug = BGFX_DEBUG_TEXT;
-	uint32_t reset = BGFX_RESET_VSYNC;
-
-	reset = BGFX_RESET_VSYNC | BGFX_RESET_MAXANISOTROPY | BGFX_RESET_MSAA_X16;
-	bgfx::reset(view_width, view_height, reset);
 
 	bgfx::setViewClear(0
 			, BGFX_CLEAR_COLOR|BGFX_CLEAR_DEPTH
@@ -1238,15 +1200,13 @@ void Renderer::initialize(int width, int height) {
 			, 1.0f
 			, 0
 			);
-	bgfx::setViewRect(0, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(0, 0, 0, view_width, view_height);
 
 	bgfx::RendererType::Enum renderer = bgfx::getRendererType();
 	flipV = false
 		|| renderer == bgfx::RendererType::OpenGL
 		|| renderer == bgfx::RendererType::OpenGLES
 		;
-
-	bgfx::setDebug(debug);
 
 	gLog ("Creating Cameras");
 	cameras.push_back (Camera());
@@ -1266,8 +1226,7 @@ void Renderer::initialize(int width, int height) {
 	mCurrentLightProbe = LightProbe::Bolonga;
 
 	initialized = true;
-	resize (view_offset_x, view_offset_y, view_width, view_height);
-	bgfx::frame();
+	resize (view_width, view_height);
 }
 
 void Renderer::shutdown() {
@@ -1289,6 +1248,8 @@ void Renderer::shutdown() {
 	bgfx::destroy(u_time);
 	bgfx::destroy(u_color);
 	bgfx::destroy(u_line_params);
+
+	bgfx::destroy(sceneViewBuffer);
 
 	for (uint8_t ii = 0; ii < RenderState::Count; ++ii) {
 		if (bgfx::isValid(s_renderStates[ii].m_program.program)) {
@@ -1319,30 +1280,23 @@ void Renderer::shutdown() {
 	cameras.clear();
 }
 
-void Renderer::resize (int x, int y, int width, int height) {
+void Renderer::resize (int width, int height) {
 	if (initialized) {
-		this->view_offset_x = x;
-		this->view_offset_y = y;
-		this->view_width = view_texture_width;
-		this->view_height = view_texture_height;
+		gLog ("Resizing to size %d,%d view buffer valid?: %d", width, height, bgfx::isValid(sceneViewBuffer)); 
+		assert(width > 0 && height > 0);
+		this->view_width = width;
+		this->view_height = height;
 
 		for (uint32_t i = 0; i < cameras.size(); i++) {
-			cameras[i].width = static_cast<float>(view_texture_width);
-			cameras[i].height = static_cast<float>(view_texture_height);
-		}
-
-		if (bgfx::isValid(sceneViewBuffer)) {
-			bgfx::setViewFrameBuffer(RenderState::Skybox, sceneViewBuffer);
-			bgfx::setViewFrameBuffer(RenderState::Scene, sceneViewBuffer);
-			bgfx::setViewFrameBuffer(RenderState::SceneTextured, sceneViewBuffer);
-			bgfx::setViewFrameBuffer(RenderState::Lines, sceneViewBuffer);
-			bgfx::setViewFrameBuffer(RenderState::LinesOccluded, sceneViewBuffer);
-			bgfx::setViewFrameBuffer(RenderState::Debug, sceneViewBuffer);
+			cameras[i].width = static_cast<float>(width);
+			cameras[i].height = static_cast<float>(height);
 		}
 	}
 }
 
 void Renderer::paintGL() {
+	assert (initialized);
+
 	int64_t now = bx::getHPCounter();
 	static int64_t last = now;
 	const int64_t frameTime = now - last;
@@ -1353,16 +1307,25 @@ void Renderer::paintGL() {
 	float time = (float)( (now-m_timeOffset)/double(bx::getHPFrequency() ) );
 	bgfx::setUniform (u_time, &time);
 
+	if (bgfx::isValid(sceneViewBuffer)) {
+		bgfx::setViewFrameBuffer(RenderState::Skybox, sceneViewBuffer);
+		bgfx::setViewFrameBuffer(RenderState::Scene, sceneViewBuffer);
+		bgfx::setViewFrameBuffer(RenderState::SceneTextured, sceneViewBuffer);
+		bgfx::setViewFrameBuffer(RenderState::Lines, sceneViewBuffer);
+		bgfx::setViewFrameBuffer(RenderState::LinesOccluded, sceneViewBuffer);
+		bgfx::setViewFrameBuffer(RenderState::Debug, sceneViewBuffer);
+	} else {
+		gLog("Error! sceneViewBuffer is not valid!");
+		assert(false);
+		return;
+	}
+
 	// Use debug font to print information about this example.
 	bgfx::dbgTextClear();
 
 	// debug font is 8 pixels wide
 	int num_chars = view_width / 8;
 	bgfx::dbgTextPrintf(num_chars - 18, 0, 0x0f, "Frame: % 7.3f[ms]", double(frameTime)*toMs);
-
-	// This dummy draw call is here to make sure that view 0 is cleared
-	// if no other draw calls are submitted to view 0.
-	bgfx::touch(0);
 
 	// update camera matrices
 	for (uint32_t i = 0; i < cameras.size(); i++) {
@@ -1428,26 +1391,26 @@ void Renderer::paintGL() {
 	bx::mtxOrthoRh(proj, 0.f, 1.f, 1.f, 0.f, 0.f, 100.0f, 0.0, bgfx::getCaps()->homogeneousDepth
 );
 
-	bgfx::setViewRect(RenderState::Skybox, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(RenderState::Skybox, 0, 0, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Skybox, view, proj);
 	
 	bgfx::setViewRect(RenderState::ShadowMap, 0, 0, lights[0].shadowMapSize, lights[0].shadowMapSize);
 	bgfx::setViewFrameBuffer(RenderState::ShadowMap, lights[0].shadowMapFB);
 	bgfx::setViewTransform(RenderState::ShadowMap, lights[0].mtxView, lights[0].mtxProj);
 
-	bgfx::setViewRect(RenderState::Scene, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(RenderState::Scene, 0, 0, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Scene, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::SceneTextured, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(RenderState::SceneTextured, 0, 0, view_width, view_height);
 	bgfx::setViewTransform(RenderState::SceneTextured, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::Lines, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(RenderState::Lines, 0, 0, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Lines, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::LinesOccluded, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(RenderState::LinesOccluded, 0, 0, view_width, view_height);
 	bgfx::setViewTransform(RenderState::LinesOccluded, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
-	bgfx::setViewRect(RenderState::Debug, view_offset_x, view_offset_y, view_width, view_height);
+	bgfx::setViewRect(RenderState::Debug, 0, 0, view_width, view_height);
 	bgfx::setViewTransform(RenderState::Debug, cameras[activeCameraIndex].mtxView, cameras[activeCameraIndex].mtxProj);
 
 
@@ -1479,10 +1442,10 @@ void Renderer::paintGL() {
 			, 0x303030ff, 1.0f, 0
 			);
 
-//	bgfx::setViewClear(RenderState::Scene
-//			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
-//			, 0x303030ff, 1.0f, 0
-//			);
+	bgfx::setViewClear(RenderState::Scene
+			, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH
+			, 0x303030ff, 1.0f, 0
+			);
 
 	bgfx::touch(RenderState::Scene);
 	bgfx::touch(RenderState::Skybox);
@@ -1751,94 +1714,86 @@ void Renderer::paintGL() {
 
 //	ImGui::EndDock();
 
-	// Advance to next frame. Rendering thread will be kicked to
-	// process submitted rendering primitives.
-	bgfx::frame();
-
 	// clear debug commands as they have to be issued every frame
 	debugCommands.clear();
 }
 
 void Renderer::DrawGui() {
-	static float docking_offset_x = 600.0f;
+//	static float docking_offset_x = 600.0f;
 
-	ImGuiStyle& style = ImGui::GetStyle();
-	if (ImGui::GetIO().DisplaySize.y > 0) {
-		ImVec2 pos = ImVec2(docking_offset_x, 25);
-		ImVec2 size = ImGui::GetIO().DisplaySize;
-		size.x -= pos.x;
-		size.y -= pos.y;
-		// TODO(martin): init dock
-
-		// Draw status bar (no docking)
-		ImGui::SetNextWindowSize(ImVec2(size.x, 25.0f), ImGuiCond_Always);
-		ImGui::SetNextWindowPos(ImVec2(0, size.y - 32.0f), ImGuiCond_Always);
-		ImGui::Begin("statusbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize);
-		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
-		ImGui::End();
-	}
+//	ImGuiStyle& style = ImGui::GetStyle();
+//	if (ImGui::GetIO().DisplaySize.y > 0) {
+//		ImVec2 pos = ImVec2(docking_offset_x, 25);
+//		ImVec2 size = ImGui::GetIO().DisplaySize;
+//		size.x -= pos.x;
+//		size.y -= pos.y;
+//		// TODO(martin): init dock
+//
+//		// Draw status bar (no docking)
+//		ImGui::SetNextWindowSize(ImVec2(size.x, 25.0f), ImGuiCond_Always);
+//		ImGui::SetNextWindowPos(ImVec2(0, size.y - 32.0f), ImGuiCond_Always);
+//		ImGui::Begin("statusbar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize);
+//		ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+//		ImGui::End();
+//	}
 
 //	if (ImGui::BeginDock("Dock Info", &sDockInfoDock))  {
 //		ImGui::Print();
 //	}
 //	ImGui::EndDock();
 
-//	if (ImGui::BeginDock("Scene", &sSceneDock)) {
-//		ImVec2 size = ImGui::GetContentRegionAvail();
-//		ImVec2 pos = ImGui::GetWindowPos();
-//
-//		if ((size.x > 0 && size.y > 0) &&
-//				(view_texture_width != size.x || view_texture_height != size.y)) {
-//			if (bgfx::isValid(sceneViewBuffer)) {
-//				gLog("Destroying old view frame buffer of size %f, %f",
-//						view_texture_width, view_texture_height);
-//				bgfx::destroy(sceneViewBuffer);
-//			}
-//
-//			sceneViewTexture = bgfx::createTexture2D(
-//					size.x, size.y,
-//					false, 1,
-//					bgfx::TextureFormat::RGBA8
-//					);
-//			sceneDepthTexture = bgfx::createTexture2D(
-//					size.x, size.y,
-//					false, 1,
-//					bgfx::TextureFormat::D16
-//					);
-//
-//			view_texture_width = size.x;
-//			view_texture_height = size.y;
-//			view_offset_x = pos.x;
-//			view_offset_y = pos.y;
-//			view_width = size.x;
-//			view_height = size.y;
-//
-//			assert(view_texture_width > 0.0f);
-//			assert(view_texture_height > 0.0f);
-//
-//			gLog("Creating view frame buffer of size %f, %f",
-//					view_texture_width, view_texture_height);
-//
-//			bgfx::TextureHandle fbtextures[] = { sceneViewTexture, sceneDepthTexture };
-//
-//			sceneViewBuffer = bgfx::createFrameBuffer(
-//				BX_COUNTOF(fbtextures), fbtextures, true
-//				);
-//
-//			ImGuizmo::SetRect(
-//					view_offset_x, view_offset_y,
-//					view_texture_width, view_texture_height
-//					);
-//		} else {
-//
-//			ImGui::Image(sceneViewTexture,
-//					size,
-//					ImVec2(0.0f, 1.0f),
-//					ImVec2(1.0f, 0.0f)
-//					);
-//		}
-//	}
-//	ImGui::EndDock();
+#ifdef USE_DOCKS
+	if (ImGui::BeginDock("Scene", &sSceneDock)) {
+#endif
+		ImVec2 size = ImGui::GetContentRegionAvail();
+		ImVec2 pos = ImGui::GetWindowPos();
+
+		if ( (size.x > 0 && size.y > 0) &&
+				(view_width != size.x || view_height != size.y)) {
+			gLog ("Creating scene render frame buffer: size %4.0f, %4.0f", size.x, size.y);
+			if (bgfx::isValid(sceneViewBuffer)) {
+				gLog("Destroying old view frame buffer of size %f, %f",
+						view_width, view_height);
+				bgfx::destroy(sceneViewBuffer);
+			}
+
+			sceneViewTexture = bgfx::createTexture2D(
+					size.x, size.y,
+					false, 1,
+					bgfx::TextureFormat::RGBA8
+					);
+			sceneDepthTexture = bgfx::createTexture2D(
+					size.x, size.y,
+					false, 1,
+					bgfx::TextureFormat::D16
+					);
+
+			resize(size.x, size.y);
+
+			gLog("Creating view frame buffer of size %d, %d",
+					view_width, view_height);
+
+			bgfx::TextureHandle fbtextures[] = { sceneViewTexture, sceneDepthTexture };
+
+			sceneViewBuffer = bgfx::createFrameBuffer(
+				BX_COUNTOF(fbtextures), fbtextures, true
+				);
+
+			ImGuizmo::SetRect(
+					pos.x, pos.y,
+					size.x, size.y
+					);
+		} else {
+			ImGui::Image(sceneViewTexture,
+					size,
+					ImVec2(0.0f, 1.0f),
+					ImVec2(1.0f, 0.0f)
+					);
+		}
+#ifdef USE_DOCKS
+	}
+	ImGui::EndDock();
+#endif
 }
 
 bool Renderer::updateShaders() {

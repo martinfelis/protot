@@ -15,6 +15,7 @@ namespace stl = tinystl;
 #include <bx/commandline.h>
 #include <bx/file.h>
 #include <bx/readerwriter.h>
+#include <bx/process.h>
 #include <bx/math.h>
 #include <bx/string.h>
 #include "entry/dbg.h"
@@ -160,29 +161,68 @@ int compileShader(bx::CommandLine& _cmdLine, bx::ReaderSeekerI* _reader, bx::Wri
 }
 
 
+int compileShader(const char* filename, const char* shader_type)
+{
+	bx::Error error;
+	bx::ProcessReader process_reader;
+
+	const int cCommandMaxLen = 1024;
+	char command[cCommandMaxLen];
+
+	const char* shaderc_binary = "3rdparty/bgfx/shaderc";
+
+	bx::snprintf(command, cCommandMaxLen, "-f %s -o %s.bin -i \"shaders/common\" --type %s --platform linux", filename, filename, shader_type);
+
+	gLog("Compiling shader '%s'...", filename);
+
+	if (!process_reader.open(shaderc_binary, command, &error)) {
+		fprintf(stderr, "Error compiling shader: could not spawn %s", shaderc_binary);
+	} else if (!error.isOk()) {
+		fprintf(stderr, "Unable to compile shader file '%s': %s", filename, error.getMessage().getPtr());
+	}
+
+	const int cMessageMaxLen = 2048;
+	char buffer[cMessageMaxLen];
+	int32_t message_len = process_reader.read(buffer, cMessageMaxLen, &error);
+	process_reader.close();
+	int32_t result = process_reader.getExitCode();
+
+	if (result != 0) {
+		fprintf(stderr, "Unable to compile shader file '%s':\n%s\n", filename, error.getMessage().getPtr());
+		fprintf(stderr, "%s", buffer);
+	} else {
+		gLog("Successfully compiled shader '%s'!", filename);
+	}
+
+	return result;
+}
+
+
+
+
 static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name)
 {
 	char filePath[512];
 
-	const char* shaderPath = "shaders/dx9/";
+	const char* shaderPath = "data/shaders/dx9/";
 
 	switch (bgfx::getRendererType() )
 	{
 	case bgfx::RendererType::Direct3D11:
 	case bgfx::RendererType::Direct3D12:
-		shaderPath = "shaders/dx11/";
+		shaderPath = "data/shaders/dx11/";
 		break;
 
 	case bgfx::RendererType::OpenGL:
-		shaderPath = "shaders/glsl/";
+		shaderPath = "data/shaders/glsl/";
 		break;
 
 	case bgfx::RendererType::Metal:
-		shaderPath = "shaders/metal/";
+		shaderPath = "data/shaders/metal/";
 		break;
 
 	case bgfx::RendererType::OpenGLES:
-		shaderPath = "shaders/gles/";
+		shaderPath = "data/shaders/gles/";
 		break;
 
 	default:
@@ -192,6 +232,8 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name
 	strcpy(filePath, shaderPath);
 	strcat(filePath, _name);
 	strcat(filePath, ".bin");
+
+	gLog ("Loading shader %s", filePath);
 
 	return bgfx::createShader(loadMem(_reader, filePath) );
 }
@@ -215,87 +257,8 @@ bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const char* _vsName, c
 
 bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName)
 {
+	gLog ("Loading program from %s and %s", _vsName, _fsName);
 	return loadProgram(entry::getFileReader(), _vsName, _fsName);
-}
-
-bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_fsFileName) {
-	gLog ("Loading shader %s", _vsFileName);	
-	const char* argv[10];
-	argv[0] = "--type";
-	argv[1] = "vertex";
-	argv[2] = "--platform";
-	argv[3] = "linux";
-	argv[4] = "-i";
-	argv[5] = "shaders/common";
-	argv[6] = "-p";
-	argv[7] = "120";
-	argv[8] = "-f";
-	argv[9] = _vsFileName;
-	
-//	argv[6] = "--varyingdef";
-//	argv[7] = "-p";
-//	argv[8] = "120";
-//	argv[9] = "-f";
-//	argv[10] = _vsFileName;
-
-	bx::CommandLine cmdLine (10, argv);
-
-	const bgfx::Memory* vs_source_memory = loadMem(entry::getFileReader(), _vsFileName);
-	bx::ReaderSeekerI* vs_source_reader = new bx::MemoryReader (vs_source_memory->data, vs_source_memory->size);
-
-	bx::MemoryBlock* vs_compiled_memory = new bx::MemoryBlock (entry::getAllocator());
-	bx::MemoryWriter* vs_compiled_writer = new bx::MemoryWriter (vs_compiled_memory);
-
-	setlocale(LC_NUMERIC, "C");
-	int result = compileShader (cmdLine, vs_source_reader, vs_compiled_writer);
-	if (result != EXIT_SUCCESS) {
-		std::cerr << "Error compiling shader " << _vsFileName << std::endl;
-		return BGFX_INVALID_HANDLE;
-	}
-
-	uint32_t size = vs_compiled_writer->seek(0, bx::Whence::End);
-	const bgfx::Memory* mem = bgfx::alloc(size+1);
-	bx::ReaderSeekerI* vs_compiled_reader = new bx::MemoryReader ((uint8_t*) vs_compiled_memory->more(), size);
-	bx::read(vs_compiled_reader, mem->data, size);
-	delete vs_compiled_reader;
-	mem->data[mem->size-1] = '\0';
-	bgfx::ShaderHandle vsh = bgfx::createShader(mem);
-
-	delete vs_source_reader;
-	delete vs_compiled_writer;
-	delete vs_compiled_memory;
-
-	bgfx::ShaderHandle fsh = BGFX_INVALID_HANDLE;
-
-	if (_fsFileName != NULL) {
-		argv[1] = "fragment";
-
-		const bgfx::Memory* fs_source_memory = loadMem(entry::getFileReader(), _fsFileName);
-		bx::ReaderSeekerI* fs_source_reader = new bx::MemoryReader (fs_source_memory->data, fs_source_memory->size);
-
-		bx::MemoryBlock* fs_compiled_memory = new bx::MemoryBlock (entry::getAllocator());
-		bx::MemoryWriter* fs_compiled_writer = new bx::MemoryWriter (fs_compiled_memory);
-
-		result = compileShader (cmdLine, fs_source_reader, fs_compiled_writer);
-		if (result != EXIT_SUCCESS) {
-			std::cerr << "Error compiling shader " << _fsFileName << std::endl;
-			return BGFX_INVALID_HANDLE;
-		}
-
-		uint32_t size = fs_compiled_writer->seek(0, bx::Whence::End);
-		const bgfx::Memory* mem = bgfx::alloc(size+1);
-		bx::ReaderSeekerI* fs_compiled_reader = new bx::MemoryReader ((uint8_t*) fs_compiled_memory->more(), size);
-		bx::read(fs_compiled_reader, mem->data, size);
-		delete fs_compiled_reader;
-		mem->data[mem->size-1] = '\0';
-		fsh = bgfx::createShader(mem);
-
-		delete fs_source_reader;
-		delete fs_compiled_writer;
-		delete fs_compiled_memory;
-	}
-
-	return bgfx::createProgram(vsh, fsh, true /* destroy shaders when program is destroyed */);
 }
 
 typedef unsigned char stbi_uc;

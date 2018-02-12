@@ -44,15 +44,13 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 
 	bool stat_result = stat(module->name.c_str(), &attr);
 	if (glfwGetKey(gWindow, GLFW_KEY_F11) == GLFW_PRESS) {
-		std::cerr << "Module " << module->name << " id = " << module->id 
-			<< " mtime " << ctime((time_t *) &module->mtime) << std::endl;
+		gLog ("Module %s id = %d mtime %d", module->name.c_str(), module->id, module->mtime);
 	} 
 
 	if ( stat_result == 0 && 
 			(module->id != attr.st_ino || module->mtime != attr.st_mtime)
 			) {
-		std::cout << "Opening module " << module->name 
-			<< " (size = " << attr.st_size << ")" << std::endl;
+		gLog ("Loading module %s (size %d)", module->name.c_str(), attr.st_size);
 		void *handle = dlopen(module->name.c_str(), RTLD_NOW | RTLD_GLOBAL);
 		if (handle) {
 			module->handle = handle;
@@ -63,20 +61,19 @@ void RuntimeModuleManager::LoadModule(RuntimeModule* module) {
 			if (api != NULL) {
 				module->api = *api;
 				if (module->state == NULL) {
-					std::cout << "Initializing module " << module->name << std::endl;
+					gLog("Initializing module %s", module->name.c_str());
 					module->state = module->api.init();
 				}
-				std::cout << "Reloading module " << module->name << std::endl;
+				gLog("Reloading module %s", module->name.c_str());
 				module->api.reload(module->state, gReadSerializer);
 			} else {
-				std::cerr << "Error: could not find API for module " << module->name << std::endl;
+				gLog("Loading module failed: Could not find API for module %s", module->name.c_str());
 				dlclose(module->handle);
 				module->handle = NULL;
 				module->id = 0;
 			}
 		} else {
-			std::cerr << "Error: could not load module " << module->name << std::endl;
-			std::cerr << dlerror() << std::endl;
+			gLog ("Loading module failed: could not load shared library for module %s: %s", module->name.c_str(), dlerror());
 			module->handle = NULL;
 			module->id = 0;
 			abort();
@@ -143,18 +140,23 @@ void RuntimeModuleManager::UnloadModules() {
 			gLog("Unloading module %s", mModules[i]->name.c_str());
 			mModules[i]->api.unload(mModules[i]->state, gWriteSerializer);
 			mModules[i]->state = nullptr;
-			dlclose(mModules[i]->handle);
+			gLog ("Unloading shared library %s", mModules[i]->name.c_str());
+			int unload_result = dlclose(mModules[i]->handle);
+			if (unload_result != 0) {
+				gLog ("Unload failed (code %d): %s", unload_result, dlerror());
+			}
 			mModules[i]->handle = 0;
 			mModules[i]->id = 0;
+			gLog("Unloading module %s complete", mModules[i]->name.c_str());
 		}
 	}
 
-	std::cout << "Writing state to file " << state_file << std::endl;
+	gLog ("Writting state to file %s", state_file);
 	gWriteSerializer->Close();
 }
 
 void RuntimeModuleManager::LoadModules() {
-	std::cout << "Reading state from file " << state_file << std::endl;
+	gLog ("Reading state from file %s", state_file);
 	gReadSerializer->Open(state_file);
 	for (int i = 0; i < mModules.size(); i++) {
 		LoadModule(mModules[i]);

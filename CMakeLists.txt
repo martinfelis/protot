@@ -81,6 +81,7 @@ SUBDIRS (
 
 SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
+	src/Utils.cc
 
 	3rdparty/glfw/deps/glad.c
 	3rdparty/imgui_dock/imgui_dock.cpp
