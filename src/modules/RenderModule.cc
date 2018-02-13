@@ -160,7 +160,8 @@ void Renderer::Shutdown() {
 void Renderer::RenderGl() {
 	int width, height;
 	glfwGetWindowSize(gWindow, &width, &height);
-	mRenderTarget.Resize(width, height);
+	if (width != mWidth || height != mHeight)
+		Resize(width, height);
 
 	// enable the render target
 	glBindFramebuffer(GL_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
@@ -220,5 +221,8 @@ void Renderer::RenderGui() {
 }
 
 void Renderer::Resize (int width, int height) {
-	assert(false);
+	mWidth = width;
+	mHeight = height;
+	mRenderTarget.Resize(mWidth, mHeight);
+	glViewport(0, 0, mWidth, mHeight);
 }
