@@ -3,66 +3,146 @@
 
 #pragma once
 
-#include "GLFW/glfw3.h"
-#include <bgfx/bgfx.h>
+#include <GL/gl3w.h>    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
 
-// Forward declarations
-struct RenderState;
+struct Transform {
+	Quaternion rotation = Quaternion (0.0f, 0.0f, 0.0f, 1.0f);
+	Vector3f translation = Vector3f (0.0f, 0.0f, 0.0f);
+	Vector3f scale = Vector3f (1.0f, 1.0f, 1.0f);
 
-namespace bgfxutils {
-struct Mesh;
-}
+	Transform () {};
 
-struct Mesh {
-	bgfxutils::Mesh* mBgfxMesh = nullptr;
- 	std::vector<Vector4f> mVertices;
- 	std::vector<Vector3f> mNormals;
- 	std::vector<Vector4f> mColors;
-	Vector3f mBoundsMin = Vector3f(0.f, 0.f, 0.f);
-	Vector3f mBoundsMax = Vector3f(0.f, 0.f, 0.f);
+	Transform (
+			const Vector3f &translation,
+			const Quaternion &rotation,
+			const Vector3f &scale)
+		:
+		translation(translation),
+		rotation(rotation),
+		scale(scale)
+	{}
 
-	~Mesh();
-	void Update();
-	void UpdateBounds ();
-	void Merge (const Mesh& other, 
-			const Matrix44f &transform = Matrix44f::Identity());
-	void Submit (const RenderState *state, const float* matrix) const;
-	void Transform (const Matrix44f &mat);
+	Transform (const Matrix44f& mat) {
+		fromMatrix(mat);
+	}
+	
+	Matrix44f toMatrix() const {
+		Matrix44f result;
 
-	static Mesh *sCreateCuboid (float width, float height, float depth);
-	static Mesh *sCreateUVSphere (int rows, int segments, float radius = 1.0f);
-	static Mesh *sCreateCylinder (int segments);
-	static Mesh *sCreateCapsule (int rows, int segments, float length, float radius);
+		Matrix33f scale_mat (
+				scale[0], 0.0f, 0.0f,
+				0.0f, scale[1], 0.0f,
+				0.0f, 0.0f, scale[2]
+				);
+		result.block<3,3>(0,0) = scale_mat * rotation.toMatrix();
+		result.block<1,3>(3,0) = translation.transpose();
+		result.block<3,1>(0,3) = Vector3f::Zero();
+		result(3,3) = 1.0f;
+
+		return result;
+	}
+
+	void fromMatrix(const Matrix44f &matrix) {
+		// Extract rotation matrix and the quaternion
+		Matrix33f rot_matrix (matrix.block<3,3>(0,0));
+
+		Vector3f row0 = rot_matrix.block<1,3>(0,0).transpose();
+		Vector3f row1 = rot_matrix.block<1,3>(1,0).transpose();
+		Vector3f row2 = rot_matrix.block<1,3>(2,0).transpose();
+
+		scale.set(
+				row0.norm(),
+				row1.norm(),
+				row2.norm()
+				);
+
+		rot_matrix.block<1,3>(0,0) = (row0 / scale[0]).transpose();
+		rot_matrix.block<1,3>(1,0) = (row1 / scale[1]).transpose();
+		rot_matrix.block<1,3>(2,0) = (row2 / scale[2]).transpose();
+
+		rotation = Quaternion::fromMatrix(rot_matrix).normalize();
+
+		row0 = rot_matrix.block<1,3>(0,0).transpose();
+		row1 = rot_matrix.block<1,3>(1,0).transpose();
+		row2 = rot_matrix.block<1,3>(2,0).transpose();
+
+		Vector3f trans (
+				matrix(3,0), 
+				matrix(3,1), 
+				matrix(3,2)
+				);
+
+		translation = trans;
+	}
+	Transform operator*(const Transform &other) const {
+		Matrix44f this_mat (toMatrix());
+		Matrix44f other_mat (other.toMatrix());
+
+		return Transform(this_mat * other_mat);
+	}
+	Vector3f operator*(const Vector3f &vec) const {
+		assert(false);
+		return Vector3f::Zero();
+	}
+
+	static Transform fromTrans(
+			const Vector3f &translation
+			) {
+		return Transform (
+				translation, 
+				Quaternion(0.0f, 0.0f, 0.0f, 1.0f), 
+				Vector3f(1.0f, 1.0f, 1.0f)
+				);
+	}
+
+	static Transform fromTransRot(
+			const Vector3f &translation,
+			const Quaternion &rotation
+			) {
+		return Transform (
+				translation, 
+				rotation, 
+				Vector3f(1.0f, 1.0f, 1.0f)
+				);
+	}
+
+	static Transform fromTransRot(
+			const Vector3f &translation,
+			const Matrix33f &rotation
+			) {
+		return Transform (
+				translation, 
+				Quaternion::fromMatrix(rotation), 
+				Vector3f(1.0f, 1.0f, 1.0f)
+				);
+	}
+	static Transform fromTransRotScale(
+			const Vector3f &translation,
+			const Quaternion &rotation,
+			const Vector3f &scale
+			) {
+		return Transform (translation, rotation, scale);
+	}
 };
 
-namespace bgfxutils {
-	bgfx::ShaderHandle loadShader(const char *_name);
+struct RenderProgram {
+	std::string mVertexShaderFilename;
+	std::string mFragmentShaderFilename;
 
-	bgfx::ProgramHandle loadProgram(const char *_vsName, const char *_fsName);
+	GLuint mProgramId = -1;
 
-	bgfx::ProgramHandle loadProgramFromFiles(const char *_vsFileName, const char *_fsFileName);
+	RenderProgram() 
+	{}
 
-	bgfx::TextureHandle loadTexture(const char *_name, uint32_t _flags = BGFX_TEXTURE_NONE, uint8_t _skip = 0,
-									bgfx::TextureInfo *_info = NULL);
+	RenderProgram(const std::string& vs, const std::string& fs) :
+		mVertexShaderFilename(vs),
+		mFragmentShaderFilename(fs)
+	{}
 
-	void calcTangents(void *_vertices, uint16_t _numVertices, bgfx::VertexDecl _decl, const uint16_t *_indices,
-					  uint32_t _numIndices);
+	~RenderProgram();
 
-	Mesh *meshLoad(const char *_filePath);
+	bool Load();
+};
 
-	void meshUnload(Mesh *_mesh);
-
-	void meshSubmit(const Mesh *_mesh, uint8_t _id, bgfx::ProgramHandle _program, const float *_mtx,
-					uint64_t _state = BGFX_STATE_MASK);
-
-	void meshSubmit(const Mesh *_mesh, const RenderState*_state, uint8_t _numPasses, const float *_mtx,
-					uint16_t _numMatrices = 1);
-
-	// Loads the mesh data from a VBO into a bgfx Mesh
-//	Mesh *createMeshFromVBO (const MeshVBO& mesh_buffer);
-
-	void meshTransform (Mesh* mesh, const float *mtx);
-
-}
 
 #endif

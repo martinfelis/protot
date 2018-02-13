@@ -61,6 +61,10 @@ SUBDIRS (
 	3rdparty/googletest
 	)
 
+SET (GLFW_BUILD_DOCS OFF)
+SET (GLFW_BUILD_EXAMPLES OFF)
+SET (GLFW_BUILD_TESTS OFF)
+
 SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
 	src/Utils.cc

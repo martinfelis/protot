@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <cstdarg>
 
 struct GuiInputState {
 	int32_t mousedX;

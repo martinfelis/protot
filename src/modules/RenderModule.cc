@@ -4,6 +4,12 @@
 
 struct Renderer;
 
+static const GLfloat g_vertex_buffer_data[] = {
+	-1.0f, -1.0f, 0.0f,
+	1.0f, -1.0f, 0.0f,
+	0.0f, 1.0f, 0.0f
+};
+
 //
 // Module
 //
@@ -53,6 +59,7 @@ static void module_reload(struct module_state *state, void *read_serializer) {
 	gLog ("Renderer initialize");
 	assert (state != nullptr);
 	state->renderer->Initialize(100, 100);
+
 	gRenderer = state->renderer;
 
 	// load the state of the module
@@ -99,7 +106,6 @@ const struct module_api MODULE_API = {
 // Camera
 //
 void Camera::updateMatrices() {
-	assert(false);
 }
 
 
@@ -107,19 +113,41 @@ void Camera::updateMatrices() {
 // Camera
 //
 void Renderer::Initialize(int width, int height) {
-	assert(false);
+	glGenVertexArrays(1, &mMesh.mVertexArrayId);
+	glBindVertexArray(mMesh.mVertexArrayId);
+	glGenBuffers(1, &mMesh.mVertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
+glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+	mProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
+	bool load_result = mProgram.Load();
+	assert(load_result);
 }
 
 void Renderer::Shutdown() {
-	assert(false);
+	glDeleteVertexArrays(1, &mMesh.mVertexArrayId);
 }
 void Renderer::RenderGl() {
-	gLog("blaa");
-	assert(false);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(mProgram.mProgramId);
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
+	glVertexAttribPointer(
+			0,				// attribute 0
+			3,				// size
+			GL_FLOAT,	// type
+			GL_FALSE,	// normalized?
+			0,				// stride
+			(void*)0	// offset
+			);
+
+	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
+	glDisableVertexAttribArray(0);
 }
 
 void Renderer::RenderGui() {
-	assert(false);
 }
 
 void Renderer::Resize (int width, int height) {

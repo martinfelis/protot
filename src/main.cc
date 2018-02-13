@@ -2,6 +2,8 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
+#include "Globals.h"
+
 #include <X11/Xlib.h> 
 
 #include <stdlib.h>
@@ -16,9 +18,7 @@
 #include "imgui_dock.h"
 #include "imgui_impl_glfw_gl3.h"
 
-#include "Globals.h"
 #include "Serializer.h"
-#include "FileModificationObserver.h"
 
 Timer* gTimer = nullptr;
 Renderer* gRenderer = nullptr;
@@ -95,7 +95,7 @@ int main(void)
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_SAMPLES, 16);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -157,8 +157,7 @@ int main(void)
 		glfwGetWindowSize(gWindow, &width, &height);
 
 		glfwPollEvents();
-		ImGui_ImplGlfwGL3_NewFrame();
-
+//		ImGui_ImplGlfwGL3_NewFrame();
 
 //		imguiBeginFrame (gGuiInputState->mouseX,
 //				gGuiInputState->mouseY,
@@ -187,47 +186,47 @@ int main(void)
 		}
 
 		assert (gTimer->mDeltaTime >= 0.0f);
-#ifdef USE_DOCKS
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 20.0f));
 		int width, height;
 		glfwGetWindowSize(gWindow, &width, &height);
-		ImGui::SetNextWindowSize(ImVec2(width, height));
-		if (ImGui::Begin("DockArea", NULL,
-					ImGuiWindowFlags_NoTitleBar
-					| ImGuiWindowFlags_NoResize
-					| ImGuiWindowFlags_NoMove
-					| ImGuiWindowFlags_NoBringToFrontOnFocus
-					)) {
-			ImGui::BeginDockspace();
-
-			if (ImGui::BeginDock("dock1")) {
-				ImGui::Text("HEllo 1");
-			}
-			ImGui::EndDock();
-
-			if (ImGui::BeginDock("dock2")) {
-				ImGui::Text("HEllo2");
-			}
-			ImGui::EndDock();
-
-			if (ImGui::BeginDock("dock3")) {
-				ImGui::Text("HEllo3");
-			}
-			ImGui::EndDock();
-
-
-#endif
+//#ifdef USE_DOCKS
+//		ImGui::SetNextWindowPos(ImVec2(0.0f, 20.0f));
+//		ImGui::SetNextWindowSize(ImVec2(width, height));
+//		if (ImGui::Begin("DockArea", NULL,
+//					ImGuiWindowFlags_NoTitleBar
+//					| ImGuiWindowFlags_NoResize
+//					| ImGuiWindowFlags_NoMove
+//					| ImGuiWindowFlags_NoBringToFrontOnFocus
+//					)) {
+//			ImGui::BeginDockspace();
+//
+//			if (ImGui::BeginDock("dock1")) {
+//				ImGui::Text("HEllo 1");
+//			}
+//			ImGui::EndDock();
+//
+//			if (ImGui::BeginDock("dock2")) {
+//				ImGui::Text("HEllo2");
+//			}
+//			ImGui::EndDock();
+//
+//			if (ImGui::BeginDock("dock3")) {
+//				ImGui::Text("HEllo3");
+//			}
+//			ImGui::EndDock();
+//
+//
+//#endif
 
 			module_manager.Update(gTimer->mDeltaTime);
 
-#ifdef USE_DOCKS
-			ImGui::EndDockspace();
-		}
-
-		ImGui::End();
-#endif
-
-		ImGui::Render();
+// #ifdef USE_DOCKS
+// 			ImGui::EndDockspace();
+// 		}
+// 
+// 		ImGui::End();
+// #endif
+// 
+// 		ImGui::Render();
 
 		usleep(16000);
 

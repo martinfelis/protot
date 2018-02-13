@@ -82,7 +82,7 @@ struct ReadSerializer {
 		size_t key_size;
 		size_t block_size;
 
-		while (!stream.eof()) {
+		while (!stream.eof() && stream.peek() != std::ifstream::traits_type::eof()) {
 			// read key size
 			stream.read(reinterpret_cast<char*>(&key_size), sizeof(size_t));
 //			std::cout << "read key size " << key_size << std::endl;

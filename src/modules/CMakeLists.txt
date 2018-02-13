@@ -4,6 +4,7 @@ INCLUDE_DIRECTORIES (
 
 ADD_LIBRARY (RenderModule SHARED 
 	RenderModule.cc
+	RenderUtils.cc
 	)
 
 # ADD_LIBRARY (TestModule SHARED
