@@ -10,6 +10,10 @@
 
 using namespace SimpleMath;
 
+//
+// RenderProgram
+//
+
 RenderProgram::~RenderProgram() {
 	if (mProgramId > 0)
 		glDeleteProgram(mProgramId);
@@ -107,6 +111,37 @@ bool RenderProgram::Load() {
 
 	mProgramId = ProgramID;
 	return true;
+}
+
+//
+// RenderTarget
+//
+RenderTarget::RenderTarget(int width, int height, int flags) {
+	glGenFramebuffers(1, &mFrameBufferId);
+	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
+
+	if (flags & EnableColor) {
+		glGenTextures(1, &mColorTexture);
+		glBindTexture(GL_TEXTURE_2D, mColorTexture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
+	}
+
+	if (flags & EnableDepth) {
+		glGenRenderbuffers(1, &mDepthBuffer);
+		glBindRenderbuffer(GL_RENDERBUFFER, mDepthBuffer);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mDepthBuffer);
+	}
+}
+
+RenderTarget::~RenderTarget() {
+	// TODO: cleanup
 }
 
 

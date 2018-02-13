@@ -144,5 +144,19 @@ struct RenderProgram {
 	bool Load();
 };
 
+struct RenderTarget {
+	GLuint mFrameBufferId = -1;
+	GLuint mColorTexture = -1;
+	GLuint mDepthBuffer = -1;
+
+	typedef enum {
+		EnableColor = 1,
+		EnableDepth = 2
+	} Flags;
+
+	RenderTarget() {};
+	RenderTarget(int width, int height, int flags);
+	~RenderTarget();
+};
 
 #endif

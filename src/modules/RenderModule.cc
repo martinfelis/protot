@@ -122,12 +122,24 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 	mProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mProgram.Load();
 	assert(load_result);
+
+	mRenderTarget = RenderTarget (width, height, RenderTarget::EnableColor | RenderTarget::EnableDepth);
 }
 
 void Renderer::Shutdown() {
 	glDeleteVertexArrays(1, &mMesh.mVertexArrayId);
 }
 void Renderer::RenderGl() {
+	// enable the render target
+	glBindFramebuffer(GL_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
+	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, DrawBuffers);
+
+	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		gLog ("Cannot render: frame buffer invalid!");
+	}
+
+	// clear color and depth
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(mProgram.mProgramId);

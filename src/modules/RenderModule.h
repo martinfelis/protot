@@ -114,6 +114,7 @@ struct Renderer {
 	std::vector<Camera> cameras;
 	Mesh mMesh;
 	RenderProgram mProgram;
+	RenderTarget mRenderTarget;
 
 	Renderer() :
 		initialized(false),
