@@ -145,6 +145,8 @@ struct RenderProgram {
 };
 
 struct RenderTarget {
+	int mWidth = 0;
+	int mHeight = 0;
 	GLuint mFrameBufferId = -1;
 	GLuint mColorTexture = -1;
 	GLuint mDepthBuffer = -1;
@@ -154,9 +156,14 @@ struct RenderTarget {
 		EnableDepth = 2
 	} Flags;
 
+	int mFlags = 0;
+
 	RenderTarget() {};
 	RenderTarget(int width, int height, int flags);
 	~RenderTarget();
+
+	void Cleanup();
+	void Resize(int width, int height);
 };
 
 #endif

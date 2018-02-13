@@ -117,14 +117,50 @@ bool RenderProgram::Load() {
 // RenderTarget
 //
 RenderTarget::RenderTarget(int width, int height, int flags) {
+	mFlags = flags;
+
+	Cleanup();
+	Resize(width, height);
+}
+
+RenderTarget::~RenderTarget() {
+	Cleanup();
+}
+
+void RenderTarget::Cleanup() {
+	if (mFrameBufferId != -1) {
+		glDeleteFramebuffers(1, &mFrameBufferId);
+		mFrameBufferId = -1;
+	}
+
+	if (mColorTexture != -1) {
+		glDeleteTextures(1, &mColorTexture);
+		mColorTexture = -1;
+	}
+
+	if (mDepthBuffer != -1) {
+		glDeleteRenderbuffers(1, &mDepthBuffer);
+		mDepthBuffer = -1;
+	}
+}
+
+void RenderTarget::Resize(int width, int height) {
+	if (width == mWidth || height == mHeight)
+		return;
+
+	Cleanup();
+
+	mWidth = width;
+	mHeight = height;
+
 	glGenFramebuffers(1, &mFrameBufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
 
-	if (flags & EnableColor) {
+	if (mFlags & EnableColor) {
 		glGenTextures(1, &mColorTexture);
 		glBindTexture(GL_TEXTURE_2D, mColorTexture);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -132,16 +168,13 @@ RenderTarget::RenderTarget(int width, int height, int flags) {
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
 	}
 
-	if (flags & EnableDepth) {
+	if (mFlags & EnableDepth) {
 		glGenRenderbuffers(1, &mDepthBuffer);
 		glBindRenderbuffer(GL_RENDERBUFFER, mDepthBuffer);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, mWidth, mHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mDepthBuffer);
 	}
-}
 
-RenderTarget::~RenderTarget() {
-	// TODO: cleanup
 }
 
 

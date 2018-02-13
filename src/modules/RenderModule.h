@@ -107,19 +107,26 @@ struct Mesh {
 };
 
 struct Renderer {
-	bool initialized = false;
-	uint32_t view_width = 1;
-	uint32_t view_height = 1;
+	bool mInitialized = false;
+	uint32_t mWidth = 1;
+	uint32_t mHeight = 1;
 
 	std::vector<Camera> cameras;
 	Mesh mMesh;
 	RenderProgram mProgram;
 	RenderTarget mRenderTarget;
 
+	GLuint mRenderQuadVertexArrayId;
+	GLuint mRenderQuadVertexBufferId;
+	RenderProgram mRenderQuadProgramColor;
+	RenderProgram mRenderQuadProgramDepth;
+	GLuint muRenderQuadTexture;
+	GLuint muRenderQuadTime;
+
 	Renderer() :
-		initialized(false),
-		view_width (0),
-		view_height (0)
+		mInitialized(false),
+		mWidth (0),
+		mHeight (0)
 	{ }
 
 	void Initialize(int width, int height);

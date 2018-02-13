@@ -1,6 +1,7 @@
 #include "RuntimeModule.h"
 #include "Globals.h"
 #include "RenderModule.h"
+#include <GLFW/glfw3.h>
 
 struct Renderer;
 
@@ -8,6 +9,15 @@ static const GLfloat g_vertex_buffer_data[] = {
 	-1.0f, -1.0f, 0.0f,
 	1.0f, -1.0f, 0.0f,
 	0.0f, 1.0f, 0.0f
+};
+
+static const GLfloat g_quad_vertex_buffer_data[] = {
+	-1.0f, -1.0f, 0.0f,
+	1.0f, -1.0f, 0.0f,
+	-1.0f, 1.0f, 0.0f,
+	-1.0f, 1.0f, 0.0f,
+	1.0f, -1.0f, 0.0f,
+	1.0f, 1.0f, 0.0f
 };
 
 //
@@ -119,17 +129,39 @@ void Renderer::Initialize(int width, int height) {
 	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
 glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+	// Shaders
 	mProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mProgram.Load();
 	assert(load_result);
 
+	// Render Target
 	mRenderTarget = RenderTarget (width, height, RenderTarget::EnableColor | RenderTarget::EnableDepth);
+
+	// Render Target Quad
+	glGenVertexArrays(1, &mRenderQuadVertexArrayId);
+	glBindVertexArray(mRenderQuadVertexArrayId);
+	
+	glGenBuffers(1, &mRenderQuadVertexBufferId);
+	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+	mRenderQuadProgramColor = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_simpletexture.glsl");
+	load_result = mRenderQuadProgramColor.Load();
+	assert(load_result);
+
+	muRenderQuadTexture = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "rendered_texture");	
+	muRenderQuadTime = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "time");	
 }
 
 void Renderer::Shutdown() {
 	glDeleteVertexArrays(1, &mMesh.mVertexArrayId);
 }
+
+
 void Renderer::RenderGl() {
+	int width, height;
+	glfwGetWindowSize(gWindow, &width, &height);
+	mRenderTarget.Resize(width, height);
+
 	// enable the render target
 	glBindFramebuffer(GL_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
 	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
@@ -160,6 +192,31 @@ void Renderer::RenderGl() {
 }
 
 void Renderer::RenderGui() {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Render the full screen quad
+	glUseProgram(mRenderQuadProgramColor.mProgramId);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+	glUniform1i(muRenderQuadTexture, 0);
+	glUniform1f(muRenderQuadTime, 0.0f * (float)(glfwGetTime() * 10.0f));
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
+	glVertexAttribPointer(
+			0,				// attribute 0
+			3,				// size
+			GL_FLOAT,	// type
+			GL_FALSE,	// normalized?
+			0,				// stride
+			(void*)0	// offset
+			);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
+	glDisableVertexAttribArray(0);
+
 }
 
 void Renderer::Resize (int width, int height) {
