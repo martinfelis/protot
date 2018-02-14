@@ -150,10 +150,12 @@ struct RenderTarget {
 	GLuint mFrameBufferId = -1;
 	GLuint mColorTexture = -1;
 	GLuint mDepthBuffer = -1;
+	GLuint mDepthTexture = -1;
 
 	typedef enum {
 		EnableColor = 1,
-		EnableDepth = 2
+		EnableDepth = 2,
+		EnableDepthTexture = 4
 	} Flags;
 
 	int mFlags = 0;

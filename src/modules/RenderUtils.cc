@@ -138,6 +138,11 @@ void RenderTarget::Cleanup() {
 		mColorTexture = -1;
 	}
 
+	if (mDepthTexture!= -1) {
+		glDeleteTextures(1, &mDepthTexture);
+		mDepthTexture = -1;
+	}
+
 	if (mDepthBuffer != -1) {
 		glDeleteRenderbuffers(1, &mDepthBuffer);
 		mDepthBuffer = -1;
@@ -168,13 +173,27 @@ void RenderTarget::Resize(int width, int height) {
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
 	}
 
-	if (mFlags & EnableDepth) {
+	if (mFlags & EnableDepthTexture) {
+		assert((mFlags & EnableDepth) == false);
+
+		glGenTextures(1, &mDepthTexture);
+		glBindTexture(GL_TEXTURE_2D, mDepthTexture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, mDepthTexture, 0);
+	} else if (mFlags & EnableDepth) {
+		assert((mFlags & EnableDepthTexture) == false);
 		glGenRenderbuffers(1, &mDepthBuffer);
 		glBindRenderbuffer(GL_RENDERBUFFER, mDepthBuffer);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, mWidth, mHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mDepthBuffer);
 	}
-
 }
 
 

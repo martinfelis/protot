@@ -7,7 +7,7 @@ struct Renderer;
 
 static const GLfloat g_vertex_buffer_data[] = {
 	-1.0f, -1.0f, 0.0f,
-	1.0f, -1.0f, 0.0f,
+	1.0f, -1.0f, -1.2f,
 	0.0f, 1.0f, 0.0f
 };
 
@@ -135,7 +135,7 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 	assert(load_result);
 
 	// Render Target
-	mRenderTarget = RenderTarget (width, height, RenderTarget::EnableColor | RenderTarget::EnableDepth);
+	mRenderTarget = RenderTarget (width, height, RenderTarget::EnableColor | RenderTarget::EnableDepthTexture);
 
 	// Render Target Quad
 	glGenVertexArrays(1, &mRenderQuadVertexArrayId);
@@ -174,6 +174,7 @@ void Renderer::RenderGl() {
 
 	// clear color and depth
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
 
 	glUseProgram(mProgram.mProgramId);
 
@@ -201,8 +202,9 @@ void Renderer::RenderGui() {
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+//	glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
 	glUniform1i(muRenderQuadTexture, 0);
-	glUniform1f(muRenderQuadTime, 0.0f * (float)(glfwGetTime() * 10.0f));
+	glUniform1f(muRenderQuadTime, (float)(glfwGetTime() * 10.0f));
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
@@ -217,7 +219,6 @@ void Renderer::RenderGui() {
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
 	glDisableVertexAttribArray(0);
-
 }
 
 void Renderer::Resize (int width, int height) {
