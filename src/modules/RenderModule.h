@@ -118,10 +118,14 @@ struct Renderer {
 
 	GLuint mRenderQuadVertexArrayId;
 	GLuint mRenderQuadVertexBufferId;
+
 	RenderProgram mRenderQuadProgramColor;
-	RenderProgram mRenderQuadProgramDepth;
 	GLuint muRenderQuadTexture;
 	GLuint muRenderQuadTime;
+
+	RenderProgram mRenderQuadProgramDepth;
+	GLuint muRenderQuadDepthNear;
+	GLuint muRenderQuadDepthFar;
 
 	Renderer() :
 		mInitialized(false),

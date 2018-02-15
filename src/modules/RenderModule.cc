@@ -144,12 +144,20 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 	glGenBuffers(1, &mRenderQuadVertexBufferId);
 	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+	// Program for color texture rendering
 	mRenderQuadProgramColor = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_simpletexture.glsl");
 	load_result = mRenderQuadProgramColor.Load();
 	assert(load_result);
-
 	muRenderQuadTexture = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "rendered_texture");	
 	muRenderQuadTime = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "time");	
+
+	// Program for depth texture rendering
+	mRenderQuadProgramDepth = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_depthbuffer.glsl");
+	load_result = mRenderQuadProgramDepth.Load();
+	assert(load_result);
+	muRenderQuadDepthNear = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "near");	
+	muRenderQuadDepthFar = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "far");	
 }
 
 void Renderer::Shutdown() {
@@ -197,14 +205,24 @@ void Renderer::RenderGui() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Render the full screen quad
-	glUseProgram(mRenderQuadProgramColor.mProgramId);
-
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
-//	glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
-	glUniform1i(muRenderQuadTexture, 0);
-	glUniform1f(muRenderQuadTime, (float)(glfwGetTime() * 10.0f));
+
+	bool render_color = false;
+	
+	if (render_color) {
+		// Render the full screen quad
+		glUseProgram(mRenderQuadProgramColor.mProgramId);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+		glUniform1i(muRenderQuadTexture, 0);
+		glUniform1f(muRenderQuadTime, (float)(glfwGetTime() * 10.0f));
+	} else {
+		// render depth texture
+		glUseProgram(mRenderQuadProgramDepth.mProgramId);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
+		glUniform1i(muRenderQuadTexture, 0);
+		glUniform1f(muRenderQuadDepthNear, 1.0);
+		glUniform1f(muRenderQuadDepthFar, -1.0);
+	}
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);

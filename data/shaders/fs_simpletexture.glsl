@@ -14,6 +14,4 @@ void main() {
 		cos(time + 768.0  * uv.y)
 		)
 	).xyz;
-	color = vec3((texture(rendered_texture, uv).x + 1) * 0.5 );
-//	* 1 * (cos(time * 0.3) * 0.5) + 0.5);
 }
