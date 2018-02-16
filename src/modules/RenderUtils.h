@@ -139,6 +139,8 @@ struct RenderProgram {
 		mFragmentShaderFilename(fs)
 	{}
 
+	GLuint GetUniformLocation(const std::string& name);
+
 	~RenderProgram();
 
 	bool Load();

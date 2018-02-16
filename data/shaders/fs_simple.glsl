@@ -2,6 +2,8 @@
 
 layout(location = 0) out vec3 outColor;
 
+uniform vec4 uColor;
+
 void main() {
-	outColor = vec3(1, 0, 0);
+	outColor = uColor.rgb; 
 }

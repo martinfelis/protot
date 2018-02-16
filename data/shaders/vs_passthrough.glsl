@@ -2,6 +2,7 @@
 
 in vec3 inVertex;
 uniform mat4 uModelViewProj;
+uniform float uTime;
 
 out vec2 ioUV;
 

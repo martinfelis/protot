@@ -102,7 +102,6 @@ bool RenderProgram::Load() {
 		gLog("%s", &ProgramErrorMessage[0]);
 	}
 
-
 	glDetachShader(ProgramID, VertexShaderID);
 	glDetachShader(ProgramID, FragmentShaderID);
 
@@ -111,6 +110,30 @@ bool RenderProgram::Load() {
 
 	mProgramId = ProgramID;
 	return true;
+}
+
+GLuint RenderProgram::GetUniformLocation(const std::string& name) {
+	if (mProgramId == -1) {
+		gLog("Cannot get uniform '%s' for program '%s' and '%s': shader not valid.", 
+				name.c_str(),
+				mVertexShaderFilename.c_str(),
+				mFragmentShaderFilename.c_str()
+				);
+		assert(mProgramId != -1);
+	}
+	GLuint result = glGetUniformLocation(mProgramId, name.c_str());
+	if (result == -1) {
+		gLog ("Error loading uniform '%s' from shaders '%s' and '%s': uniform not found.",
+				name.c_str(),
+				mVertexShaderFilename.c_str(), 
+				mFragmentShaderFilename.c_str()
+				);
+		assert(false);
+	} else {
+		gLog ("Uniform '%s': %d", name.c_str(), result);
+	}
+
+	return result;
 }
 
 //

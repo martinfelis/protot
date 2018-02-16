@@ -113,7 +113,11 @@ struct Renderer {
 
 	Camera mCamera;
 	Mesh mMesh;
-	RenderProgram mProgram;
+
+	RenderProgram mDefaultProgram;
+	GLuint muDefaultModelViewProjection;
+	GLuint muDefaultColor;
+
 	RenderTarget mRenderTarget;
 
 	GLuint mRenderQuadVertexArrayId;

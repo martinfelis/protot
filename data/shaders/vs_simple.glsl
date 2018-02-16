@@ -1,9 +1,10 @@
 #version 150 core
 #extension GL_ARB_explicit_uniform_location : require
 
-in vec3 vertexPosition_modelspace;
+in vec3 inVertex;
+
+uniform mat4 uModelViewProj;
 
 void main() {
-	gl_Position.xyz = vertexPosition_modelspace;
-	gl_Position.w = 1.0;
+	gl_Position = uModelViewProj * vec4(inVertex, 1);
 }

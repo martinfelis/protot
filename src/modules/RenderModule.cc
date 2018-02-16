@@ -131,10 +131,12 @@ void Renderer::Initialize(int width, int height) {
 	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
 glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-	// Shaders
-	mProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
-	bool load_result = mProgram.Load();
+	// Simple Shader
+	mDefaultProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
+	bool load_result = mDefaultProgram.Load();
 	assert(load_result);
+	muDefaultModelViewProjection = mDefaultProgram.GetUniformLocation("uModelViewProj");	
+	muDefaultColor = mDefaultProgram.GetUniformLocation("uColor");	
 
 	// Render Target
 	mRenderTarget = RenderTarget (width, height, RenderTarget::EnableColor | RenderTarget::EnableDepthTexture);
@@ -151,23 +153,18 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 	mRenderQuadProgramColor = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_simpletexture.glsl");
 	load_result = mRenderQuadProgramColor.Load();
 	assert(load_result);
-	muRenderQuadModelViewProj = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "uModelViewProj");	
-	gLog("muRenderQuadModelViewProj %d", muRenderQuadModelViewProj);
-	muRenderQuadTexture = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "uTexture");	
-	gLog("muRenderQuadTexture %d", muRenderQuadTexture );
-	muRenderQuadTime = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "uTime");	
-	gLog("muRenderQuadTime %d", muRenderQuadTime);
+	muRenderQuadModelViewProj = mRenderQuadProgramColor.GetUniformLocation("uModelViewProj");
+		
+	muRenderQuadTexture = mRenderQuadProgramColor.GetUniformLocation("uTexture");
+	muRenderQuadTime = mRenderQuadProgramColor.GetUniformLocation("uTime");	
 
 	// Program for depth texture rendering
 	mRenderQuadProgramDepth = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_depthbuffer.glsl");
 	load_result = mRenderQuadProgramDepth.Load();
 	assert(load_result);
-	muRenderQuadDepthModelViewProj = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "uModelViewProj");
-	gLog("muModelViewProj %d", muRenderQuadDepthModelViewProj);
-	muRenderQuadDepthNear = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "uNear");	
-	gLog("muRenderQuadDepthNear %d", muRenderQuadDepthNear);
-	muRenderQuadDepthFar = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "uFar");	
-	gLog("muRenderQuadDepthFar %d", muRenderQuadDepthFar);
+	muRenderQuadDepthModelViewProj = mRenderQuadProgramDepth.GetUniformLocation( "uModelViewProj");
+	muRenderQuadDepthNear = mRenderQuadProgramDepth.GetUniformLocation("uNear");	
+	muRenderQuadDepthFar = mRenderQuadProgramDepth.GetUniformLocation("uFar");	
 }
 
 void Renderer::Shutdown() {
@@ -180,6 +177,10 @@ void Renderer::RenderGl() {
 	glfwGetWindowSize(gWindow, &width, &height);
 	if (width != mWidth || height != mHeight)
 		Resize(width, height);
+
+	mCamera.mtxProj = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f);
+
+	Matrix44f model_view_projection = mCamera.mtxProj * mCamera.mtxView;
 
 	// enable the render target
 	glBindFramebuffer(GL_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
@@ -194,7 +195,10 @@ void Renderer::RenderGl() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
-	glUseProgram(mProgram.mProgramId);
+	glUseProgram(mDefaultProgram.mProgramId);
+	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
+	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
