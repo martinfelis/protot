@@ -33,7 +33,7 @@ bool RenderProgram::Load() {
 		VertexShaderCode = sstr.str();
 		VertexShaderStream.close();
 	}else{
-		gLog("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !\n", mVertexShaderFilename.c_str());
+		gLog("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !", mVertexShaderFilename.c_str());
 		getchar();
 		return false;
 	}
@@ -53,7 +53,7 @@ bool RenderProgram::Load() {
 
 
 	// Compile Vertex Shader
-	gLog("Compiling shader : %s\n", mVertexShaderFilename.c_str());
+	gLog("Compiling shader : %s", mVertexShaderFilename.c_str());
 	char const * VertexSourcePointer = VertexShaderCode.c_str();
 	glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
 	glCompileShader(VertexShaderID);
@@ -64,13 +64,13 @@ bool RenderProgram::Load() {
 	if ( InfoLogLength > 0 ){
 		std::vector<char> VertexShaderErrorMessage(InfoLogLength+1);
 		glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-		gLog("%s\n", &VertexShaderErrorMessage[0]);
+		gLog("%s", &VertexShaderErrorMessage[0]);
 	}
 
 
 
 	// Compile Fragment Shader
-	gLog("Compiling shader : %s\n", mFragmentShaderFilename.c_str());
+	gLog("Compiling shader : %s", mFragmentShaderFilename.c_str());
 	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
 	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
 	glCompileShader(FragmentShaderID);
@@ -81,13 +81,13 @@ bool RenderProgram::Load() {
 	if ( InfoLogLength > 0 ){
 		std::vector<char> FragmentShaderErrorMessage(InfoLogLength+1);
 		glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-		gLog("%s\n", &FragmentShaderErrorMessage[0]);
+		gLog("%s", &FragmentShaderErrorMessage[0]);
 	}
 
 
 
 	// Link the program
-	gLog("Linking program\n");
+	gLog("Linking program");
 	GLuint ProgramID = glCreateProgram();
 	glAttachShader(ProgramID, VertexShaderID);
 	glAttachShader(ProgramID, FragmentShaderID);
@@ -99,7 +99,7 @@ bool RenderProgram::Load() {
 	if ( InfoLogLength > 0 ){
 		std::vector<char> ProgramErrorMessage(InfoLogLength+1);
 		glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-		gLog("%s\n", &ProgramErrorMessage[0]);
+		gLog("%s", &ProgramErrorMessage[0]);
 	}
 
 

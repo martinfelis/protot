@@ -75,6 +75,32 @@ inline Matrix44f ScaleMat44 (float x, float y, float z) {
 			);
 }
 
+inline Matrix44f Ortho(float left, float right,
+		float bottom, float top,
+		float near, float far) {
+	float tx = -(right + left) / (right - left);
+	float ty = -(top + bottom) / (top - bottom);
+	float tz = -(far + near) / (far - near);
+	return Matrix44f(
+			2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+			0, 2.0f / (top - bottom), 0.0f, 0.0f,
+			0.0f, 0.0f, -2.0f / (far - near), 0.0f,
+			tx, ty, tz, 1.0f
+			);
+}
+
+inline Matrix44f Perspective(float fovy, float aspect,
+		float near, float far) {
+	float x = fovy / 2.0f;
+	float f = cos(x) / sin(x);
+	return Matrix44f(
+			f / aspect, 0.0f, 0.0f, 0.0f,
+			0.0f, f, 0.0f, 0.0f,
+			0.0f, 0.0f, (far + near) / (near - far), -1.0f,
+			0.0f, 0.0f, (2.0f * far * near) / (near - far), 0.0f
+			);
+}
+
 /** Quaternion 
  *
  * order: x,y,z,w

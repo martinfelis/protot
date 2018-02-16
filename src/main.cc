@@ -230,10 +230,6 @@ int main(void)
 
 		usleep(16000);
 
-		if (frame_counter > 1) {
-			gLog ("End of frame %d", frame_counter);
-		}
-
 		glfwSwapBuffers(gWindow);
 	}
 

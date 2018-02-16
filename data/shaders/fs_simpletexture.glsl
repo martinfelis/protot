@@ -1,17 +1,17 @@
 #version 330 core
 
-in vec2 uv;
+in vec2 ioUV;
 
-out vec3 color;
+out vec3 outColor;
 
-uniform sampler2D rendered_texture;
-uniform float time;
+uniform sampler2D uTexture;
+uniform float uTime;
 
 void main() {
-	color = texture(rendered_texture, uv 
+	outColor = texture(uTexture, ioUV 
 	+ 0.00 * vec2(
-		sin(time + 1024.0 * uv.x),
-		cos(time + 768.0  * uv.y)
+		sin(uTime + 1024.0 * ioUV.x),
+		cos(uTime + 768.0  * ioUV.y)
 		)
 	).xyz;
 }

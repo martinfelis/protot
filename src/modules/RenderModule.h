@@ -111,7 +111,7 @@ struct Renderer {
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;
 
-	std::vector<Camera> cameras;
+	Camera mCamera;
 	Mesh mMesh;
 	RenderProgram mProgram;
 	RenderTarget mRenderTarget;
@@ -120,10 +120,12 @@ struct Renderer {
 	GLuint mRenderQuadVertexBufferId;
 
 	RenderProgram mRenderQuadProgramColor;
+	GLuint muRenderQuadModelViewProj;
 	GLuint muRenderQuadTexture;
 	GLuint muRenderQuadTime;
 
 	RenderProgram mRenderQuadProgramDepth;
+	GLuint muRenderQuadDepthModelViewProj;
 	GLuint muRenderQuadDepthNear;
 	GLuint muRenderQuadDepthFar;
 

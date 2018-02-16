@@ -3,12 +3,14 @@
 #include "RenderModule.h"
 #include <GLFW/glfw3.h>
 
+using namespace SimpleMath::GL;
+
 struct Renderer;
 
 static const GLfloat g_vertex_buffer_data[] = {
-	-1.0f, -1.0f, 0.0f,
-	1.0f, -1.0f, -1.2f,
-	0.0f, 1.0f, 0.0f
+	-0.9f, -0.9f, 1.0f,
+	0.9f, -0.9f, -1.0f,
+	0.0f, 0.9f, 0.0f
 };
 
 static const GLfloat g_quad_vertex_buffer_data[] = {
@@ -149,15 +151,23 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 	mRenderQuadProgramColor = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_simpletexture.glsl");
 	load_result = mRenderQuadProgramColor.Load();
 	assert(load_result);
-	muRenderQuadTexture = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "rendered_texture");	
-	muRenderQuadTime = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "time");	
+	muRenderQuadModelViewProj = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "uModelViewProj");	
+	gLog("muRenderQuadModelViewProj %d", muRenderQuadModelViewProj);
+	muRenderQuadTexture = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "uTexture");	
+	gLog("muRenderQuadTexture %d", muRenderQuadTexture );
+	muRenderQuadTime = glGetUniformLocation(mRenderQuadProgramColor.mProgramId, "uTime");	
+	gLog("muRenderQuadTime %d", muRenderQuadTime);
 
 	// Program for depth texture rendering
 	mRenderQuadProgramDepth = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_depthbuffer.glsl");
 	load_result = mRenderQuadProgramDepth.Load();
 	assert(load_result);
-	muRenderQuadDepthNear = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "near");	
-	muRenderQuadDepthFar = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "far");	
+	muRenderQuadDepthModelViewProj = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "uModelViewProj");
+	gLog("muModelViewProj %d", muRenderQuadDepthModelViewProj);
+	muRenderQuadDepthNear = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "uNear");	
+	gLog("muRenderQuadDepthNear %d", muRenderQuadDepthNear);
+	muRenderQuadDepthFar = glGetUniformLocation(mRenderQuadProgramDepth.mProgramId, "uFar");	
+	gLog("muRenderQuadDepthFar %d", muRenderQuadDepthFar);
 }
 
 void Renderer::Shutdown() {
@@ -208,20 +218,26 @@ void Renderer::RenderGui() {
 	glActiveTexture(GL_TEXTURE0);
 
 	bool render_color = false;
-	
+
+	mCamera.mtxProj = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f);
+
+	Matrix44f model_view_projection = mCamera.mtxProj * mCamera.mtxView;
+
 	if (render_color) {
 		// Render the full screen quad
 		glUseProgram(mRenderQuadProgramColor.mProgramId);
 		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
 		glUniform1i(muRenderQuadTexture, 0);
 		glUniform1f(muRenderQuadTime, (float)(glfwGetTime() * 10.0f));
 	} else {
 		// render depth texture
 		glUseProgram(mRenderQuadProgramDepth.mProgramId);
 		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
+		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
 		glUniform1i(muRenderQuadTexture, 0);
-		glUniform1f(muRenderQuadDepthNear, 1.0);
-		glUniform1f(muRenderQuadDepthFar, -1.0);
+		glUniform1f(muRenderQuadDepthNear, -1.0);
+		glUniform1f(muRenderQuadDepthFar, 1.0);
 	}
 
 	glEnableVertexAttribArray(0);

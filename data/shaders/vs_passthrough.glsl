@@ -1,10 +1,11 @@
 #version 330 core
 
-in vec3 vertex_position_modelspace;
+in vec3 inVertex;
+uniform mat4 uModelViewProj;
 
-out vec2 uv;
+out vec2 ioUV;
 
 void main() {
-	gl_Position = vec4(vertex_position_modelspace, 1);
-	uv = (vertex_position_modelspace.xy + vec2(1,1)) / 2.0;
+	gl_Position = uModelViewProj * vec4(inVertex, 1);
+	ioUV = (inVertex.xy + vec2(1,1)) / 2.0;
 }
