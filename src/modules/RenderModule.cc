@@ -8,9 +8,9 @@ using namespace SimpleMath::GL;
 struct Renderer;
 
 static const GLfloat g_vertex_buffer_data[] = {
-	-0.9f, -0.9f, 1.0f,
-	0.9f, -0.9f, -1.0f,
-	0.0f, 0.9f, 0.0f
+	-0.7f, -0.9f, 0.0f,
+	0.9f, -0.9f, 0.0f,
+	0.0f, 0.9f, 1.0f
 };
 
 static const GLfloat g_quad_vertex_buffer_data[] = {
@@ -117,7 +117,12 @@ const struct module_api MODULE_API = {
 //
 // Camera
 //
-void Camera::updateMatrices() {
+void Camera::UpdateMatrices() {
+	mViewMatrix = LookAt(eye, poi, up);
+
+	if (orthographic) {
+		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, near, far);
+	}
 }
 
 
@@ -178,9 +183,20 @@ void Renderer::RenderGl() {
 	if (width != mWidth || height != mHeight)
 		Resize(width, height);
 
-	mCamera.mtxProj = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f);
+	mCamera.eye = Vector3f (0.0f, 0.0f, 1.0f);
+	mCamera.poi = Vector3f (0.0f, 0.0f, 0.0f);
+	mCamera.up = Vector3f (0.0f, 1.0f, 0.0f);
+	mCamera.near = 0.0f;
+	mCamera.far = 1.0f;
+	mCamera.orthographic = true;
 
-	Matrix44f model_view_projection = mCamera.mtxProj * mCamera.mtxView;
+	mCamera.UpdateMatrices();
+
+	Matrix44f model_matrix = TranslateMat44(0.0f, 0.0f, 0.0f);
+	Matrix44f model_view_projection = 
+		model_matrix
+		* mCamera.mViewMatrix
+		* mCamera.mProjectionMatrix;
 
 	// enable the render target
 	glBindFramebuffer(GL_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
@@ -198,7 +214,6 @@ void Renderer::RenderGl() {
 	glUseProgram(mDefaultProgram.mProgramId);
 	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
 	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
-	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
@@ -223,9 +238,7 @@ void Renderer::RenderGui() {
 
 	bool render_color = false;
 
-	mCamera.mtxProj = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f);
-
-	Matrix44f model_view_projection = mCamera.mtxProj * mCamera.mtxView;
+	Matrix44f model_view_projection = Matrix44f::Identity();
 
 	if (render_color) {
 		// Render the full screen quad
@@ -240,8 +253,8 @@ void Renderer::RenderGui() {
 		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
 		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
 		glUniform1i(muRenderQuadTexture, 0);
-		glUniform1f(muRenderQuadDepthNear, -1.0);
-		glUniform1f(muRenderQuadDepthFar, 1.0);
+		glUniform1f(muRenderQuadDepthNear, mCamera.near);
+		glUniform1f(muRenderQuadDepthFar, mCamera.far);
 	}
 
 	glEnableVertexAttribArray(0);

@@ -24,8 +24,8 @@ struct Camera {
 	float width;
 	float height;
 
-	Matrix44f mtxProj;
-	Matrix44f mtxView;
+	Matrix44f mProjectionMatrix;
+	Matrix44f mViewMatrix;
 
 	Camera() :
 		eye {5.f, 4.f, 5.f},
@@ -38,27 +38,27 @@ struct Camera {
 		width (-1.f),
 		height (-1.f),
 
-		mtxProj (
+		mProjectionMatrix (
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
 			0.f, 0.f, 1.f, 0.f,
 			0.f, 0.f, 0.f, 1.f),
-		mtxView (
+		mViewMatrix (
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
 			0.f, 0.f, 1.f, 0.f,
 			0.f, 0.f, 0.f, 1.f)
 		{}
 
-	void updateMatrices();
+	void UpdateMatrices();
 };
 
 struct Light {
 	Vector3f pos;
 	Vector3f dir;
 
-	float mtxView[16];
-	float mtxProj[16];
+	float mViewMatrix[16];
+	float mProjectionMatrix[16];
 	float mtxLight[16];
 	float mtxShadow[16];
 
@@ -73,13 +73,13 @@ struct Light {
 	Light() :
 		pos (Vector3f(0.f, 10.f, 10.f)),
 		dir (Vector3f(-1.f, -1.f, -1.f)),
-		mtxView {
+		mViewMatrix {
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
 			0.f, 0.f, 1.f, 0.f,
 			0.f, 0.f, 0.f, 1.f
 		},
-		mtxProj {
+		mProjectionMatrix {
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
 			0.f, 0.f, 1.f, 0.f,

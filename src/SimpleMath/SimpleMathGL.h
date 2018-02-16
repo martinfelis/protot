@@ -101,6 +101,22 @@ inline Matrix44f Perspective(float fovy, float aspect,
 			);
 }
 
+inline Matrix44f LookAt(
+		const Vector3f& eye,
+		const Vector3f& poi,
+		const Vector3f& up) {
+	Vector3f d = (poi - eye).normalized();
+	Vector3f s = d.cross(up.normalized());
+	Vector3f u = s.cross(d);
+
+	return Matrix44f(
+			s[0], u[0], -d[0], 0.0f,
+			s[1], u[1], -d[1], 0.0f,
+			s[2], u[2], -d[2], 0.0f,
+			-eye[0], -eye[1], -eye[2], 1.0f
+			);
+}
+
 /** Quaternion 
  *
  * order: x,y,z,w
