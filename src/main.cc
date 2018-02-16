@@ -149,6 +149,8 @@ int main(void)
 	double frame_delta_time = 0.0;
 	uint64_t frame_counter = 0;
 
+	bool draw_imgui_demo = false;
+
 	while(!glfwWindowShouldClose(gWindow)) {
 		frame_counter++;
 
@@ -157,7 +159,7 @@ int main(void)
 		glfwGetWindowSize(gWindow, &width, &height);
 
 		glfwPollEvents();
-//		ImGui_ImplGlfwGL3_NewFrame();
+		ImGui_ImplGlfwGL3_NewFrame();
 
 //		imguiBeginFrame (gGuiInputState->mouseX,
 //				gGuiInputState->mouseY,
@@ -188,45 +190,60 @@ int main(void)
 		assert (gTimer->mDeltaTime >= 0.0f);
 		int width, height;
 		glfwGetWindowSize(gWindow, &width, &height);
-//#ifdef USE_DOCKS
-//		ImGui::SetNextWindowPos(ImVec2(0.0f, 20.0f));
-//		ImGui::SetNextWindowSize(ImVec2(width, height));
-//		if (ImGui::Begin("DockArea", NULL,
-//					ImGuiWindowFlags_NoTitleBar
-//					| ImGuiWindowFlags_NoResize
-//					| ImGuiWindowFlags_NoMove
-//					| ImGuiWindowFlags_NoBringToFrontOnFocus
-//					)) {
-//			ImGui::BeginDockspace();
-//
-//			if (ImGui::BeginDock("dock1")) {
-//				ImGui::Text("HEllo 1");
-//			}
-//			ImGui::EndDock();
-//
-//			if (ImGui::BeginDock("dock2")) {
-//				ImGui::Text("HEllo2");
-//			}
-//			ImGui::EndDock();
-//
-//			if (ImGui::BeginDock("dock3")) {
-//				ImGui::Text("HEllo3");
-//			}
-//			ImGui::EndDock();
-//
-//
-//#endif
+
+
+		ImGui::BeginMainMenuBar();
+
+		if (ImGui::BeginMenu("Dialogs"))
+		{
+			ImGui::Checkbox("ImGui Demo", &draw_imgui_demo);
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndMainMenuBar();
+
+		if (draw_imgui_demo)
+			ImGui::ShowDemoWindow();
+
+#ifdef USE_DOCKS
+		ImGui::SetNextWindowPos(ImVec2(0.0f, 10.0f));
+		ImGui::SetNextWindowSize(ImVec2(width, height));
+		if (ImGui::Begin("DockArea", NULL,
+					ImGuiWindowFlags_NoTitleBar
+					| ImGuiWindowFlags_NoResize
+					| ImGuiWindowFlags_NoMove
+					| ImGuiWindowFlags_NoBringToFrontOnFocus
+					)) {
+			ImGui::BeginDockspace();
+
+			if (ImGui::BeginDock("dock1")) {
+				ImGui::Text("HEllo 1");
+			}
+			ImGui::EndDock();
+
+			if (ImGui::BeginDock("dock2")) {
+				ImGui::Text("HEllo2");
+			}
+			ImGui::EndDock();
+
+			if (ImGui::BeginDock("dock3")) {
+				ImGui::Text("HEllo3");
+			}
+			ImGui::EndDock();
+
+
+#endif
 
 			module_manager.Update(gTimer->mDeltaTime);
 
-// #ifdef USE_DOCKS
-// 			ImGui::EndDockspace();
-// 		}
+ #ifdef USE_DOCKS
+ 			ImGui::EndDockspace();
+ 		}
+ 
+ 		ImGui::End();
+ #endif
 // 
-// 		ImGui::End();
-// #endif
-// 
-// 		ImGui::Render();
+ 		ImGui::Render();
 
 		usleep(16000);
 

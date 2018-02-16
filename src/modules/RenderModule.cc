@@ -3,12 +3,15 @@
 #include "RenderModule.h"
 #include <GLFW/glfw3.h>
 
+#include "imgui/imgui.h"
+#include "imgui_dock.h"
+
 using namespace SimpleMath::GL;
 
 struct Renderer;
 
 static const GLfloat g_vertex_buffer_data[] = {
-	-0.7f, -0.9f, 0.0f,
+	-0.9f, -0.9f, 0.0f,
 	0.9f, -0.9f, 0.0f,
 	0.0f, 0.9f, 1.0f
 };
@@ -228,15 +231,36 @@ void Renderer::RenderGl() {
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
 	glDisableVertexAttribArray(0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::RenderGui() {
+	bool render_color = true;
+
+	GLuint texture;
+	if (render_color) {
+		texture = mRenderTarget.mColorTexture;
+	} else {
+		texture = mRenderTarget.mDepthTexture;
+	}
+
+	if (ImGui::BeginDock("Scene")) {
+		ImGui::Text("Scene");
+		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
+		ImGui::Image((void*) texture,
+				content_avail,
+				ImVec2(0.0f, 1.0f), 
+				ImVec2(1.0f, 0.0f)
+				);
+	}
+	ImGui::EndDock();
+
+	return;
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glActiveTexture(GL_TEXTURE0);
-
-	bool render_color = false;
 
 	Matrix44f model_view_projection = Matrix44f::Identity();
 
