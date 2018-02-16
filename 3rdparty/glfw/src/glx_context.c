@@ -30,7 +30,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <stdio.h>
 
 #ifndef GLXBadProfileARB
  #define GLXBadProfileARB 13
@@ -180,20 +179,15 @@ static void swapIntervalGLX(int interval)
 
     if (_glfw.glx.EXT_swap_control)
     {
- 			fprintf (stderr, "swapping with glXSwapIntervalEXT\n");
         _glfw.glx.SwapIntervalEXT(_glfw.x11.display,
                                   window->context.glx.window,
                                   interval);
     }
-    else if (_glfw.glx.MESA_swap_control) 
-		{
-			fprintf (stderr, "swapping with glXSwapIntervalMESA %d %p\n", interval, _glfw.glx.SwapIntervalMESA);
+    else if (_glfw.glx.MESA_swap_control)
         _glfw.glx.SwapIntervalMESA(interval);
-		}
     else if (_glfw.glx.SGI_swap_control)
     {
- 			fprintf (stderr, "swapping with glXSwapIntervalSGI\n");
-       if (interval > 0)
+        if (interval > 0)
             _glfw.glx.SwapIntervalSGI(interval);
     }
 }
@@ -259,6 +253,9 @@ GLFWbool _glfwInitGLX(void)
         NULL
     };
 
+    if (_glfw.glx.handle)
+        return GLFW_TRUE;
+
     for (i = 0;  sonames[i];  i++)
     {
         _glfw.glx.handle = dlopen(sonames[i], RTLD_LAZY | RTLD_GLOBAL);
@@ -303,6 +300,27 @@ GLFWbool _glfwInitGLX(void)
     _glfw.glx.GetVisualFromFBConfig =
         dlsym(_glfw.glx.handle, "glXGetVisualFromFBConfig");
 
+    if (!_glfw.glx.GetFBConfigs ||
+        !_glfw.glx.GetFBConfigAttrib ||
+        !_glfw.glx.GetClientString ||
+        !_glfw.glx.QueryExtension ||
+        !_glfw.glx.QueryVersion ||
+        !_glfw.glx.DestroyContext ||
+        !_glfw.glx.MakeCurrent ||
+        !_glfw.glx.SwapBuffers ||
+        !_glfw.glx.QueryExtensionsString ||
+        !_glfw.glx.CreateNewContext ||
+        !_glfw.glx.CreateWindow ||
+        !_glfw.glx.DestroyWindow ||
+        !_glfw.glx.GetProcAddress ||
+        !_glfw.glx.GetProcAddressARB ||
+        !_glfw.glx.GetVisualFromFBConfig)
+    {
+        _glfwInputError(GLFW_PLATFORM_ERROR,
+                        "GLX: Failed to load required entry points");
+        return GLFW_FALSE;
+    }
+
     if (!glXQueryExtension(_glfw.x11.display,
                            &_glfw.glx.errorBase,
                            &_glfw.glx.eventBase))
@@ -330,8 +348,6 @@ GLFWbool _glfwInitGLX(void)
         _glfw.glx.SwapIntervalEXT = (PFNGLXSWAPINTERVALEXTPROC)
             getProcAddressGLX("glXSwapIntervalEXT");
 
-				fprintf (stderr, "using glXSwapIntervalEXT\n");
-
         if (_glfw.glx.SwapIntervalEXT)
             _glfw.glx.EXT_swap_control = GLFW_TRUE;
     }
@@ -341,9 +357,6 @@ GLFWbool _glfwInitGLX(void)
         _glfw.glx.SwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC)
             getProcAddressGLX("glXSwapIntervalSGI");
 
-				fprintf (stderr, "using glXSwapIntervalSGI\n");
-
-
         if (_glfw.glx.SwapIntervalSGI)
             _glfw.glx.SGI_swap_control = GLFW_TRUE;
     }
@@ -352,8 +365,6 @@ GLFWbool _glfwInitGLX(void)
     {
         _glfw.glx.SwapIntervalMESA = (PFNGLXSWAPINTERVALMESAPROC)
             getProcAddressGLX("glXSwapIntervalMESA");
-
-				fprintf (stderr, "using glXSwapIntervalMESA\n");
 
         if (_glfw.glx.SwapIntervalMESA)
             _glfw.glx.MESA_swap_control = GLFW_TRUE;
