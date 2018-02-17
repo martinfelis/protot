@@ -106,7 +106,11 @@ struct Mesh {
 	GLuint mVertexBuffer = -1;
 };
 
+struct RendererSettings;
+
 struct Renderer {
+	RendererSettings* mSettings = nullptr;
+
 	bool mInitialized = false;
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;

@@ -2,6 +2,7 @@
 #include "Globals.h"
 #include "RenderModule.h"
 #include <GLFW/glfw3.h>
+#include "Serializer.h"
 
 #include "imgui/imgui.h"
 #include "imgui_dock.h"
@@ -10,10 +11,16 @@ using namespace SimpleMath::GL;
 
 struct Renderer;
 
+struct RendererSettings {
+	bool DrawDepth = false;
+};
+
+static RendererSettings sRendererSettings;
+
 static const GLfloat g_vertex_buffer_data[] = {
 	-0.9f, -0.9f, 0.0f,
 	0.9f, -0.9f, 0.0f,
-	0.0f, 0.9f, 1.0f
+	0.0f, 0.9f, 4.0f
 };
 
 static const GLfloat g_quad_vertex_buffer_data[] = {
@@ -47,6 +54,7 @@ template <typename Serializer>
 static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
+	SerializeBool(*serializer, "protot.RenderModule.DrawDepth", sRendererSettings.DrawDepth);
 //	// get the state from the serializer
 //	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 //	assert (camera != nullptr);
@@ -74,6 +82,7 @@ static void module_reload(struct module_state *state, void *read_serializer) {
 	gLog ("Renderer initialize");
 	assert (state != nullptr);
 	state->renderer->Initialize(100, 100);
+	state->renderer->mSettings = &sRendererSettings;
 
 	gRenderer = state->renderer;
 
@@ -147,7 +156,10 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 	muDefaultColor = mDefaultProgram.GetUniformLocation("uColor");	
 
 	// Render Target
-	mRenderTarget = RenderTarget (width, height, RenderTarget::EnableColor | RenderTarget::EnableDepthTexture);
+	mRenderTarget = RenderTarget (width, height, 
+			RenderTarget::EnableColor 
+			| RenderTarget::EnableDepthTexture 
+			| RenderTarget::EnableLinearizedDepthTexture);
 
 	// Render Target Quad
 	glGenVertexArrays(1, &mRenderQuadVertexArrayId);
@@ -186,11 +198,11 @@ void Renderer::RenderGl() {
 	if (width != mWidth || height != mHeight)
 		Resize(width, height);
 
-	mCamera.eye = Vector3f (0.0f, 0.0f, 1.0f);
+	mCamera.eye = Vector3f (0.0f, 0.0f, 4.0f);
 	mCamera.poi = Vector3f (0.0f, 0.0f, 0.0f);
 	mCamera.up = Vector3f (0.0f, 1.0f, 0.0f);
 	mCamera.near = 0.0f;
-	mCamera.far = 1.0f;
+	mCamera.far = 4.0f;
 	mCamera.orthographic = true;
 
 	mCamera.UpdateMatrices();
@@ -230,23 +242,63 @@ void Renderer::RenderGl() {
 			);
 
 	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
+
+	if (mSettings->DrawDepth) {
+		mRenderTarget.RenderToLinearizedDepth(true);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+
+		Matrix44f model_view_projection = Matrix44f::Identity();
+
+		// render depth texture
+		glUseProgram(mRenderQuadProgramDepth.mProgramId);
+		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
+		glUniform1i(muRenderQuadTexture, 0);
+
+		// TODO: adjust for perspective
+		glUniform1f(muRenderQuadDepthNear, mCamera.near);
+		// TODO: why do I have to divide by depth range?
+		glUniform1f(muRenderQuadDepthFar, mCamera.far / (mCamera.far - mCamera.near));
+
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
+		glVertexAttribPointer(
+				0,				// attribute 0
+				3,				// size
+				GL_FLOAT,	// type
+				GL_FALSE,	// normalized?
+				0,				// stride
+				(void*)0	// offset
+				);
+
+		glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
+
+		mRenderTarget.RenderToLinearizedDepth(false);
+	}
+
 	glDisableVertexAttribArray(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::RenderGui() {
-	bool render_color = true;
-
-	GLuint texture;
-	if (render_color) {
-		texture = mRenderTarget.mColorTexture;
-	} else {
-		texture = mRenderTarget.mDepthTexture;
-	}
-
 	if (ImGui::BeginDock("Scene")) {
+		ImGui::Checkbox("Draw Depth", &mSettings->DrawDepth);
+
+		GLuint texture;
+		if (mSettings->DrawDepth) {
+			texture = mRenderTarget.mLinearizedDepthTexture;
+		} else {
+			texture = mRenderTarget.mColorTexture;
+		}
+
 		ImGui::Text("Scene");
 		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
+	
+//		mRenderTarget.Resize(content_avail.x, content_avail.y);
+
 		ImGui::Image((void*) texture,
 				content_avail,
 				ImVec2(0.0f, 1.0f), 
@@ -254,46 +306,6 @@ void Renderer::RenderGui() {
 				);
 	}
 	ImGui::EndDock();
-
-	return;
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glActiveTexture(GL_TEXTURE0);
-
-	Matrix44f model_view_projection = Matrix44f::Identity();
-
-	if (render_color) {
-		// Render the full screen quad
-		glUseProgram(mRenderQuadProgramColor.mProgramId);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
-		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
-		glUniform1i(muRenderQuadTexture, 0);
-		glUniform1f(muRenderQuadTime, (float)(glfwGetTime() * 10.0f));
-	} else {
-		// render depth texture
-		glUseProgram(mRenderQuadProgramDepth.mProgramId);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
-		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
-		glUniform1i(muRenderQuadTexture, 0);
-		glUniform1f(muRenderQuadDepthNear, mCamera.near);
-		glUniform1f(muRenderQuadDepthFar, mCamera.far);
-	}
-
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
-	glVertexAttribPointer(
-			0,				// attribute 0
-			3,				// size
-			GL_FLOAT,	// type
-			GL_FALSE,	// normalized?
-			0,				// stride
-			(void*)0	// offset
-			);
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
-	glDisableVertexAttribArray(0);
 }
 
 void Renderer::Resize (int width, int height) {

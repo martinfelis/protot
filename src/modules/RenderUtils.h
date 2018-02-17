@@ -146,6 +146,9 @@ struct RenderProgram {
 	bool Load();
 };
 
+struct RenderSettings;
+
+
 struct RenderTarget {
 	int mWidth = 0;
 	int mHeight = 0;
@@ -153,11 +156,13 @@ struct RenderTarget {
 	GLuint mColorTexture = -1;
 	GLuint mDepthBuffer = -1;
 	GLuint mDepthTexture = -1;
+	GLuint mLinearizedDepthTexture = -1;
 
 	typedef enum {
 		EnableColor = 1,
 		EnableDepth = 2,
-		EnableDepthTexture = 4
+		EnableDepthTexture = 4,
+		EnableLinearizedDepthTexture = 8
 	} Flags;
 
 	int mFlags = 0;
@@ -168,6 +173,7 @@ struct RenderTarget {
 
 	void Cleanup();
 	void Resize(int width, int height);
+	void RenderToLinearizedDepth(bool render_to_depth);
 };
 
 #endif

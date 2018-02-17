@@ -170,6 +170,11 @@ void RenderTarget::Cleanup() {
 		glDeleteRenderbuffers(1, &mDepthBuffer);
 		mDepthBuffer = -1;
 	}
+
+	if (mLinearizedDepthTexture != -1) {
+		glDeleteTextures(1, &mLinearizedDepthTexture);
+		mLinearizedDepthTexture = -1;
+	}
 }
 
 void RenderTarget::Resize(int width, int height) {
@@ -210,6 +215,17 @@ void RenderTarget::Resize(int width, int height) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, mDepthTexture, 0);
+
+		if (mFlags & EnableLinearizedDepthTexture) {
+			glGenTextures(1, &mLinearizedDepthTexture);
+			glBindTexture(GL_TEXTURE_2D, mLinearizedDepthTexture);
+
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		}
 	} else if (mFlags & EnableDepth) {
 		assert((mFlags & EnableDepthTexture) == false);
 		glGenRenderbuffers(1, &mDepthBuffer);
@@ -219,4 +235,11 @@ void RenderTarget::Resize(int width, int height) {
 	}
 }
 
-
+void RenderTarget::RenderToLinearizedDepth(bool render_to_depth) {
+	if (render_to_depth) {
+		assert(mFlags & EnableLinearizedDepthTexture);
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mLinearizedDepthTexture, 0);
+	} else {
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
+	}
+}
