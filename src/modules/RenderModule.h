@@ -13,30 +13,30 @@
 #include "RenderUtils.h"
 
 struct Camera {
-	Vector3f eye;
-	Vector3f poi;
-	Vector3f up;
+	Vector3f mEye;
+	Vector3f mPoi;
+	Vector3f mUp;
 
-	float near;
-	float far;
-	float fov;
-	bool orthographic;
-	float width;
-	float height;
+	float mNear;
+	float mFar;
+	float mFov;
+	bool mIsOrthographic;
+	float mWidth;
+	float mHeight;
 
 	Matrix44f mProjectionMatrix;
 	Matrix44f mViewMatrix;
 
 	Camera() :
-		eye {5.f, 4.f, 5.f},
-		poi {0.f, 2.f, 0.f},
-		up  {0.f, 1.f, 0.f},
-		near (0.1f),
-		far (150.f),
-		fov (60.f),
-		orthographic (false),
-		width (-1.f),
-		height (-1.f),
+		mEye {5.f, 4.f, 5.f},
+		mPoi {0.f, 2.f, 0.f},
+		mUp  {0.f, 1.f, 0.f},
+		mNear (0.1f),
+		mFar (150.f),
+		mFov (60.f),
+		mIsOrthographic (false),
+		mWidth (-1.f),
+		mHeight (-1.f),
 
 		mProjectionMatrix (
 			1.f, 0.f, 0.f, 0.f,
@@ -51,6 +51,7 @@ struct Camera {
 		{}
 
 	void UpdateMatrices();
+	void DrawGui();
 };
 
 struct Light {
@@ -117,6 +118,9 @@ struct Renderer {
 
 	Camera mCamera;
 	Mesh mMesh;
+	Mesh mPlane;
+
+	Texture mDefaultTexture;
 
 	RenderProgram mDefaultProgram;
 	GLuint muDefaultModelViewProjection;

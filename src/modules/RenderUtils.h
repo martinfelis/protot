@@ -176,4 +176,14 @@ struct RenderTarget {
 	void RenderToLinearizedDepth(bool render_to_depth);
 };
 
+struct Texture {
+	GLuint mTextureId;
+	GLuint mWidth;
+	GLuint mHeight;
+
+	~Texture();
+	void MakeGrid(const int& size, const Vector3f &c1, const Vector3f &c2);
+	bool Load(const char* path, int num_components = 3);
+};
+
 #endif

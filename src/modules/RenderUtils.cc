@@ -8,6 +8,10 @@
 #include "RenderUtils.h"
 #include "Globals.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+
+#include "stb/stb_image.h"
+
 using namespace SimpleMath;
 
 //
@@ -242,4 +246,80 @@ void RenderTarget::RenderToLinearizedDepth(bool render_to_depth) {
 	} else {
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
 	}
+}
+
+//
+// Texture
+//
+
+Texture::~Texture() {
+	if (mTextureId != -1) {
+		glDeleteTextures(1, &mTextureId);
+		mTextureId = -1;
+	}
+}
+
+void Texture::MakeGrid(const int& size, const Vector3f &c1, const Vector3f &c2) {
+	mWidth = size;
+	mHeight = size;
+
+	unsigned char buffer[size * size * 3];
+	int size_half = size / 2;
+
+	for (int i = 0; i < size_half; ++i) {
+		for (int j = 0; j < size_half; ++j) {
+			buffer[(i * size * 3) + (j * 3) + 0] = static_cast<unsigned char>(c1[0] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 1] = static_cast<unsigned char>(c1[1] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 2] = static_cast<unsigned char>(c1[2] * 255.0f);
+		}
+	}
+
+	for (int i = size_half; i < size; ++i) {
+		for (int j = 0; j < size_half; ++j) {
+			buffer[(i * size * 3) + (j * 3) + 0] = static_cast<unsigned char>(c2[0] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 1] = static_cast<unsigned char>(c2[1] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 2] = static_cast<unsigned char>(c2[2] * 255.0f);
+		}
+	}
+
+	for (int i = size_half; i < size; ++i) {
+		for (int j = size_half; j < size; ++j) {
+			buffer[(i * size * 3) + (j * 3) + 0] = static_cast<unsigned char>(c1[0] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 1] = static_cast<unsigned char>(c1[1] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 2] = static_cast<unsigned char>(c1[2] * 255.0f);
+		}
+	}
+
+	for (int i = 0; i < size_half; ++i) {
+		for (int j = size_half; j < size; ++j) {
+			buffer[(i * size * 3) + (j * 3) + 0] = static_cast<unsigned char>(c2[0] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 1] = static_cast<unsigned char>(c2[1] * 255.0f);
+			buffer[(i * size * 3) + (j * 3) + 2] = static_cast<unsigned char>(c2[2] * 255.0f);
+		}
+	}
+
+
+	glGenTextures(1, &mTextureId);
+	glBindTexture(GL_TEXTURE_2D, mTextureId);
+
+	glTexImage2D(GL_TEXTURE_2D, 
+			0,								// level
+			GL_RGB,						// internal format
+			size,							// width
+			size,							// height
+			0,								// border (must be 0)
+			GL_RGB,						// format of pixel data
+			GL_UNSIGNED_BYTE,	// type of pixel data
+			buffer						// pixel data
+			);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+}
+
+bool Texture::Load(const char* filename, int num_components) {
+//	unsigned char* rgb = stbi_load(filename, &mWidth, &mHeight, num_components);
+	assert(false);
 }

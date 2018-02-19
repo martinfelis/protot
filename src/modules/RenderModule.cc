@@ -32,6 +32,15 @@ static const GLfloat g_quad_vertex_buffer_data[] = {
 	1.0f, 1.0f, 0.0f
 };
 
+static const GLfloat g_textured_quad_vertex_buffer_data[] = {
+	-1.0f, -1.0f, 0.0f,	0.0f, 1.0f,
+	1.0f, -1.0f, 0.0f,	1.0f, 1.0f,
+	-1.0f, 1.0f, 0.0f,	0.0f, 0.0f,
+	-1.0f, 1.0f, 0.0f,	0.0f, 0.0f,
+	1.0f, -1.0f, 0.0f,	1.0f, 1.0f,	
+	1.0f, 1.0f, 0.0f,		1.0f, 0.0f,
+};
+
 //
 // Module
 //
@@ -55,6 +64,9 @@ static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
 	SerializeBool(*serializer, "protot.RenderModule.DrawDepth", sRendererSettings.DrawDepth);
+	SerializeBool(*serializer, "protot.RenderModule.Camera.mIsOrthographic", gRenderer->mCamera.mIsOrthographic);
+	SerializeFloat(*serializer, "protot.RenderModule.Camera.mNear", gRenderer->mCamera.mNear);
+	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFar", gRenderer->mCamera.mFar);
 //	// get the state from the serializer
 //	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
 //	assert (camera != nullptr);
@@ -130,23 +142,40 @@ const struct module_api MODULE_API = {
 // Camera
 //
 void Camera::UpdateMatrices() {
-	mViewMatrix = LookAt(eye, poi, up);
+	mViewMatrix = LookAt(mEye, mPoi, mUp);
 
-	if (orthographic) {
-		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, near, far);
+	if (mIsOrthographic) {
+		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, mNear, mFar);
+	} else {
 	}
+}
+
+void Camera::DrawGui() {
+	ImGui::Checkbox("Orthographic", &mIsOrthographic);
+	ImGui::SliderFloat("Near", &mNear, -10, 10);
+	ImGui::SliderFloat("Far", &mFar, -10, 10);
 }
 
 
 //
-// Camera
+// Renderer
 //
 void Renderer::Initialize(int width, int height) {
+	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.2f, 0.2f, 0.2f));
+
+	// Mesh
 	glGenVertexArrays(1, &mMesh.mVertexArrayId);
 	glBindVertexArray(mMesh.mVertexArrayId);
 	glGenBuffers(1, &mMesh.mVertexBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
-glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+	// Plane
+	glGenVertexArrays(1, &mPlane.mVertexArrayId);
+	glBindVertexArray(mPlane.mVertexArrayId);
+	glGenBuffers(1, &mPlane.mVertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, mPlane.mVertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
 	// Simple Shader
 	mDefaultProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
@@ -189,6 +218,9 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data
 
 void Renderer::Shutdown() {
 	glDeleteVertexArrays(1, &mMesh.mVertexArrayId);
+	glDeleteBuffers(1, &mMesh.mVertexBuffer);
+	glDeleteVertexArrays(1, &mPlane.mVertexArrayId);
+	glDeleteBuffers(1, &mPlane.mVertexBuffer);
 }
 
 
@@ -198,12 +230,9 @@ void Renderer::RenderGl() {
 	if (width != mWidth || height != mHeight)
 		Resize(width, height);
 
-	mCamera.eye = Vector3f (0.0f, 0.0f, 4.0f);
-	mCamera.poi = Vector3f (0.0f, 0.0f, 0.0f);
-	mCamera.up = Vector3f (0.0f, 1.0f, 0.0f);
-	mCamera.near = 0.0f;
-	mCamera.far = 4.0f;
-	mCamera.orthographic = true;
+	mCamera.mEye = Vector3f (0.0f, 0.0f, 4.0f);
+	mCamera.mPoi = Vector3f (0.0f, 0.0f, 0.0f);
+	mCamera.mUp = Vector3f (0.0f, 1.0f, 0.0f);
 
 	mCamera.UpdateMatrices();
 
@@ -259,9 +288,9 @@ void Renderer::RenderGl() {
 		glUniform1i(muRenderQuadTexture, 0);
 
 		// TODO: adjust for perspective
-		glUniform1f(muRenderQuadDepthNear, mCamera.near);
+		glUniform1f(muRenderQuadDepthNear, mCamera.mNear);
 		// TODO: why do I have to divide by depth range?
-		glUniform1f(muRenderQuadDepthFar, mCamera.far / (mCamera.far - mCamera.near));
+		glUniform1f(muRenderQuadDepthFar, mCamera.mFar / (mCamera.mFar - mCamera.mNear));
 
 		glEnableVertexAttribArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
@@ -301,6 +330,19 @@ void Renderer::RenderGui() {
 
 		ImGui::Image((void*) texture,
 				content_avail,
+				ImVec2(0.0f, 1.0f), 
+				ImVec2(1.0f, 0.0f)
+				);
+	}
+	ImGui::EndDock();
+
+	if (ImGui::BeginDock("Render Settings")) {
+		mCamera.DrawGui();
+
+		ImGui::Text("Default Texture");
+		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
+		ImGui::Image((void*) mDefaultTexture.mTextureId, 
+				ImVec2(content_avail.x, content_avail.x),
 				ImVec2(0.0f, 1.0f), 
 				ImVec2(1.0f, 0.0f)
 				);

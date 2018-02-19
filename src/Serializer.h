@@ -123,6 +123,12 @@ bool SerializeInt (Serializer &serializer, const std::string &key, int& value) {
 }
 
 template <typename Serializer>
+bool SerializeFloat (Serializer &serializer, const std::string &key, float& value) {
+	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(float));
+}
+
+
+template <typename Serializer>
 bool SerializedUint16 (Serializer &serializer, const std::string &key, uint16_t& value) {
 	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(uint16_t));
 }
