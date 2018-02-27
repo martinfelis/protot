@@ -43,6 +43,20 @@ static void error_callback(int error, const char* description)
     fprintf(stderr, "Error (%d): %s\n", error, description);
 }
 
+static void opengl_error_callback(
+		GLenum source,
+		GLenum type,
+		GLuint id,
+		GLenum severity,
+		GLsizei length,
+		const GLchar* message,
+		const void* userParam )
+{
+	gLog ("OpenGL Error: %s type %0x%x, severity = 0x%x, message = %s",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
+}
+
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
@@ -116,6 +130,10 @@ int main(void)
 
 	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << endl;
 	std::cout << "GLSL Version  : " << glGetString(GL_SHADING_LANGUAGE_VERSION) << endl;
+
+	// During init, enable debug output
+	glEnable              ( GL_DEBUG_OUTPUT );
+	glDebugMessageCallback( (GLDEBUGPROC) opengl_error_callback, 0 );
 
 	// imgui initialization.
 	ImGui::CreateContext();

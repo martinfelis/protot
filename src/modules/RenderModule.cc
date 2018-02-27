@@ -42,10 +42,10 @@ static const GLfloat g_textured_quad_vertex_buffer_data[] = {
 };
 
 static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
-	0.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f,		0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,		0.0f, 1.0f, 0.0f,
+	0.0f, 0.0f, 0.0f,		255.0f, 0.0f, 0.0f,
+	1.0f, 0.0f, 0.0f,		255.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f,		0.0f, 255.0f, 0.0f,
+	0.0f, 1.0f, 0.0f,		0.0f, 255.0f, 0.0f,
 	0.0f, 0.0f, 0.0f,		0.0f, 0.0f, 1.0f,
 	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 1.0f
 };
@@ -180,7 +180,7 @@ void Camera::DrawGui() {
 //
 void Renderer::Initialize(int width, int height) {
 	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.2f, 0.2f, 0.2f));
-
+	
 	// Mesh
 	glGenVertexArrays(1, &mMesh.mVertexArrayId);
 	glBindVertexArray(mMesh.mVertexArrayId);
@@ -296,10 +296,13 @@ void Renderer::RenderGl() {
 //	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
 	glDisableVertexAttribArray(0);
 
+	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inColor");
+
 	// Coordinate system
 	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
 	glEnableVertexAttribArray(0);
-	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 1.0f, 1.0f).data());
+	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
 	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
 	glVertexAttribPointer(
 			0,

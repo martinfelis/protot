@@ -1,8 +1,8 @@
 #version 150 core
 #extension GL_ARB_explicit_attrib_location : require
 
-layout(location = 0) in vec3 inCoord;
-layout(location = 1) in vec3 inColor;
+in vec3 inCoord;
+in vec3 inColor;
 
 uniform mat4 uModelViewProj;
 

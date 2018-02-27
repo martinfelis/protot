@@ -19,7 +19,7 @@ using namespace SimpleMath;
 //
 
 RenderProgram::~RenderProgram() {
-	if (mProgramId > 0)
+	if (mProgramId != -1)
 		glDeleteProgram(mProgramId);
 }
 
@@ -297,7 +297,6 @@ void Texture::MakeGrid(const int& size, const Vector3f &c1, const Vector3f &c2) 
 			buffer[(i * size * 3) + (j * 3) + 2] = static_cast<unsigned char>(c2[2] * 255.0f);
 		}
 	}
-
 
 	glGenTextures(1, &mTextureId);
 	glBindTexture(GL_TEXTURE_2D, mTextureId);
