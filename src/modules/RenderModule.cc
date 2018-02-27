@@ -65,11 +65,12 @@ static void module_serialize (
 		Serializer* serializer) {
 	SerializeBool(*serializer, "protot.RenderModule.DrawDepth", sRendererSettings.DrawDepth);
 	SerializeBool(*serializer, "protot.RenderModule.Camera.mIsOrthographic", gRenderer->mCamera.mIsOrthographic);
+	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFov", gRenderer->mCamera.mFov);
+	SerializeVec3(*serializer, "protot.RenderModule.Camera.mEye", gRenderer->mCamera.mEye);
+	SerializeVec3(*serializer, "protot.RenderModule.Camera.mPoi", gRenderer->mCamera.mPoi);
+	SerializeVec3(*serializer, "protot.RenderModule.Camera.mUp", gRenderer->mCamera.mUp);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mNear", gRenderer->mCamera.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFar", gRenderer->mCamera.mFar);
-//	// get the state from the serializer
-//	Camera* camera = &gRenderer->cameras[gRenderer->activeCameraIndex];
-//	assert (camera != nullptr);
 
 //	SerializeBool (*serializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
 //	SerializeBool (*serializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
@@ -147,13 +148,21 @@ void Camera::UpdateMatrices() {
 	if (mIsOrthographic) {
 		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, mNear, mFar);
 	} else {
+		mProjectionMatrix = Perspective(mFov, mWidth / mHeight, mNear, mFar);
 	}
 }
 
 void Camera::DrawGui() {
+	ImGui::SliderFloat3("Eye", mEye.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("Up", mUp.data(), -10.0f, 10.0f);
 	ImGui::Checkbox("Orthographic", &mIsOrthographic);
+	ImGui::SliderFloat("Fov", &mFov, 5, 160);
 	ImGui::SliderFloat("Near", &mNear, -10, 10);
 	ImGui::SliderFloat("Far", &mFar, -10, 10);
+	if (ImGui::Button("Reset")) {
+		*this = Camera();
+	}
 }
 
 
@@ -229,10 +238,6 @@ void Renderer::RenderGl() {
 	glfwGetWindowSize(gWindow, &width, &height);
 	if (width != mWidth || height != mHeight)
 		Resize(width, height);
-
-	mCamera.mEye = Vector3f (0.0f, 0.0f, 4.0f);
-	mCamera.mPoi = Vector3f (0.0f, 0.0f, 0.0f);
-	mCamera.mUp = Vector3f (0.0f, 1.0f, 0.0f);
 
 	mCamera.UpdateMatrices();
 
@@ -326,8 +331,6 @@ void Renderer::RenderGui() {
 		ImGui::Text("Scene");
 		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
 	
-//		mRenderTarget.Resize(content_avail.x, content_avail.y);
-
 		ImGui::Image((void*) texture,
 				content_avail,
 				ImVec2(0.0f, 1.0f), 
@@ -337,6 +340,7 @@ void Renderer::RenderGui() {
 	ImGui::EndDock();
 
 	if (ImGui::BeginDock("Render Settings")) {
+		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
 		ImGui::Text("Default Texture");
@@ -354,5 +358,7 @@ void Renderer::Resize (int width, int height) {
 	mWidth = width;
 	mHeight = height;
 	mRenderTarget.Resize(mWidth, mHeight);
+	mCamera.mWidth = mWidth;
+	mCamera.mHeight = mHeight;
 	glViewport(0, 0, mWidth, mHeight);
 }
