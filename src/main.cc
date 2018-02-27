@@ -161,13 +161,6 @@ int main(void)
 		glfwPollEvents();
 		ImGui_ImplGlfwGL3_NewFrame();
 
-//		imguiBeginFrame (gGuiInputState->mouseX,
-//				gGuiInputState->mouseY,
-//				gGuiInputState->mouseButton,
-//				gGuiInputState->mouseScroll,
-//				width,
-//				height);
-
 		if (module_manager.CheckModulesChanged()) {
 			gLog("Detected module update at frame %d. Unloading all modules.", frame_counter);
 			module_manager.UnloadModules();

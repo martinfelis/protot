@@ -102,11 +102,6 @@ struct Light {
 	}
 };
 
-struct Mesh {
-	GLuint mVertexArrayId = -1;
-	GLuint mVertexBuffer = -1;
-};
-
 struct RendererSettings;
 
 struct Renderer {
@@ -119,6 +114,7 @@ struct Renderer {
 	Camera mCamera;
 	Mesh mMesh;
 	Mesh mPlane;
+	Mesh mCoordinateSystem;
 
 	Texture mDefaultTexture;
 

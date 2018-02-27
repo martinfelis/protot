@@ -41,6 +41,15 @@ static const GLfloat g_textured_quad_vertex_buffer_data[] = {
 	1.0f, 1.0f, 0.0f,		1.0f, 0.0f,
 };
 
+static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
+	0.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
+	1.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f,		0.0f, 1.0f, 0.0f,
+	0.0f, 1.0f, 0.0f,		0.0f, 1.0f, 0.0f,
+	0.0f, 0.0f, 0.0f,		0.0f, 0.0f, 1.0f,
+	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 1.0f
+};
+
 //
 // Module
 //
@@ -186,6 +195,13 @@ void Renderer::Initialize(int width, int height) {
 	glBindBuffer(GL_ARRAY_BUFFER, mPlane.mVertexBuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+	// Coordinate System
+	glGenVertexArrays(1, &mCoordinateSystem.mVertexArrayId);
+	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
+	glGenBuffers(1, &mCoordinateSystem.mVertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_coordinate_system_vertex_buffer_data), g_coordinate_system_vertex_buffer_data, GL_STATIC_DRAW);
+
 	// Simple Shader
 	mDefaultProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mDefaultProgram.Load();
@@ -230,6 +246,8 @@ void Renderer::Shutdown() {
 	glDeleteBuffers(1, &mMesh.mVertexBuffer);
 	glDeleteVertexArrays(1, &mPlane.mVertexArrayId);
 	glDeleteBuffers(1, &mPlane.mVertexBuffer);
+	glDeleteVertexArrays(1, &mCoordinateSystem.mVertexArrayId);
+	glDeleteBuffers(1, &mCoordinateSystem.mVertexBuffer);
 }
 
 
@@ -275,7 +293,31 @@ void Renderer::RenderGl() {
 			(void*)0	// offset
 			);
 
-	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
+//	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
+	glDisableVertexAttribArray(0);
+
+	// Coordinate system
+	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
+	glEnableVertexAttribArray(0);
+	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 1.0f, 1.0f).data());
+	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
+	glVertexAttribPointer(
+			0,
+			3,
+			GL_FLOAT,
+			GL_FALSE,
+			(sizeof(float[6])),
+			(void*)0
+			);
+	glVertexAttribPointer(
+			1,
+			3,
+			GL_FLOAT,
+			GL_FALSE,
+			(sizeof(float[6])),
+			(void*) (sizeof(float[3]))
+			);
+	glDrawArrays(GL_LINES, 0, 6);
 
 	if (mSettings->DrawDepth) {
 		mRenderTarget.RenderToLinearizedDepth(true);

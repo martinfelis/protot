@@ -323,3 +323,34 @@ bool Texture::Load(const char* filename, int num_components) {
 //	unsigned char* rgb = stbi_load(filename, &mWidth, &mHeight, num_components);
 	assert(false);
 }
+
+void VertexArray::Initialize(const int& size, GLenum usage) {
+	mSize = size;
+	mUsed = 0;
+
+	glGenVertexArrays (1, &mVertexArrayId);
+	glBindVertexArray(mVertexArrayId);
+
+	glGenBuffers(1, &mVertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * size, NULL, usage);
+}
+
+GLuint VertexArray::AllocateMesh(const int& size) {
+	GLuint mesh_data_size = size * sizeof(VertexData);
+	if (mUsed + mesh_data_size > mSize) {
+		gLog("Cannot allocate mesh in VertexArray: not enough vertices available");
+		assert(false);
+		return -1;
+	}
+
+	GLuint offset = mUsed;
+	mUsed += mesh_data_size;
+
+	return offset;
+}
+
+void VertexArrayMesh::Initialize(VertexArray &array, const int& size) {
+	mOffset = array.AllocateMesh(size);		
+	assert(mOffset != -1);
+}

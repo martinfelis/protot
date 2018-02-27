@@ -186,4 +186,44 @@ struct Texture {
 	bool Load(const char* path, int num_components = 3);
 };
 
+struct Mesh {
+	GLuint mVertexArrayId = -1;
+	GLuint mVertexBuffer = -1;
+};
+
+/**
+ * Multiple VertexArrayMeshes can be stored in a single VertexArray.
+ * Storage order is:
+ *   (VVVV)(NNNN)(UV)(CCCC)
+ */
+struct VertexArray {
+	GLuint mVertexBuffer = -1;
+	GLuint mVertexArrayId = -1;
+	GLuint mSize = -1;
+	GLuint mUsed = -1;
+
+	struct VertexData {
+		float mCoords[4];
+		float mNormals[4];
+		float mTexCoords[2];
+		GLubyte mColor[4];
+	};
+
+	void Initialize(const int& size, GLenum usage);
+	GLuint AllocateMesh(const int& size);
+};
+
+struct VertexArrayMesh {
+	GLuint mOffset;
+
+	void Initialize(VertexArray &array, const int& size);
+	void SetData(
+			const std::vector<Vector4f> &coords,
+			const std::vector<Vector4f> &normals,
+			const std::vector<Vector2f> &uvs,
+			const std::vector<Vector4f> &colors
+			);
+};
+
+
 #endif
