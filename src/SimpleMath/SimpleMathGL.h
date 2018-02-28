@@ -91,8 +91,9 @@ inline Matrix44f Ortho(float left, float right,
 
 inline Matrix44f Perspective(float fovy, float aspect,
 		float near, float far) {
-	float x = fovy / 2.0f;
+	float x = (fovy * M_PI / 180.0) / 2.0f;
 	float f = cos(x) / sin(x);
+
 	return Matrix44f(
 			f / aspect, 0.0f, 0.0f, 0.0f,
 			0.0f, f, 0.0f, 0.0f,
@@ -109,11 +110,11 @@ inline Matrix44f LookAt(
 	Vector3f s = d.cross(up.normalized());
 	Vector3f u = s.cross(d);
 
-	return Matrix44f(
+	return TranslateMat44(-eye[0], -eye[1], -eye[2]) * Matrix44f(
 			s[0], u[0], -d[0], 0.0f,
 			s[1], u[1], -d[1], 0.0f,
 			s[2], u[2], -d[2], 0.0f,
-			-eye[0], -eye[1], -eye[2], 1.0f
+			0.0f, 0.0f, 0.0f, 1.0f
 			);
 }
 

@@ -110,6 +110,8 @@ struct Renderer {
 	bool mInitialized = false;
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;
+	uint32_t mSceneAreaWidth = 1;
+	uint32_t mSceneAreaHeight = 1;
 
 	Camera mCamera;
 	Mesh mMesh;
@@ -147,5 +149,4 @@ struct Renderer {
 	void Shutdown();
 	void RenderGl();
 	void RenderGui();
-	void Resize (int width, int height);
 };

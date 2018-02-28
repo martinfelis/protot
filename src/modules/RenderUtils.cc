@@ -179,13 +179,18 @@ void RenderTarget::Cleanup() {
 		glDeleteTextures(1, &mLinearizedDepthTexture);
 		mLinearizedDepthTexture = -1;
 	}
+
+	mWidth = -1;
+	mHeight = -1;
 }
 
 void RenderTarget::Resize(int width, int height) {
-	if (width == mWidth || height == mHeight)
+	if (width == mWidth && height == mHeight)
 		return;
 
 	Cleanup();
+
+	gLog("Resizing RenderTarget");
 
 	mWidth = width;
 	mHeight = height;

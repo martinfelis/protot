@@ -166,13 +166,17 @@ void Camera::UpdateMatrices() {
 }
 
 void Camera::DrawGui() {
-	ImGui::SliderFloat3("Eye", mEye.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat3("Up", mUp.data(), -10.0f, 10.0f);
+	ImGui::Text("Width %3.4f, Height %3.4f", mWidth, mHeight);
+
+	ImGui::InputFloat3("Eye", mEye.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("EyeS", mEye.data(), -10.0f, 10.0f);
+
+	ImGui::InputFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
+	ImGui::InputFloat3("Up", mUp.data(), -10.0f, 10.0f);
 	ImGui::Checkbox("Orthographic", &mIsOrthographic);
 	ImGui::SliderFloat("Fov", &mFov, 5, 160);
 	ImGui::SliderFloat("Near", &mNear, -10, 10);
-	ImGui::SliderFloat("Far", &mFar, -20, 20);
+	ImGui::SliderFloat("Far", &mFar, -20, 50);
 	if (ImGui::Button("Reset")) {
 		*this = Camera();
 	}
@@ -305,11 +309,15 @@ void Renderer::Shutdown() {
 
 
 void Renderer::RenderGl() {
-	int width, height;
-	glfwGetWindowSize(gWindow, &width, &height);
-	if (width != mWidth || height != mHeight)
-		Resize(width, height);
+	mSceneAreaWidth = mSceneAreaWidth < 1 ? 1 : mSceneAreaWidth;
+	mSceneAreaHeight = mSceneAreaHeight < 1 ? 1 : mSceneAreaHeight;
+	if (mSceneAreaWidth != mRenderTarget.mWidth || mSceneAreaHeight != mRenderTarget.mHeight) {
+		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight);
+		mCamera.mWidth = mSceneAreaWidth;
+		mCamera.mHeight = mSceneAreaHeight;
+	}
 
+	glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 	mCamera.UpdateMatrices();
 
 	glEnable(GL_LINE_SMOOTH);
@@ -378,7 +386,7 @@ void Renderer::RenderGl() {
 
 	// Coordinate System: VertexArrayMesh
 	model_view_projection = 
-		TranslateMat44(1.25f, 0.0f, 0.0f)
+		TranslateMat44(0.0f, 0.0f, 0.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
 	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
@@ -453,6 +461,8 @@ void Renderer::RenderGui() {
 
 		ImGui::Text("Scene");
 		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
+		mSceneAreaWidth = content_avail.x;
+		mSceneAreaHeight = content_avail.y;
 	
 		ImGui::Image((void*) texture,
 				content_avail,
@@ -460,9 +470,12 @@ void Renderer::RenderGui() {
 				ImVec2(1.0f, 0.0f)
 				);
 	}
+	
 	ImGui::EndDock();
 
 	if (ImGui::BeginDock("Render Settings")) {
+		ImGui::Text("Render Target");
+		ImGui::Text("Width %d, Height %d", mRenderTarget.mWidth, mRenderTarget.mHeight);
 		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
@@ -477,11 +490,3 @@ void Renderer::RenderGui() {
 	ImGui::EndDock();
 }
 
-void Renderer::Resize (int width, int height) {
-	mWidth = width;
-	mHeight = height;
-	mRenderTarget.Resize(mWidth, mHeight);
-	mCamera.mWidth = mWidth;
-	mCamera.mHeight = mHeight;
-	glViewport(0, 0, mWidth, mHeight);
-}

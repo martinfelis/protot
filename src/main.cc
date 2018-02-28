@@ -140,7 +140,7 @@ int main(void)
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
-	ImGui_ImplGlfwGL3_Init(gWindow, false);
+	ImGui_ImplGlfwGL3_Init(gWindow, true);
 
 	// Timer
 	Timer timer;
@@ -175,6 +175,7 @@ int main(void)
 		// Start the imgui frame such that widgets can be submitted
 		handle_mouse();
 		glfwGetWindowSize(gWindow, &width, &height);
+		glViewport(0, 0, width, height);
 
 		glfwPollEvents();
 		ImGui_ImplGlfwGL3_NewFrame();
