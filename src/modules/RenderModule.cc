@@ -50,6 +50,9 @@ static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
 	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 1.0f
 };
 
+VertexArray gVertexArray;
+VertexArrayMesh gVertexArrayMesh;
+
 //
 // Module
 //
@@ -180,7 +183,23 @@ void Camera::DrawGui() {
 //
 void Renderer::Initialize(int width, int height) {
 	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.2f, 0.2f, 0.2f));
-	
+
+	gVertexArray.Initialize(1000, GL_STATIC_DRAW);
+	gVertexArrayMesh.Initialize(gVertexArray, 6);
+
+	VertexArray::VertexData vertex_data[] = {
+		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
+		{1.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
+
+		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 255, 0, 255},
+		{0.0f, 1.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 255, 0, 255},
+
+		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255},
+		{0.0f, 0.0f, 1.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255}
+	};
+
+	gVertexArrayMesh.SetData(vertex_data, 6);	
+
 	// Mesh
 	glGenVertexArrays(1, &mMesh.mVertexArrayId);
 	glBindVertexArray(mMesh.mVertexArrayId);
@@ -294,12 +313,7 @@ void Renderer::RenderGl() {
 			);
 
 //	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
-	glDisableVertexAttribArray(0);
-
-	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inColor");
-
-	// Coordinate system
+//	// Coordinate system
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
 	glUniform4fv(muDefaultColor, 1, Vector4f(0.0f, 0.0f, 0.0f, 1.0f).data());
@@ -323,6 +337,20 @@ void Renderer::RenderGl() {
 			(void*)(sizeof(float) * 3)	
 			);
 	glDrawArrays(GL_LINES, 0, 6);
+
+	// Coordinate System: VertexArrayMesh
+	model_view_projection = 
+		TranslateMat44(1.25f, 0.0f, 0.0f)
+		* mCamera.mViewMatrix
+		* mCamera.mProjectionMatrix;
+	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
+	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inNormal");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 2, "inUV");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 3, "inColor");
+	gVertexArray.Bind();
+	gVertexArrayMesh.Draw(GL_LINES);
 
 	if (mSettings->DrawDepth) {
 		mRenderTarget.RenderToLinearizedDepth(true);

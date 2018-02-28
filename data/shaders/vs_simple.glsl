@@ -1,14 +1,16 @@
 #version 150 core
 #extension GL_ARB_explicit_attrib_location : require
 
-in vec3 inCoord;
-in vec3 inColor;
+in vec4 inCoord;
+in vec3 inNormal;
+in vec2 inUV;
+in vec4 inColor;
 
 uniform mat4 uModelViewProj;
 
-out vec3 fragmentColor;
+out vec4 fragmentColor;
 
 void main() {
-	gl_Position = uModelViewProj * vec4(inCoord, 1);
+	gl_Position = uModelViewProj * inCoord;
 	fragmentColor = inColor;
 }

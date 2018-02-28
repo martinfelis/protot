@@ -152,6 +152,25 @@ class Matrix {
 	 	~Matrix() {};
 
 		Matrix (
+				const val_type &v00, const val_type &v01
+				) {
+			assert (nrows == 2);
+			assert (ncols == 1);
+
+			mData[0] = v00;
+			mData[1] = v01;
+		}
+
+		void set(
+				const val_type &v00, const val_type &v01
+				) {
+			COMPILE_ASSERT (nrows * ncols == 2);
+
+			mData[0] = v00;
+			mData[1] = v01;
+		}
+
+		Matrix (
 				const val_type &v00, const val_type &v01, const val_type &v02
 				) {
 			assert (nrows == 3);

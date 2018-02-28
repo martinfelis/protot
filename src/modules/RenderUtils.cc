@@ -323,33 +323,172 @@ bool Texture::Load(const char* filename, int num_components) {
 	assert(false);
 }
 
+VertexArray::~VertexArray() {
+	if (mVertexArrayId != -1) {
+		Cleanup();
+	}
+}
+
 void VertexArray::Initialize(const int& size, GLenum usage) {
-	mSize = size;
-	mUsed = 0;
+	mNumVertices = size;
+	mNumUsedVertices = 0;
 
 	glGenVertexArrays (1, &mVertexArrayId);
 	glBindVertexArray(mVertexArrayId);
 
 	glGenBuffers(1, &mVertexBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * size, NULL, usage);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * mNumVertices, NULL, usage);
+}
+
+void VertexArray::Cleanup() {
+	glDeleteBuffers(1, &mVertexBuffer);
+	mVertexBuffer = -1;
+	glDeleteVertexArrays(1, &mVertexArrayId);
+	mVertexArrayId = -1;
+
+	mNumVertices = -1;
+	mNumUsedVertices = -1;
 }
 
 GLuint VertexArray::AllocateMesh(const int& size) {
-	GLuint mesh_data_size = size * sizeof(VertexData);
-	if (mUsed + mesh_data_size > mSize) {
+	if (mNumUsedVertices + size > mNumVertices) {
 		gLog("Cannot allocate mesh in VertexArray: not enough vertices available");
 		assert(false);
 		return -1;
 	}
 
-	GLuint offset = mUsed;
-	mUsed += mesh_data_size;
-
+	GLuint offset = mNumUsedVertices;
+	mNumUsedVertices += size;
 	return offset;
 }
 
+void VertexArray::Bind() {
+	glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+
+	// Attribute 0: coords
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(
+			0,
+			4,
+			GL_FLOAT,
+			GL_FALSE,
+			(sizeof(VertexData)),
+			(void*)0
+			);
+	// Attribute 1: color
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(
+			1,
+			4,
+			GL_UNSIGNED_BYTE,
+			GL_FALSE,
+			(sizeof(VertexData)),
+			(void*)(sizeof(float) * 9)
+			);
+	// Attribute 2: normals
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(
+			2,
+			3,
+			GL_FLOAT,
+			GL_FALSE,
+			(sizeof(VertexData)),
+			(void*)(sizeof(float) * 4)
+			);
+	// Attribute 3: texture coordinates
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(
+			3,
+			2,
+			GL_FLOAT,
+			GL_FALSE,
+			(sizeof(VertexData)),
+			(void*)(sizeof(float) * 7)
+			);
+}
+
+bool VertexArray::IsBound() {
+	GLint bound_vertex_buffer = -1;
+	glGetIntegerv (GL_ARRAY_BUFFER_BINDING, &bound_vertex_buffer);
+	return bound_vertex_buffer == mVertexBuffer;
+}
+
 void VertexArrayMesh::Initialize(VertexArray &array, const int& size) {
-	mOffset = array.AllocateMesh(size);		
-	assert(mOffset != -1);
+	mVertexArray = &array;
+	mIndexOffset = mVertexArray->AllocateMesh(size);
+	mOffsetPtr = (void*) (sizeof(VertexArray::VertexData) * mIndexOffset);
+}
+
+void VertexArrayMesh::SetData(
+		const VertexArray::VertexData* data,
+		const int& count
+		) {
+	// upload the data
+	mVertexCount = count;
+	glBindBuffer(GL_ARRAY_BUFFER, mVertexArray->mVertexBuffer);
+
+	glBufferSubData(
+			GL_ARRAY_BUFFER,
+			(GLintptr) mOffsetPtr,
+			sizeof(VertexArray::VertexData) * count,
+			data
+			);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void VertexArrayMesh::SetData(
+		const std::vector<Vector4f> &coords,
+		const std::vector<Vector3f> &normals,
+		const std::vector<Vector2f> &uvs,
+		const std::vector<Vector4f> &colors,
+		const std::vector<GLuint> &indices
+		) {
+	assert(mOffsetPtr != (void*) -1);
+
+	int vertex_count = coords.size();
+	assert(vertex_count > 0);
+
+	bool have_normals = normals.size() > 0;
+	bool have_uvs = uvs.size() > 0;
+	bool have_colors = colors.size() > 0;
+	
+	assert(!have_normals || (normals.size() == vertex_count));
+	assert(!have_uvs || (uvs.size() == vertex_count));
+	assert(!have_colors || (colors.size() == vertex_count));
+
+	std::vector<VertexArray::VertexData> vertex_data(vertex_count, VertexArray::VertexData());
+
+	for (int i = 0, n = vertex_count; i < n; ++i) {
+		memcpy (vertex_data[i].mCoords, coords[i].data(), sizeof(float) * 4);
+
+		if (have_normals) {
+			memcpy (vertex_data[i].mNormals, normals[i].data(), sizeof(float) * 3);
+		} else {
+			memset (vertex_data[i].mNormals, 0, sizeof(float) * 3);
+		}
+
+		if (have_uvs) {
+			memcpy (vertex_data[i].mTexCoords, uvs[i].data(), sizeof(float) * 2);
+		} else {
+			memset (vertex_data[i].mTexCoords, 0, sizeof(float) * 2);
+		}
+
+		if (have_colors) {
+			memcpy (vertex_data[i].mColor, colors[i].data(), sizeof(float) * 4);
+		} else {
+			memset (vertex_data[i].mColor, 0, sizeof(float) * 4);
+		}
+	}
+
+	SetData(
+			vertex_data.data(),
+			vertex_count
+			);
+}
+
+void VertexArrayMesh::Draw(GLenum mode) {
+	assert(mVertexArray->IsBound());
+	glDrawArrays(mode, mIndexOffset, mVertexCount); 
 }

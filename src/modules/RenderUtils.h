@@ -5,6 +5,8 @@
 
 #include <GL/gl3w.h>    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
 
+#include <vector>
+
 struct Transform {
 	Quaternion rotation = Quaternion (0.0f, 0.0f, 0.0f, 1.0f);
 	Vector3f translation = Vector3f (0.0f, 0.0f, 0.0f);
@@ -199,31 +201,69 @@ struct Mesh {
 struct VertexArray {
 	GLuint mVertexBuffer = -1;
 	GLuint mVertexArrayId = -1;
-	GLuint mSize = -1;
-	GLuint mUsed = -1;
+	GLuint mNumVertices = -1;
+	GLuint mNumUsedVertices = -1;
 
 	struct VertexData {
-		float mCoords[4];
-		float mNormals[4];
-		float mTexCoords[2];
-		GLubyte mColor[4];
+		union {
+			struct {
+				float x;
+				float y;
+				float z;
+				float w;
+				float nx;
+				float ny;
+				float nz;
+				float u;
+				float v;
+				GLubyte r;
+				GLubyte g;
+				GLubyte b;
+				GLubyte a;
+			};
+			struct {
+				float mCoords[4];
+				float mNormals[3];
+				float mTexCoords[2];
+				GLubyte mColor[4];
+			};
+		};
 	};
 
+	~VertexArray();
+
 	void Initialize(const int& size, GLenum usage);
+	void Cleanup();
 	GLuint AllocateMesh(const int& size);
+	void Bind();
+	bool IsBound();
 };
 
 struct VertexArrayMesh {
-	GLuint mOffset;
+	VertexArray* mVertexArray = (VertexArray*) -1;
+	void* mOffsetPtr = (void*) -1;
+	GLuint mVertexCount = -1;
+
+	GLuint mIndexOffset = -1;
+	GLuint mIndexBuffer = -1;
+	GLuint mIndexCount = -1;
 
 	void Initialize(VertexArray &array, const int& size);
+
+	void SetData(
+			const VertexArray::VertexData* data,
+			const int& count
+			);
+
 	void SetData(
 			const std::vector<Vector4f> &coords,
-			const std::vector<Vector4f> &normals,
+			const std::vector<Vector3f> &normals,
 			const std::vector<Vector2f> &uvs,
-			const std::vector<Vector4f> &colors
+			const std::vector<Vector4f> &colors,
+			const std::vector<GLuint> &indices
 			);
-};
 
+	void Draw(GLenum mode);
+};
 
 #endif
