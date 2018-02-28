@@ -42,10 +42,10 @@ static const GLfloat g_textured_quad_vertex_buffer_data[] = {
 };
 
 static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
-	0.0f, 0.0f, 0.0f,		255.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,		255.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f,		0.0f, 255.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,		0.0f, 255.0f, 0.0f,
+	0.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
+	1.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f,		0.0f, 1.0f, 0.0f,
+	0.0f, 1.0f, 0.0f,		0.0f, 1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f,		0.0f, 0.0f, 1.0f,
 	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 1.0f
 };
@@ -300,25 +300,27 @@ void Renderer::RenderGl() {
 	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inColor");
 
 	// Coordinate system
-	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
 	glEnableVertexAttribArray(0);
-	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
+	glUniform4fv(muDefaultColor, 1, Vector4f(0.0f, 0.0f, 0.0f, 1.0f).data());
 	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
 	glVertexAttribPointer(
 			0,
 			3,
 			GL_FLOAT,
 			GL_FALSE,
-			(sizeof(float[6])),
+			(sizeof(float)*6),
 			(void*)0
 			);
+
+	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(
 			1,
 			3,
 			GL_FLOAT,
 			GL_FALSE,
-			(sizeof(float[6])),
-			(void*) (sizeof(float[3]))
+			(sizeof(float)*6),
+			(void*)(sizeof(float) * 3)	
 			);
 	glDrawArrays(GL_LINES, 0, 6);
 
