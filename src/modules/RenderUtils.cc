@@ -493,7 +493,31 @@ void VertexArrayMesh::SetData(
 			);
 }
 
+void VertexArrayMesh::SetIndexData(const GLuint* indices, const int& count) {
+	assert(mIndexBuffer == -1);
+
+	// copy the indices and increase the indices by mIndexOffset
+	GLuint temp_buffer[count];
+	memcpy (temp_buffer, indices, sizeof(GLuint) * count);
+	for (int i = 0; i < count; ++i) {
+		temp_buffer[i] += mIndexOffset;
+	}
+
+	mIndexCount = count;
+
+	glGenBuffers(1, &mIndexBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(GLuint), temp_buffer, GL_STATIC_DRAW);
+}
+
 void VertexArrayMesh::Draw(GLenum mode) {
 	assert(mVertexArray->IsBound());
-	glDrawArrays(mode, mIndexOffset, mVertexCount); 
+
+	if (mIndexBuffer == -1) {
+		glDrawArrays(mode, mIndexOffset, mVertexCount); 
+	} else {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
+		glDrawElements(mode, mIndexCount, GL_UNSIGNED_INT, (void*) 0);
+	}
+
 }

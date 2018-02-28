@@ -53,6 +53,7 @@ static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
 VertexArray gVertexArray;
 VertexArrayMesh gVertexArrayMesh;
 VertexArrayMesh gXZPlaneMesh;
+VertexArrayMesh gUnitCubeMesh;
 
 //
 // Module
@@ -237,6 +238,56 @@ void Renderer::Initialize(int width, int height) {
 	}
 	gXZPlaneMesh.SetData(plane_data.data(), plane_data.size());
 
+	// Unit Cube
+	gUnitCubeMesh.Initialize(gVertexArray, 4 * 6);
+	VertexArray::VertexData unit_cube_data[] = {
+		// front: +x
+		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+
+		// back: -x
+		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{-1.0f, -1.0f, 1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{-1.0f, -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+
+		// side: +z
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+
+		// back side: -z
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+
+		// top: +y
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+
+		// bottom: -y
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+	};
+	gUnitCubeMesh.SetData(unit_cube_data, 4 * 6);
+	GLuint unit_cube_index_data[] = {
+		0, 1, 2, 2, 3, 0,
+		4, 7, 6, 6, 5, 4,
+		8, 9, 10, 10, 11, 8,
+		12, 15, 14, 14, 13, 12,
+		16, 17, 18, 18, 19, 16,
+		20, 23, 22, 22, 21, 20
+	};
+	gUnitCubeMesh.SetIndexData(unit_cube_index_data, 36);
+
 	// Mesh
 	glGenVertexArrays(1, &mMesh.mVertexArrayId);
 	glBindVertexArray(mMesh.mVertexArrayId);
@@ -323,6 +374,7 @@ void Renderer::RenderGl() {
 	glEnable(GL_LINE_SMOOTH);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_CULL_FACE);
 
 	Matrix44f model_matrix = TranslateMat44(0.0f, 0.0f, 0.0f);
 	Matrix44f model_view_projection = 
@@ -407,6 +459,19 @@ void Renderer::RenderGl() {
 	glBindAttribLocation(mDefaultProgram.mProgramId, 3, "inColor");
 	gVertexArray.Bind();
 	gXZPlaneMesh.Draw(GL_LINES);
+
+	model_view_projection = 
+		TranslateMat44(3.0f, 0.0f, 1.0f)
+		* mCamera.mViewMatrix
+		* mCamera.mProjectionMatrix;
+	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
+	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inNormal");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 2, "inUV");
+	glBindAttribLocation(mDefaultProgram.mProgramId, 3, "inColor");
+	gVertexArray.Bind();
+	gUnitCubeMesh.Draw(GL_TRIANGLES);
 
 	if (mSettings->DrawDepth) {
 		mRenderTarget.RenderToLinearizedDepth(true);

@@ -316,6 +316,8 @@ struct VertexArrayMesh {
 			const std::vector<GLuint> &indices
 			);
 
+	void SetIndexData(const GLuint* indices, const int& count);
+
 	void Draw(GLenum mode);
 };
 
