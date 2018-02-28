@@ -52,6 +52,7 @@ static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
 
 VertexArray gVertexArray;
 VertexArrayMesh gVertexArrayMesh;
+VertexArrayMesh gXZPlaneMesh;
 
 //
 // Module
@@ -171,7 +172,7 @@ void Camera::DrawGui() {
 	ImGui::Checkbox("Orthographic", &mIsOrthographic);
 	ImGui::SliderFloat("Fov", &mFov, 5, 160);
 	ImGui::SliderFloat("Near", &mNear, -10, 10);
-	ImGui::SliderFloat("Far", &mFar, -10, 10);
+	ImGui::SliderFloat("Far", &mFar, -20, 20);
 	if (ImGui::Button("Reset")) {
 		*this = Camera();
 	}
@@ -199,6 +200,38 @@ void Renderer::Initialize(int width, int height) {
 	};
 
 	gVertexArrayMesh.SetData(vertex_data, 6);	
+
+	// Plane
+	const int plane_grid_size = 20;
+	gXZPlaneMesh.Initialize(gVertexArray, (plane_grid_size + 1) * 4);
+
+	std::vector<VertexArray::VertexData> plane_data((plane_grid_size + 1) * 4);
+	for (int i = 0, n = plane_grid_size + 1; i < n; ++i) {
+		// lines along the x axis
+		plane_data[2 * i] = VertexArray::VertexData(
+				- plane_grid_size * 0.5f, 0.0f, -plane_grid_size * 0.5f + 1.0f * i, 1.0f,
+				0.0f, 1.0f, 0.0f,
+				- plane_grid_size * 0.5f, -1.0f * i,
+				255, 255, 255, 255);
+		plane_data[2 * i + 1] = VertexArray::VertexData(
+				plane_grid_size * 0.5f, 0.0f, -plane_grid_size * 0.5 + 1.0f * i, 1.0f,
+				0.0f, 1.0f, 0.0f,
+				plane_grid_size * 0.5f, -1.0f * i,
+				255, 255, 255, 255);
+
+		// lines along the z axis
+		plane_data[n * 2 + 2 * i] = VertexArray::VertexData(
+				 -plane_grid_size * 0.5f + 1.0f * i, 0.0f, - plane_grid_size * 0.5f, 1.0f,
+				0.0f, 1.0f, 0.0f,
+				 -1.0f * i, - plane_grid_size * 0.5f,
+				255, 255, 255, 255);
+		plane_data[n * 2 + 2 * i + 1] = VertexArray::VertexData(
+				 -plane_grid_size * 0.5f + 1.0f * i, 0.0f,   plane_grid_size * 0.5f, 1.0f,
+				0.0f, 1.0f, 0.0f,
+				 -1.0f * i, plane_grid_size * 0.5f,
+				255, 255, 255, 255);
+	}
+	gXZPlaneMesh.SetData(plane_data.data(), plane_data.size());
 
 	// Mesh
 	glGenVertexArrays(1, &mMesh.mVertexArrayId);
@@ -258,6 +291,7 @@ void Renderer::Initialize(int width, int height) {
 	muRenderQuadDepthModelViewProj = mRenderQuadProgramDepth.GetUniformLocation( "uModelViewProj");
 	muRenderQuadDepthNear = mRenderQuadProgramDepth.GetUniformLocation("uNear");	
 	muRenderQuadDepthFar = mRenderQuadProgramDepth.GetUniformLocation("uFar");	
+
 }
 
 void Renderer::Shutdown() {
@@ -277,6 +311,10 @@ void Renderer::RenderGl() {
 		Resize(width, height);
 
 	mCamera.UpdateMatrices();
+
+	glEnable(GL_LINE_SMOOTH);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+	glEnable(GL_MULTISAMPLE);
 
 	Matrix44f model_matrix = TranslateMat44(0.0f, 0.0f, 0.0f);
 	Matrix44f model_view_projection = 
@@ -345,12 +383,22 @@ void Renderer::RenderGl() {
 		* mCamera.mProjectionMatrix;
 	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
 	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	gVertexArray.Bind();
+	gVertexArrayMesh.Draw(GL_LINES);
+
+	// Plane
+	model_view_projection = 
+		TranslateMat44(0.0f, 0.0f, 0.0f)
+		* mCamera.mViewMatrix
+		* mCamera.mProjectionMatrix;
+	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
+	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
 	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
 	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inNormal");
 	glBindAttribLocation(mDefaultProgram.mProgramId, 2, "inUV");
 	glBindAttribLocation(mDefaultProgram.mProgramId, 3, "inColor");
 	gVertexArray.Bind();
-	gVertexArrayMesh.Draw(GL_LINES);
+	gXZPlaneMesh.Draw(GL_LINES);
 
 	if (mSettings->DrawDepth) {
 		mRenderTarget.RenderToLinearizedDepth(true);

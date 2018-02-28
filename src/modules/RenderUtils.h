@@ -214,8 +214,8 @@ struct VertexArray {
 				float nx;
 				float ny;
 				float nz;
-				float u;
-				float v;
+				float s;
+				float t;
 				GLubyte r;
 				GLubyte g;
 				GLubyte b;
@@ -228,6 +228,59 @@ struct VertexArray {
 				GLubyte mColor[4];
 			};
 		};
+
+		VertexData() :
+			x(0.0f),
+			y(0.0f),
+			z(0.0f),
+			w(0.0f),
+			nx(0.0f),
+			ny(0.0f),
+			nz(0.0f),
+			s(0.0f),
+			t(0.0f),
+			r(255),
+			g(255),
+			b(255),
+			a(255) {}
+
+
+
+		VertexData(
+				float x,
+				float y,
+				float z,
+				float w,
+				float nx,
+				float ny,
+				float nz,
+				float s,
+				float t,
+				GLubyte r,
+				GLubyte g,
+				GLubyte b,
+				GLubyte a
+				) :
+			x(x), y(y), z(z), w(w),
+			nx(nx), ny(ny), nz(nz),
+			s(s), t(t),
+			r(r), g(g), b(b), a(a) {}
+
+		VertexData& operator= (const VertexData& data) {
+			x = data.x;
+			y = data.y;
+			z = data.z;
+			w = data.w;
+			nx = data.nx;
+			ny = data.ny;
+			nz = data.nz;
+			r = data.r;
+			g = data.g;
+			b = data.b;
+			a = data.a;
+			
+			return *this;
+		}
 	};
 
 	~VertexArray();
