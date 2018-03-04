@@ -32,11 +32,11 @@ double gTimeAtStart = 0;
 double mouse_scroll_x = 0.;
 double mouse_scroll_y = 0.;
 
-using namespace std;
+bool show_dock_1 = true;
+bool show_dock_2 = true;
+bool show_dock_3 = true;
 
-// extern "C" {
-// GLAPI int gladLoadGL(void);
-// }
+using namespace std;
 
 static void error_callback(int error, const char* description)
 {
@@ -203,7 +203,6 @@ int main(void)
 		int width, height;
 		glfwGetWindowSize(gWindow, &width, &height);
 
-
 		ImGui::BeginMainMenuBar();
 
 		if (ImGui::BeginMenu("Dialogs"))
@@ -212,49 +211,16 @@ int main(void)
 			ImGui::EndMenu();
 		}
 
+		float menu_bar_height = ImGui::GetWindowHeight();
 		ImGui::EndMainMenuBar();
 
 		if (draw_imgui_demo)
 			ImGui::ShowDemoWindow();
 
-#ifdef USE_DOCKS
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 10.0f));
-		ImGui::SetNextWindowSize(ImVec2(width, height));
-		if (ImGui::Begin("DockArea", NULL,
-					ImGuiWindowFlags_NoTitleBar
-					| ImGuiWindowFlags_NoResize
-					| ImGuiWindowFlags_NoMove
-					| ImGuiWindowFlags_NoBringToFrontOnFocus
-					)) {
-			ImGui::BeginDockspace();
+        ImGui::RootDock(ImVec2(0.0f, menu_bar_height), ImVec2(width, height - menu_bar_height));
 
-			if (ImGui::BeginDock("dock1")) {
-				ImGui::Text("HEllo 1");
-			}
-			ImGui::EndDock();
+		module_manager.Update(gTimer->mDeltaTime);
 
-			if (ImGui::BeginDock("dock2")) {
-				ImGui::Text("HEllo2");
-			}
-			ImGui::EndDock();
-
-			if (ImGui::BeginDock("dock3")) {
-				ImGui::Text("HEllo3");
-			}
-			ImGui::EndDock();
-
-
-#endif
-
-			module_manager.Update(gTimer->mDeltaTime);
-
- #ifdef USE_DOCKS
- 			ImGui::EndDockspace();
- 		}
- 
- 		ImGui::End();
- #endif
-// 
  		ImGui::Render();
 
 		usleep(16000);

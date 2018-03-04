@@ -45,7 +45,7 @@ INCLUDE_DIRECTORIES (
 	3rdparty/glfw/deps
 	3rdparty/glfw/include
 	3rdparty/tinyobjloader
-	3rdparty/imgui_dock
+	3rdparty/imgui_dock_lumix
 	${CMAKE_CURRENT_BINARY_DIR}/src
 
 	3rdparty/imgui
@@ -75,7 +75,7 @@ SET ( protot_SRCS
 	3rdparty/imgui/examples/libs/gl3w/GL/gl3w.c
 	3rdparty/imgui/examples/opengl3_example/imgui_impl_glfw_gl3.cpp
 
-	3rdparty/imgui_dock/imgui_dock.cpp
+	3rdparty/imgui_dock_lumix/imgui_dock.cpp
 	)
 
 SET (PROTOT_SOURCE_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
