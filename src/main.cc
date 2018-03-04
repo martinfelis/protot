@@ -141,6 +141,7 @@ int main(void)
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
 	ImGui_ImplGlfwGL3_Init(gWindow, true);
+	ImGui::LoadDock();
 
 	// Timer
 	Timer timer;
@@ -217,17 +218,19 @@ int main(void)
 		if (draw_imgui_demo)
 			ImGui::ShowDemoWindow();
 
-        ImGui::RootDock(ImVec2(0.0f, menu_bar_height), ImVec2(width, height - menu_bar_height));
+
+    ImGui::RootDock(ImVec2(0.0f, menu_bar_height), ImVec2(width, height - menu_bar_height));
 
 		module_manager.Update(gTimer->mDeltaTime);
 
- 		ImGui::Render();
+		ImGui::Render();
 
 		usleep(16000);
 
 		glfwSwapBuffers(gWindow);
 	}
 
+	ImGui::SaveDock();
 	module_manager.UnregisterModules();
 
 	gRenderer = nullptr;
