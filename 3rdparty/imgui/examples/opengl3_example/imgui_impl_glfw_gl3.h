@@ -13,6 +13,16 @@
 
 struct GLFWwindow;
 
+// MOD START (martin), 2018-03-09: support texture references that point to an address of a texture id
+union GLTextureRef {
+		int mTextureId;
+		struct {
+			int magic;
+			unsigned int* mTextureIdPtr;
+		};
+};
+// MOD END (martin), 2018-03-09: support texture references that point to an address of a texture id
+
 IMGUI_API bool        ImGui_ImplGlfwGL3_Init(GLFWwindow* window, bool install_callbacks);
 IMGUI_API void        ImGui_ImplGlfwGL3_Shutdown();
 IMGUI_API void        ImGui_ImplGlfwGL3_NewFrame();

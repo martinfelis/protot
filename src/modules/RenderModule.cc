@@ -517,19 +517,19 @@ void Renderer::RenderGui() {
 	if (ImGui::BeginDock("Scene")) {
 		ImGui::Checkbox("Draw Depth", &mSettings->DrawDepth);
 
-		GLuint texture;
 		if (mSettings->DrawDepth) {
-			texture = mRenderTarget.mLinearizedDepthTexture;
+			mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mLinearizedDepthTexture;
 		} else {
-			texture = mRenderTarget.mColorTexture;
+			mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;
 		}
 
 		ImGui::Text("Scene");
 		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
 		mSceneAreaWidth = content_avail.x;
 		mSceneAreaHeight = content_avail.y;
-	
-		ImGui::Image((void*) texture,
+
+		mRenderTextureRef.magic = (GLuint)0xbadface;
+		ImGui::Image((void*) &mRenderTextureRef,
 				content_avail,
 				ImVec2(0.0f, 1.0f), 
 				ImVec2(1.0f, 0.0f)

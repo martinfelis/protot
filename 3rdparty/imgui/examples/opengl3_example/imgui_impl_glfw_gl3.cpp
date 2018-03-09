@@ -114,7 +114,18 @@ void ImGui_ImplGlfwGL3_RenderDrawLists(ImDrawData* draw_data)
             }
             else
             {
-                glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
+                intptr_t ptr = (intptr_t)pcmd->TextureId;
+
+                // MOD START (martin), 2018-03-09: support texture references that point to an address of a texture id
+                if (ptr > 1024 * 1024)
+                {
+                    GLTextureRef* texture_ref = (GLTextureRef*)pcmd->TextureId;
+                    GLuint* texture_ptr = (GLuint*) texture_ref->mTextureIdPtr;
+                    glBindTexture(GL_TEXTURE_2D, *texture_ptr);
+                } else {
+                    glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
+                }
+                // MOD END (martin), 2018-03-09: support texture references that point to an address of a texture id
                 glScissor((int)pcmd->ClipRect.x, (int)(fb_height - pcmd->ClipRect.w), (int)(pcmd->ClipRect.z - pcmd->ClipRect.x), (int)(pcmd->ClipRect.w - pcmd->ClipRect.y));
                 glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
             }
