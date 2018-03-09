@@ -152,8 +152,8 @@ int main(void)
 	printf("Initializing ModuleManager...\n");
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
+	module_manager.RegisterModule("src/modules/libTestModule.so");
 //	module_manager.RegisterModule("src/modules/libCharacterModule.so");
-//	module_manager.RegisterModule("src/modules/libTestModule.so");
 
 	// Setup global variables
 	gModuleManager = &module_manager;

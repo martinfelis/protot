@@ -7,10 +7,10 @@ ADD_LIBRARY (RenderModule SHARED
 	RenderUtils.cc
 	)
 
-# ADD_LIBRARY (TestModule SHARED
-# 	TestModule.cc
-# 	)
-#
+ADD_LIBRARY (TestModule SHARED
+	TestModule.cc
+	)
+
 # ADD_LIBRARY (CharacterModule SHARED
 # 	CharacterModule.cc
 # 	)

@@ -107,8 +107,8 @@ inline Matrix44f LookAt(
 		const Vector3f& poi,
 		const Vector3f& up) {
 	Vector3f d = (poi - eye).normalized();
-	Vector3f s = d.cross(up.normalized());
-	Vector3f u = s.cross(d);
+	Vector3f s = d.cross(up.normalized()).normalized();
+	Vector3f u = s.cross(d).normalized();
 
 	return TranslateMat44(-eye[0], -eye[1], -eye[2]) * Matrix44f(
 			s[0], u[0], -d[0], 0.0f,
