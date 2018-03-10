@@ -7,6 +7,7 @@
 #include "RenderModule.h"
 #include "RenderUtils.h"
 #include "Globals.h"
+#include "FileModificationObserver.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 
@@ -138,6 +139,16 @@ GLuint RenderProgram::GetUniformLocation(const std::string& name) {
 	}
 
 	return result;
+}
+
+void RenderProgram::RegisterFileModification() {
+	gFileModificationObserver->AddListener(mVertexShaderFilename, this);	
+	gFileModificationObserver->AddListener(mFragmentShaderFilename, this);	
+}
+
+bool RenderProgram::OnFileChanged(const std::string& filename) {
+	gLog("Renderprogram reload as file %s changed", filename.c_str());
+	return true;
 }
 
 //

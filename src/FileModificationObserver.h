@@ -4,7 +4,7 @@
 #include<vector>
 
 struct AFileModificationListener {
-	virtual bool OnTrigger() = 0;
+	virtual bool OnFileChanged(const std::string& filename) = 0;
 };
 
 struct FileModificationObserver {
@@ -26,6 +26,7 @@ struct FileModificationObserver {
 		if (iter == mObserverInfos.end()) {
 			FileObserverInfo observer_info;
 			observer_info.mListeners.push_back(listener);
+			UpdateFileInfo(filename, observer_info);
 			mObserverInfos[filename] = observer_info;
 		} else {
 			iter->second.mListeners.push_back(listener);
@@ -40,14 +41,14 @@ struct FileModificationObserver {
 
 		std::vector<AFileModificationListener*>::iterator listener_iter = iter->second.mListeners.begin();
 		while (listener_iter != iter->second.mListeners.end()) {
-			if ((*listener_iter)->OnTrigger())
+			if (!(*listener_iter)->OnFileChanged(filename))
 				break;
 
 			listener_iter++;
 		}
 	}
 
-	void CheckFileModification(const std::string& filename, FileObserverInfo& observer_info) {
+	bool UpdateFileInfo(const std::string& filename, FileObserverInfo& observer_info) {
 		struct stat attr;
 		bool stat_result = stat(filename.c_str(), &attr);
 
@@ -67,9 +68,15 @@ struct FileModificationObserver {
 			observer_info.mFileMTimeNSec = attr.st_mtim.tv_nsec;
 			observer_info.mFileSize = attr.st_size;
 
-			gLog ("Detected file change of %s: new size %d",
-					filename.c_str(), attr.st_size);
+			return true;
+		}
+		return false;
+	}
 
+	void CheckFileModification(const std::string& filename, FileObserverInfo& observer_info) {
+		if (UpdateFileInfo(filename, observer_info)) {
+			gLog ("Detected file change of %s: new size %d",
+					filename.c_str(), observer_info.mFileSize);
 			Trigger(filename);
 		}
 	}

@@ -5,6 +5,8 @@
 
 #include <GL/gl3w.h>    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
 
+#include "FileModificationObserver.h"
+
 #include <vector>
 
 struct Transform {
@@ -127,7 +129,7 @@ struct Transform {
 	}
 };
 
-struct RenderProgram {
+struct RenderProgram : AFileModificationListener {
 	std::string mVertexShaderFilename;
 	std::string mFragmentShaderFilename;
 
@@ -146,6 +148,9 @@ struct RenderProgram {
 	~RenderProgram();
 
 	bool Load();
+
+	void RegisterFileModification();
+	virtual bool OnFileChanged(const std::string& filename);
 };
 
 struct RenderSettings;
@@ -243,8 +248,6 @@ struct VertexArray {
 			g(255),
 			b(255),
 			a(255) {}
-
-
 
 		VertexData(
 				float x,

@@ -18,6 +18,7 @@
 #include "imgui_dock.h"
 #include "imgui_impl_glfw_gl3.h"
 
+#include "FileModificationObserver.h"
 #include "Serializer.h"
 
 Timer* gTimer = nullptr;
@@ -27,6 +28,7 @@ RuntimeModuleManager* gModuleManager = nullptr;
 WriteSerializer* gWriteSerializer = nullptr;
 ReadSerializer* gReadSerializer = nullptr;
 GuiInputState* gGuiInputState = nullptr;
+FileModificationObserver* gFileModificationObserver = nullptr;
 double gTimeAtStart = 0;
 
 double mouse_scroll_x = 0.;
@@ -143,6 +145,10 @@ int main(void)
 	ImGui_ImplGlfwGL3_Init(gWindow, true);
 	ImGui::LoadDock();
 
+	// FileModificationObserver
+	FileModificationObserver file_modification_observer;
+	gFileModificationObserver = &file_modification_observer;
+
 	// Timer
 	Timer timer;
 	gTimer = &timer;
@@ -226,6 +232,10 @@ int main(void)
 		ImGui::Render();
 
 		usleep(16000);
+
+		if (glfwGetKey(gWindow, GLFW_KEY_F5) == GLFW_PRESS) {
+			gFileModificationObserver->Update();
+		} 
 
 		glfwSwapBuffers(gWindow);
 	}

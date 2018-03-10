@@ -312,6 +312,7 @@ void Renderer::Initialize(int width, int height) {
 	// Simple Shader
 	mDefaultProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mDefaultProgram.Load();
+	mDefaultProgram.RegisterFileModification();
 	assert(load_result);
 	muDefaultModelViewProjection = mDefaultProgram.GetUniformLocation("uModelViewProj");	
 	muDefaultColor = mDefaultProgram.GetUniformLocation("uColor");	
@@ -333,6 +334,7 @@ void Renderer::Initialize(int width, int height) {
 	// Program for color texture rendering
 	mRenderQuadProgramColor = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_simpletexture.glsl");
 	load_result = mRenderQuadProgramColor.Load();
+	mRenderQuadProgramColor.RegisterFileModification();
 	assert(load_result);
 	muRenderQuadModelViewProj = mRenderQuadProgramColor.GetUniformLocation("uModelViewProj");
 		
@@ -342,6 +344,7 @@ void Renderer::Initialize(int width, int height) {
 	// Program for depth texture rendering
 	mRenderQuadProgramDepth = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_depthbuffer.glsl");
 	load_result = mRenderQuadProgramDepth.Load();
+	mRenderQuadProgramDepth.RegisterFileModification();
 	assert(load_result);
 	muRenderQuadDepthModelViewProj = mRenderQuadProgramDepth.GetUniformLocation( "uModelViewProj");
 	muRenderQuadDepthNear = mRenderQuadProgramDepth.GetUniformLocation("uNear");	
