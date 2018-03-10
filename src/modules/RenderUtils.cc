@@ -24,10 +24,10 @@ RenderProgram::~RenderProgram() {
 		glDeleteProgram(mProgramId);
 }
 
-bool RenderProgram::Load() {
+
+GLuint RenderProgram::CompileVertexShader() {
 	// Create the shaders
 	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 
 	// Read the Vertex Shader code from the file
 	std::string VertexShaderCode;
@@ -40,22 +40,11 @@ bool RenderProgram::Load() {
 	}else{
 		gLog("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !", mVertexShaderFilename.c_str());
 		getchar();
-		return false;
-	}
-
-	// Read the Fragment Shader code from the file
-	std::string FragmentShaderCode;
-	std::ifstream FragmentShaderStream(mFragmentShaderFilename.c_str(), std::ios::in);
-	if(FragmentShaderStream.is_open()){
-		std::stringstream sstr;
-		sstr << FragmentShaderStream.rdbuf();
-		FragmentShaderCode = sstr.str();
-		FragmentShaderStream.close();
+		return -1;
 	}
 
 	GLint Result = GL_FALSE;
 	int InfoLogLength;
-
 
 	// Compile Vertex Shader
 	gLog("Compiling shader : %s", mVertexShaderFilename.c_str());
@@ -70,9 +59,28 @@ bool RenderProgram::Load() {
 		std::vector<char> VertexShaderErrorMessage(InfoLogLength+1);
 		glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
 		gLog("%s", &VertexShaderErrorMessage[0]);
+
+		return -1;
 	}
 
+	return VertexShaderID;
+}
 
+GLuint RenderProgram::CompileFragmentShader() {
+	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read the Fragment Shader code from the file
+	std::string FragmentShaderCode;
+	std::ifstream FragmentShaderStream(mFragmentShaderFilename.c_str(), std::ios::in);
+	if(FragmentShaderStream.is_open()){
+		std::stringstream sstr;
+		sstr << FragmentShaderStream.rdbuf();
+		FragmentShaderCode = sstr.str();
+		FragmentShaderStream.close();
+	}
+	
+	GLint Result = GL_FALSE;
+	int InfoLogLength;
 
 	// Compile Fragment Shader
 	gLog("Compiling shader : %s", mFragmentShaderFilename.c_str());
@@ -87,16 +95,23 @@ bool RenderProgram::Load() {
 		std::vector<char> FragmentShaderErrorMessage(InfoLogLength+1);
 		glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
 		gLog("%s", &FragmentShaderErrorMessage[0]);
+		
+		return -1;
 	}
 
+	return FragmentShaderID;
+}
 
-
+GLuint RenderProgram::LinkProgram(GLuint vertex_shader, GLuint fragment_shader) {
 	// Link the program
 	gLog("Linking program");
 	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
+	glAttachShader(ProgramID, vertex_shader);
+	glAttachShader(ProgramID, fragment_shader);
 	glLinkProgram(ProgramID);
+
+	GLint Result = GL_FALSE;
+	int InfoLogLength;
 
 	// Check the program
 	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
@@ -107,13 +122,35 @@ bool RenderProgram::Load() {
 		gLog("%s", &ProgramErrorMessage[0]);
 	}
 
-	glDetachShader(ProgramID, VertexShaderID);
-	glDetachShader(ProgramID, FragmentShaderID);
+	return ProgramID;
+}
 
-	glDeleteShader(VertexShaderID);
-	glDeleteShader(FragmentShaderID);
+bool RenderProgram::Load() {
+	GLuint vertex_shader_id = CompileVertexShader();
+	if (vertex_shader_id == -1) {
+		return false;
+	}
 
-	mProgramId = ProgramID;
+	GLuint fragment_shader_id = CompileFragmentShader();
+	if (fragment_shader_id == -1) {
+		glDeleteShader(vertex_shader_id);
+		return false;
+	}
+
+	mProgramId = LinkProgram(vertex_shader_id, fragment_shader_id);
+	if (mProgramId == -1) {
+		glDeleteShader(vertex_shader_id);
+		glDeleteShader(fragment_shader_id);
+
+		return false;
+	}
+
+	glDetachShader(mProgramId, vertex_shader_id);
+	glDetachShader(mProgramId, fragment_shader_id);
+
+	glDeleteShader(vertex_shader_id);
+	glDeleteShader(fragment_shader_id);
+
 	return true;
 }
 
@@ -148,6 +185,38 @@ void RenderProgram::RegisterFileModification() {
 
 bool RenderProgram::OnFileChanged(const std::string& filename) {
 	gLog("Renderprogram reload as file %s changed", filename.c_str());
+
+	GLuint vertex_shader_id = CompileVertexShader();
+	if (vertex_shader_id == -1) {
+		gLog ("Reload failed: error when compiling vertex shader");
+		return true;
+	}
+
+	GLuint fragment_shader_id = CompileFragmentShader();
+	if (fragment_shader_id == -1) {
+		glDeleteShader(vertex_shader_id);
+		gLog ("Reload failed: error when compiling fragment shader");
+		return false;
+	}
+
+	mProgramId = LinkProgram(vertex_shader_id, fragment_shader_id);
+	if (mProgramId == -1) {
+		glDeleteShader(vertex_shader_id);
+		glDeleteShader(fragment_shader_id);
+
+		gLog ("Reload failed: error when linking the program");
+
+		return false;
+	}
+
+	glDetachShader(mProgramId, vertex_shader_id);
+	glDetachShader(mProgramId, fragment_shader_id);
+
+	glDeleteShader(vertex_shader_id);
+	glDeleteShader(fragment_shader_id);
+
+	gLog ("Reload successful");
+
 	return true;
 }
 

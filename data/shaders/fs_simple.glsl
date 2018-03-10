@@ -8,12 +8,11 @@ out vec3 outColor;
 
 void main() {
 	outColor = vec3(
-		uColor.r * fragmentColor.r,
-		uColor.g * fragmentColor.g,
-		uColor.b * fragmentColor.b
-		);
+			uColor.r * fragmentColor.r,
+			uColor.g * fragmentColor.g,
+			uColor.b * fragmentColor.b
+			);
 
-	
-//	outColor = max(uColor.rgb, fragmentColor.rgb);
-outColor = fragmentColor.rgb + uColor.rgb - uColor.rgb;
+
+	outColor = fragmentColor.rgb + uColor.rgb - uColor.rgb;
 }

@@ -149,6 +149,10 @@ struct RenderProgram : AFileModificationListener {
 
 	bool Load();
 
+	GLuint CompileVertexShader();
+	GLuint CompileFragmentShader();
+	GLuint LinkProgram(GLuint vertex_shader, GLuint fragment_shader);
+
 	void RegisterFileModification();
 	virtual bool OnFileChanged(const std::string& filename);
 };
