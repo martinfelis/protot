@@ -108,6 +108,13 @@ GLuint RenderProgram::LinkProgram(GLuint vertex_shader, GLuint fragment_shader) 
 	GLuint ProgramID = glCreateProgram();
 	glAttachShader(ProgramID, vertex_shader);
 	glAttachShader(ProgramID, fragment_shader);
+
+	// Bind attribute locations
+	glBindAttribLocation(ProgramID, 0, "inCoord");
+	glBindAttribLocation(ProgramID, 1, "inNormal");
+	glBindAttribLocation(ProgramID, 2, "inUV");
+	glBindAttribLocation(ProgramID, 3, "inColor");
+
 	glLinkProgram(ProgramID);
 
 	GLint Result = GL_FALSE;
@@ -461,35 +468,35 @@ void VertexArray::Bind() {
 			(sizeof(VertexData)),
 			(void*)0
 			);
-	// Attribute 1: color
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(
-			1,
-			4,
-			GL_UNSIGNED_BYTE,
-			GL_FALSE,
-			(sizeof(VertexData)),
-			(void*)(sizeof(float) * 9)
-			);
-	// Attribute 2: normals
+	// Attribute 1: normals
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(
-			2,
+			1,
 			3,
 			GL_FLOAT,
 			GL_FALSE,
 			(sizeof(VertexData)),
 			(void*)(sizeof(float) * 4)
 			);
-	// Attribute 3: texture coordinates
+	// Attribute 2: texture coordinates
 	glEnableVertexAttribArray(3);
 	glVertexAttribPointer(
-			3,
+			2,
 			2,
 			GL_FLOAT,
 			GL_FALSE,
 			(sizeof(VertexData)),
 			(void*)(sizeof(float) * 7)
+			);
+	// Attribute 1: color
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(
+			3,
+			4,
+			GL_UNSIGNED_BYTE,
+			GL_TRUE,
+			(sizeof(VertexData)),
+			(void*)(sizeof(float) * 9)
 			);
 }
 
@@ -561,7 +568,9 @@ void VertexArrayMesh::SetData(
 		}
 
 		if (have_colors) {
-			memcpy (vertex_data[i].mColor, colors[i].data(), sizeof(float) * 4);
+			for (int j = 0; j < 4; ++j) {
+				vertex_data[i].mColor[j] = GLubyte(colors[i][j] * 255.0f);
+			}
 		} else {
 			memset (vertex_data[i].mColor, 0, sizeof(float) * 4);
 		}

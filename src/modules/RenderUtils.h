@@ -153,6 +153,27 @@ struct RenderProgram : AFileModificationListener {
 	GLuint CompileFragmentShader();
 	GLuint LinkProgram(GLuint vertex_shader, GLuint fragment_shader);
 
+	void SetVec3(const char* name, const Vector3f& vec) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform3fv(location, 1, vec.data()); 
+	}
+	void SetVec4(const char* name, const Vector3f& vec, float w = 1.0f)	{
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform4f(location, vec[0], vec[1], vec[2], w); 
+	}
+	void SetVec4(const char* name, const Vector4f& vec) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform4fv(location, 1, vec.data()); 
+	}
+	void SetMat44 (const char* name, const Matrix44f& mat) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniformMatrix4fv(location, 1, GL_FALSE, mat.data()); 
+	}
+	void SetMat33 (const char* name, const Matrix33f& mat) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniformMatrix3fv(location, 1, GL_FALSE, mat.data()); 
+	}
+
 	void RegisterFileModification();
 	virtual bool OnFileChanged(const std::string& filename);
 };

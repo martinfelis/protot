@@ -57,8 +57,8 @@ struct Camera {
 };
 
 struct Light {
-	Vector3f pos;
-	Vector3f dir;
+	Vector3f mPosition;
+	Vector3f mDirection;
 
 	float mViewMatrix[16];
 	float mProjectionMatrix[16];
@@ -74,8 +74,8 @@ struct Light {
 	float area;
 
 	Light() :
-		pos (Vector3f(0.f, 10.f, 10.f)),
-		dir (Vector3f(-1.f, -1.f, -1.f)),
+		mPosition (Vector3f(0.f, 10.f, 10.f)),
+		mDirection (Vector3f(-1.f, -1.f, -1.f)),
 		mViewMatrix {
 			1.f, 0.f, 0.f, 0.f,
 			0.f, 1.f, 0.f, 0.f,
@@ -115,12 +115,15 @@ struct Renderer {
 	uint32_t mSceneAreaWidth = 1;
 	uint32_t mSceneAreaHeight = 1;
 
+	Light mLight;
 	Camera mCamera;
 	Mesh mMesh;
 	Mesh mPlane;
 	Mesh mCoordinateSystem;
 
 	Texture mDefaultTexture;
+
+	RenderProgram mSimpleProgram;
 
 	RenderProgram mDefaultProgram;
 	GLuint muDefaultModelViewProjection;

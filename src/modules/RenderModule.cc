@@ -85,6 +85,7 @@ static void module_serialize (
 	SerializeVec3(*serializer, "protot.RenderModule.Camera.mUp", gRenderer->mCamera.mUp);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mNear", gRenderer->mCamera.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFar", gRenderer->mCamera.mFar);
+	SerializeVec3(*serializer, "protot.RenderModule.mLight.mDirection", gRenderer->mLight.mDirection);
 
 //	SerializeBool (*serializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
 //	SerializeBool (*serializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
@@ -310,12 +311,15 @@ void Renderer::Initialize(int width, int height) {
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_coordinate_system_vertex_buffer_data), g_coordinate_system_vertex_buffer_data, GL_STATIC_DRAW);
 
 	// Simple Shader
-	mDefaultProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
-	bool load_result = mDefaultProgram.Load();
+	mSimpleProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
+	bool load_result = mSimpleProgram.Load();
+	mSimpleProgram.RegisterFileModification();
+	assert(load_result);
+
+	mDefaultProgram = RenderProgram("data/shaders/vs_default.glsl", "data/shaders/fs_default.glsl");
+	load_result = mDefaultProgram.Load();
 	mDefaultProgram.RegisterFileModification();
 	assert(load_result);
-	muDefaultModelViewProjection = mDefaultProgram.GetUniformLocation("uModelViewProj");	
-	muDefaultColor = mDefaultProgram.GetUniformLocation("uColor");	
 
 	// Render Target
 	mRenderTarget = RenderTarget (width, height, 
@@ -398,9 +402,9 @@ void Renderer::RenderGl() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
-	glUseProgram(mDefaultProgram.mProgramId);
-	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
-	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	glUseProgram(mSimpleProgram.mProgramId);
+	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
 
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
@@ -413,11 +417,10 @@ void Renderer::RenderGl() {
 			(void*)0	// offset
 			);
 
-//	glDrawArrays(GL_TRIANGLES, 0, 3);	// starting from vertex 0; 3 vertices total
-//	// Coordinate system
+	// Coordinate system
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
-	glUniform4fv(muDefaultColor, 1, Vector4f(0.0f, 0.0f, 0.0f, 1.0f).data());
+	mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 0.0f, 1.0f));
 	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
 	glVertexAttribPointer(
 			0,
@@ -444,8 +447,8 @@ void Renderer::RenderGl() {
 		TranslateMat44(0.0f, 0.0f, 0.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
-	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
-	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
+	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+	mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 0.0f, 1.0f));
 	gVertexArray.Bind();
 	gVertexArrayMesh.Draw(GL_LINES);
 
@@ -454,25 +457,21 @@ void Renderer::RenderGl() {
 		TranslateMat44(0.0f, 0.0f, 0.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
-	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
-	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
-	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inNormal");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 2, "inUV");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 3, "inColor");
+	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
 	gVertexArray.Bind();
 	gXZPlaneMesh.Draw(GL_LINES);
+
+	// Unit cube
+	glUseProgram(mDefaultProgram.mProgramId);
 
 	model_view_projection = 
 		TranslateMat44(3.0f, 0.0f, 1.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
-	glUniformMatrix4fv(muDefaultModelViewProjection, 1, GL_FALSE, model_view_projection.data());
-	glUniform4fv(muDefaultColor, 1, Vector4f(1.0f, 0.0f, 0.0f, 1.0f).data());
-	glBindAttribLocation(mDefaultProgram.mProgramId, 0, "inCoord");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 1, "inNormal");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 2, "inUV");
-	glBindAttribLocation(mDefaultProgram.mProgramId, 3, "inColor");
+  mDefaultProgram.SetMat44("uModelViewProj", model_view_projection);
+  mDefaultProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
+	mDefaultProgram.SetVec3("uLightDirection", mLight.mDirection);
 	gVertexArray.Bind();
 	gUnitCubeMesh.Draw(GL_TRIANGLES);
 
@@ -542,8 +541,8 @@ void Renderer::RenderGui() {
 	ImGui::EndDock();
 
 	if (ImGui::BeginDock("Render Settings")) {
-		ImGui::Text("Render Target");
-		ImGui::Text("Width %d, Height %d", mRenderTarget.mWidth, mRenderTarget.mHeight);
+		ImGui::Text("Light");
+		ImGui::SliderFloat3("Direction", mLight.mDirection.data(), -10.0f, 10.0f);
 		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
