@@ -154,36 +154,30 @@ const struct module_api MODULE_API = {
 
 
 
-//
-// Camera
-//
-void Camera::UpdateMatrices() {
-	mViewMatrix = LookAt(mEye, mPoi, mUp);
+void Light::Initialize() {
+  gLog("Initializing light");
+	mShadowMapProgram = RenderProgram("data/shaders/vs_shadowmap.vert", "data/shaders/fs_shadowmap.frag");
 
-	if (mIsOrthographic) {
-		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, mNear, mFar);
-	} else {
-		mProjectionMatrix = Perspective(mFov, mWidth / mHeight, mNear, mFar);
-	}
+	bool load_result = mShadowMapProgram.Load();
+	mShadowMapProgram.RegisterFileModification();
+	assert(load_result);
+
+	gLog("Initializing light render target size: %d, %d", mShadowMapSize, mShadowMapSize);
+	mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
+			RenderTarget::EnableColor
+			| RenderTarget::EnableDepthTexture
+			| RenderTarget::EnableLinearizedDepthTexture);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, mShadowMapTarget.mFrameBufferId);
+	gLog("Framebuffer of light has id: %d", mShadowMapTarget.mFrameBufferId);
+	gLog("Initializing light done");
 }
 
-void Camera::DrawGui() {
-	ImGui::Text("Width %3.4f, Height %3.4f", mWidth, mHeight);
-
-	ImGui::InputFloat3("Eye", mEye.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat3("EyeS", mEye.data(), -10.0f, 10.0f);
-
-	ImGui::InputFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
-	ImGui::InputFloat3("Up", mUp.data(), -10.0f, 10.0f);
-	ImGui::Checkbox("Orthographic", &mIsOrthographic);
-	ImGui::SliderFloat("Fov", &mFov, 5, 160);
-	ImGui::SliderFloat("Near", &mNear, -10, 10);
-	ImGui::SliderFloat("Far", &mFar, -20, 50);
-	if (ImGui::Button("Reset")) {
-		*this = Camera();
-	}
+void Light::UpdateMatrices() {
+	mLightProjection = Ortho (-mBBoxSize * 0.5f, mBBoxSize * 0.5f, -mBBoxSize * 0.5f, mBBoxSize * 0.5f, mNear, mFar);
+	mLightView = LookAt(mDirection * mBBoxSize * 0.5f, Vector3f (0.0f, 0.0f, 0.0f), Vector3f (0.0f, 1.0f, 0.0f));
+	mLightSpaceMatrix = mLightProjection * mLightView;
 }
-
 
 //
 // Renderer
@@ -300,20 +294,6 @@ void Renderer::Initialize(int width, int height) {
 	mDefaultProgram.RegisterFileModification();
 	assert(load_result);
 
-	// Render Target
-	mRenderTarget = RenderTarget (width, height, 
-			RenderTarget::EnableColor 
-			| RenderTarget::EnableDepthTexture 
-			| RenderTarget::EnableLinearizedDepthTexture);
-
-	// Render Target Quad
-	glGenVertexArrays(1, &mRenderQuadVertexArrayId);
-	glBindVertexArray(mRenderQuadVertexArrayId);
-	
-	glGenBuffers(1, &mRenderQuadVertexBufferId);
-	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
 	// Program for color texture rendering
 	mRenderQuadProgramColor = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_simpletexture.glsl");
 	load_result = mRenderQuadProgramColor.Load();
@@ -333,6 +313,27 @@ void Renderer::Initialize(int width, int height) {
 	muRenderQuadDepthNear = mRenderQuadProgramDepth.GetUniformLocation("uNear");	
 	muRenderQuadDepthFar = mRenderQuadProgramDepth.GetUniformLocation("uFar");	
 
+	// Render Target
+	gLog("Initializing main render target size: %d,%d", width, height);
+	mRenderTarget.Initialize(width, height, 
+			RenderTarget::EnableColor 
+			| RenderTarget::EnableDepthTexture 
+			| RenderTarget::EnableLinearizedDepthTexture);
+
+	// Render Target Quad
+	glGenVertexArrays(1, &mRenderQuadVertexArrayId);
+	glBindVertexArray(mRenderQuadVertexArrayId);
+	
+	glGenBuffers(1, &mRenderQuadVertexBufferId);
+	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
+
+	mRenderTarget.mQuadVertexArray = mRenderQuadVertexArrayId;
+	mRenderTarget.mQuadVertexBuffer = mRenderQuadVertexBufferId;
+	mRenderTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
+
+	// Light
+	mLight.Initialize();
 }
 
 void Renderer::Shutdown() {
@@ -348,13 +349,24 @@ void Renderer::RenderGl() {
 		mCamera.mHeight = mSceneAreaHeight;
 	}
 
-	glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
-	mCamera.UpdateMatrices();
+	// Shadow Map
+	glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
+	mLight.mShadowMapTarget.Bind();
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glUseProgram(mLight.mShadowMapProgram.mProgramId);
+		RenderScene(mLight.mShadowMapProgram);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	// TODO: render linearized depth for the light
+	// mLight.mShadowMapTarget.RenderToLinearizedDepth(mCamera);
 
+	// Regular rendering
 	glEnable(GL_LINE_SMOOTH);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_CULL_FACE);
+
+	glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
+	mCamera.UpdateMatrices();
 
 	Matrix44f model_matrix = TranslateMat44(0.0f, 0.0f, 0.0f);
 	Matrix44f model_view_projection = 
@@ -373,7 +385,7 @@ void Renderer::RenderGl() {
 
 	// clear color and depth
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
 
 	glUseProgram(mSimpleProgram.mProgramId);
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
@@ -399,63 +411,36 @@ void Renderer::RenderGl() {
 	gVertexArray.Bind();
 	gXZPlaneMesh.Draw(GL_LINES);
 
-	// Unit cube
+	// Scene
 	glUseProgram(mDefaultProgram.mProgramId);
-	gVertexArray.Bind();
+	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
+	glEnable(GL_DEPTH_TEST);
 
-	model_matrix = TranslateMat44(3.0f, 0.0f, 1.0f);
-	Matrix33f normal_matrix = model_matrix.block<3,3>(0,0).transpose();
-	normal_matrix = normal_matrix.inverse();
-
-	mDefaultProgram.SetMat44("uModelMatrix", model_matrix);
-	mDefaultProgram.SetMat44("uViewMatrix", mCamera.mViewMatrix);
-	mDefaultProgram.SetMat44("uProjectionMatrix", mCamera.mProjectionMatrix);
-	mDefaultProgram.SetMat33("uNormalMatrix", normal_matrix);
-
-  mDefaultProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
-	mDefaultProgram.SetVec3("uLightDirection", mLight.mDirection);
-	mDefaultProgram.SetVec3("uViewPosition", mCamera.mEye);
-	gVertexArray.Bind();
-	gUnitCubeMesh.Draw(GL_TRIANGLES);
+	RenderScene(mDefaultProgram);
 
 	if (mSettings->DrawDepth) {
-		mRenderTarget.RenderToLinearizedDepth(true);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glDisable(GL_DEPTH_TEST);
-
-		Matrix44f model_view_projection = Matrix44f::Identity();
-
-		// render depth texture
-		glUseProgram(mRenderQuadProgramDepth.mProgramId);
-		glUniformMatrix4fv(muRenderQuadModelViewProj, 1, GL_FALSE, model_view_projection.data());
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
-		glUniform1i(muRenderQuadTexture, 0);
-
-		// TODO: adjust for perspective
-		glUniform1f(muRenderQuadDepthNear, mCamera.mNear);
-		// TODO: why do I have to divide by depth range?
-		glUniform1f(muRenderQuadDepthFar, mCamera.mFar / (mCamera.mFar - mCamera.mNear));
-
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
-		glVertexAttribPointer(
-				0,				// attribute 0
-				3,				// size
-				GL_FLOAT,	// type
-				GL_FALSE,	// normalized?
-				0,				// stride
-				(void*)0	// offset
-				);
-
-		glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
-
-		mRenderTarget.RenderToLinearizedDepth(false);
+		mRenderTarget.RenderToLinearizedDepth(mCamera);
 	}
 
 	glDisableVertexAttribArray(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Renderer::RenderScene(RenderProgram &program) {
+	Matrix44f model_matrix = TranslateMat44(3.0f, 0.0f, 1.0f);
+	Matrix33f normal_matrix = model_matrix.block<3,3>(0,0).transpose();
+	normal_matrix = normal_matrix.inverse();
+
+	program.SetMat44("uModelMatrix", model_matrix);
+	program.SetMat44("uViewMatrix", mCamera.mViewMatrix);
+	program.SetMat44("uProjectionMatrix", mCamera.mProjectionMatrix);
+	program.SetMat33("uNormalMatrix", normal_matrix);
+
+  program.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
+	program.SetVec3("uLightDirection", mLight.mDirection);
+	program.SetVec3("uViewPosition", mCamera.mEye);
+	gVertexArray.Bind();
+	gUnitCubeMesh.Draw(GL_TRIANGLES);
 }
 
 void Renderer::RenderGui() {
@@ -486,11 +471,17 @@ void Renderer::RenderGui() {
 	if (ImGui::BeginDock("Render Settings")) {
 		ImGui::Text("Light");
 		ImGui::SliderFloat3("Direction", mLight.mDirection.data(), -10.0f, 10.0f);
+		ImVec2 content_avail = ImGui::GetContentRegionAvail();
+		ImGui::Image((void*) mLight.mShadowMapTarget.mLinearizedDepthTexture,
+				ImVec2(content_avail.x, content_avail.x),
+				ImVec2(0.0f, 1.0f),
+				ImVec2(1.0f, 0.0f)
+				);
 		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
 		ImGui::Text("Default Texture");
-		const ImVec2 content_avail = ImGui::GetContentRegionAvail();
+		content_avail = ImGui::GetContentRegionAvail();
 		ImGui::Image((void*) mDefaultTexture.mTextureId, 
 				ImVec2(content_avail.x, content_avail.x),
 				ImVec2(0.0f, 1.0f), 

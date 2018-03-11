@@ -9,11 +9,46 @@
 #include "Globals.h"
 #include "FileModificationObserver.h"
 
+#include "imgui/imgui.h"
+#include "imgui_dock.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 
 #include "stb/stb_image.h"
 
 using namespace SimpleMath;
+using namespace SimpleMath::GL;
+
+//
+// Camera
+//
+void Camera::UpdateMatrices() {
+	mViewMatrix = LookAt(mEye, mPoi, mUp);
+
+	if (mIsOrthographic) {
+		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, mNear, mFar);
+	} else {
+		mProjectionMatrix = Perspective(mFov, mWidth / mHeight, mNear, mFar);
+	}
+}
+
+void Camera::DrawGui() {
+	ImGui::Text("Width %3.4f, Height %3.4f", mWidth, mHeight);
+
+	ImGui::InputFloat3("Eye", mEye.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("EyeS", mEye.data(), -10.0f, 10.0f);
+
+	ImGui::InputFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
+	ImGui::InputFloat3("Up", mUp.data(), -10.0f, 10.0f);
+	ImGui::Checkbox("Orthographic", &mIsOrthographic);
+	ImGui::SliderFloat("Fov", &mFov, 5, 160);
+	ImGui::SliderFloat("Near", &mNear, -10, 10);
+	ImGui::SliderFloat("Far", &mFar, -20, 50);
+	if (ImGui::Button("Reset")) {
+		*this = Camera();
+	}
+}
+
 
 //
 // RenderProgram
@@ -230,15 +265,21 @@ bool RenderProgram::OnFileChanged(const std::string& filename) {
 //
 // RenderTarget
 //
-RenderTarget::RenderTarget(int width, int height, int flags) {
+RenderTarget::~RenderTarget() {
+	Cleanup();
+}
+
+void RenderTarget::Initialize(int width, int height, int flags) {
+	Cleanup();
+
 	mFlags = flags;
 
-	Cleanup();
 	Resize(width, height);
 }
 
-RenderTarget::~RenderTarget() {
-	Cleanup();
+void RenderTarget::Bind() {
+	assert(glIsFramebuffer(mFrameBufferId));
+	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
 }
 
 void RenderTarget::Cleanup() {
@@ -277,7 +318,7 @@ void RenderTarget::Resize(int width, int height) {
 
 	Cleanup();
 
-	gLog("Resizing RenderTarget");
+	gLog("Resizing RenderTarget to %d,%d", width, height);
 
 	mWidth = width;
 	mHeight = height;
@@ -294,7 +335,7 @@ void RenderTarget::Resize(int width, int height) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mColorTexture, 0);
 	}
 
 	if (mFlags & EnableDepthTexture) {
@@ -310,7 +351,7 @@ void RenderTarget::Resize(int width, int height) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, mDepthTexture, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthTexture, 0);
 
 		if (mFlags & EnableLinearizedDepthTexture) {
 			glGenTextures(1, &mLinearizedDepthTexture);
@@ -329,15 +370,64 @@ void RenderTarget::Resize(int width, int height) {
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, mWidth, mHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mDepthBuffer);
 	}
+
+	GLenum result = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (result != GL_FRAMEBUFFER_COMPLETE) {
+		switch (result) {
+			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: gLog("Error: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+																								 break;
+			case GL_FRAMEBUFFER_UNDEFINED: gLog("Error: GL_FRAMEBUFFER_UNDEFINED");
+																								 break;
+			case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: gLog("Error: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+																												 break;
+			default: gLog("Error when creating Framebuffer: %d", result);
+		}
+	}
+
+	assert(result == GL_FRAMEBUFFER_COMPLETE);
 }
 
-void RenderTarget::RenderToLinearizedDepth(bool render_to_depth) {
-	if (render_to_depth) {
-		assert(mFlags & EnableLinearizedDepthTexture);
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mLinearizedDepthTexture, 0);
-	} else {
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mColorTexture, 0);
-	}
+void RenderTarget::RenderToLinearizedDepth(const Camera& camera) {
+	assert(mFlags & EnableLinearizedDepthTexture);
+	assert(mLinearizedDepthTexture != -1);
+	assert(mQuadVertexArray != -1);
+	assert(mQuadVertexBuffer != -1);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mLinearizedDepthTexture, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+
+	Matrix44f model_view_projection = Matrix44f::Identity();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mDepthTexture);
+
+	// render depth texture
+	glUseProgram(mLinearizeDepthProgram.mProgramId);
+	mLinearizeDepthProgram.SetMat44("uModelViewProj", model_view_projection);
+	mLinearizeDepthProgram.SetFloat("uNear", camera.mNear);
+	mLinearizeDepthProgram.SetFloat("uFar", camera.mFar);
+	mLinearizeDepthProgram.SetFloat("uIsOrthographic", camera.mIsOrthographic ? 1.0f : 0.0f);
+	mLinearizeDepthProgram.SetInt("uDepthTexture", 0);
+
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, mQuadVertexBuffer);
+	glVertexAttribPointer(
+			0,				// attribute 0
+			3,				// size
+			GL_FLOAT,	// type
+			GL_FALSE,	// normalized?
+			0,				// stride
+			(void*)0	// offset
+			);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
+
+	if (mFlags & EnableColor)
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mColorTexture, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 //

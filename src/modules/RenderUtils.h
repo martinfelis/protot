@@ -129,6 +129,50 @@ struct Transform {
 	}
 };
 
+struct Camera {
+	Vector3f mEye;
+	Vector3f mPoi;
+	Vector3f mUp;
+
+	float mNear;
+	float mFar;
+	float mFov;
+	bool mIsOrthographic;
+	float mWidth;
+	float mHeight;
+
+	Matrix44f mProjectionMatrix;
+	Matrix44f mViewMatrix;
+
+	Camera() :
+		mEye {5.f, 4.f, 5.f},
+		mPoi {0.f, 2.f, 0.f},
+		mUp  {0.f, 1.f, 0.f},
+		mNear (0.1f),
+		mFar (150.f),
+		mFov (60.f),
+		mIsOrthographic (false),
+		mWidth (-1.f),
+		mHeight (-1.f),
+
+		mProjectionMatrix (
+			1.f, 0.f, 0.f, 0.f,
+			0.f, 1.f, 0.f, 0.f,
+			0.f, 0.f, 1.f, 0.f,
+			0.f, 0.f, 0.f, 1.f),
+		mViewMatrix (
+			1.f, 0.f, 0.f, 0.f,
+			0.f, 1.f, 0.f, 0.f,
+			0.f, 0.f, 1.f, 0.f,
+			0.f, 0.f, 0.f, 1.f)
+		{}
+
+	void UpdateMatrices();
+	void DrawGui();
+};
+
+
+
 struct RenderProgram : AFileModificationListener {
 	std::string mVertexShaderFilename;
 	std::string mFragmentShaderFilename;
@@ -153,6 +197,14 @@ struct RenderProgram : AFileModificationListener {
 	GLuint CompileFragmentShader();
 	GLuint LinkProgram(GLuint vertex_shader, GLuint fragment_shader);
 
+	void SetInt(const char* name, const GLint& val) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform1i(location, val);
+	}
+	void SetFloat(const char* name, const float& val) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform1f(location, val);
+	}
 	void SetVec3(const char* name, const Vector3f& vec) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform3fv(location, 1, vec.data()); 
@@ -179,7 +231,7 @@ struct RenderProgram : AFileModificationListener {
 };
 
 struct RenderSettings;
-
+struct RenderProgram;
 
 struct RenderTarget {
 	int mWidth = 0;
@@ -199,13 +251,19 @@ struct RenderTarget {
 
 	int mFlags = 0;
 
+	RenderProgram mLinearizeDepthProgram;
+	GLuint mQuadVertexArray = -1;
+	GLuint mQuadVertexBuffer = -1;
+
 	RenderTarget() {};
-	RenderTarget(int width, int height, int flags);
 	~RenderTarget();
 
+	void Initialize(int width, int height, int flags);
+	void Bind();
 	void Cleanup();
 	void Resize(int width, int height);
-	void RenderToLinearizedDepth(bool render_to_depth);
+
+	void RenderToLinearizedDepth(const Camera &camera);
 };
 
 struct Texture {

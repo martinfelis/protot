@@ -14,94 +14,40 @@
 #include "Globals.h"
 #include "RenderUtils.h"
 
-struct Camera {
-	Vector3f mEye;
-	Vector3f mPoi;
-	Vector3f mUp;
-
-	float mNear;
-	float mFar;
-	float mFov;
-	bool mIsOrthographic;
-	float mWidth;
-	float mHeight;
-
-	Matrix44f mProjectionMatrix;
-	Matrix44f mViewMatrix;
-
-	Camera() :
-		mEye {5.f, 4.f, 5.f},
-		mPoi {0.f, 2.f, 0.f},
-		mUp  {0.f, 1.f, 0.f},
-		mNear (0.1f),
-		mFar (150.f),
-		mFov (60.f),
-		mIsOrthographic (false),
-		mWidth (-1.f),
-		mHeight (-1.f),
-
-		mProjectionMatrix (
-			1.f, 0.f, 0.f, 0.f,
-			0.f, 1.f, 0.f, 0.f,
-			0.f, 0.f, 1.f, 0.f,
-			0.f, 0.f, 0.f, 1.f),
-		mViewMatrix (
-			1.f, 0.f, 0.f, 0.f,
-			0.f, 1.f, 0.f, 0.f,
-			0.f, 0.f, 1.f, 0.f,
-			0.f, 0.f, 0.f, 1.f)
-		{}
-
-	void UpdateMatrices();
-	void DrawGui();
-};
-
 struct Light {
 	Vector3f mPosition;
 	Vector3f mDirection;
 
-	float mViewMatrix[16];
-	float mProjectionMatrix[16];
-	float mtxLight[16];
-	float mtxShadow[16];
+	RenderTarget mShadowMapTarget;
+	RenderProgram mShadowMapProgram;
 
-	float shadowMapBias;
-	uint16_t shadowMapSize;
+	float mShadowMapBias;
+	uint16_t mShadowMapSize;
 
-	bool enabled;
-	float near;
-	float far;
-	float area;
+	float mNear;
+	float mFar;
+	float mBBoxSize;
+
+	Matrix44f mLightProjection;
+	Matrix44f mLightView;
+	Matrix44f mLightSpaceMatrix;
 
 	Light() :
 		mPosition (Vector3f(0.f, 10.f, 10.f)),
 		mDirection (Vector3f(-1.f, -1.f, -1.f)),
-		mViewMatrix {
-			1.f, 0.f, 0.f, 0.f,
-			0.f, 1.f, 0.f, 0.f,
-			0.f, 0.f, 1.f, 0.f,
-			0.f, 0.f, 0.f, 1.f
-		},
-		mProjectionMatrix {
-			1.f, 0.f, 0.f, 0.f,
-			0.f, 1.f, 0.f, 0.f,
-			0.f, 0.f, 1.f, 0.f,
-			0.f, 0.f, 0.f, 1.f
-		},
-		mtxShadow {
-			1.f, 0.f, 0.f, 0.f,
-			0.f, 1.f, 0.f, 0.f,
-			0.f, 0.f, 1.f, 0.f,
-			0.f, 0.f, 0.f, 1.f
-		},
-		shadowMapBias (0.004f),
-		shadowMapSize (2048),
-		near (0.1f),
-		far (100.f),
-		area (10.f),
-		enabled (false)
+		mShadowMapBias (0.004f),
+		mShadowMapSize (1024),
+		mNear (0.1f),
+		mFar (100.f),
+		mBBoxSize (10.f),
+		mLightProjection(Matrix44f::Identity()),
+		mLightView(Matrix44f::Identity()),
+		mLightSpaceMatrix(Matrix44f::Identity())
 	{
 	}
+
+	void Initialize();
+	void UpdateMatrices();
 };
 
 struct RendererSettings;
@@ -151,5 +97,6 @@ struct Renderer {
 	void Initialize(int width, int height);
 	void Shutdown();
 	void RenderGl();
+	void RenderScene(RenderProgram &program);
 	void RenderGui();
 };
