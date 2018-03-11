@@ -465,13 +465,15 @@ void Renderer::RenderGl() {
 	// Unit cube
 	glUseProgram(mDefaultProgram.mProgramId);
 
-	model_view_projection = 
-		TranslateMat44(3.0f, 0.0f, 1.0f)
-		* mCamera.mViewMatrix
-		* mCamera.mProjectionMatrix;
-  mDefaultProgram.SetMat44("uModelViewProj", model_view_projection);
+	model_matrix = TranslateMat44(3.0f, 0.0f, 1.0f);
+
+	mDefaultProgram.SetMat44("uModelMatrix", model_matrix);
+	mDefaultProgram.SetMat44("uViewMatrix", mCamera.mViewMatrix);
+	mDefaultProgram.SetMat44("uProjectionMatrix", mCamera.mProjectionMatrix);
+
   mDefaultProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
 	mDefaultProgram.SetVec3("uLightDirection", mLight.mDirection);
+	mDefaultProgram.SetVec3("uViewPosition", mCamera.mEye);
 	gVertexArray.Bind();
 	gUnitCubeMesh.Draw(GL_TRIANGLES);
 

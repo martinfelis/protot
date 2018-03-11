@@ -6,14 +6,19 @@ in vec3 inNormal;
 in vec2 inUV;
 in vec4 inColor;
 
-uniform mat4 uModelViewProj;
+uniform mat4 uModelMatrix;
+uniform mat4 uViewMatrix;
+uniform mat4 uProjectionMatrix;
 uniform vec3 uLightDirection;
+uniform vec3 uViewPosition;
 
 smooth out vec4 ioFragColor;
 out vec3 ioNormal;
+out vec3 ioFragPosition;
 
 void main() {
-	gl_Position = uModelViewProj * inCoord;
+	gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * inCoord;
 	ioFragColor = inColor;
 	ioNormal = inNormal;
+	ioFragPosition = (uModelMatrix * inCoord).xyz;
 }
