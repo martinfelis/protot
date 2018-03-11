@@ -218,10 +218,7 @@ struct Texture {
 	bool Load(const char* path, int num_components = 3);
 };
 
-struct Mesh {
-	GLuint mVertexArrayId = -1;
-	GLuint mVertexBuffer = -1;
-};
+struct VertexArrayMesh;
 
 /**
  * Multiple VertexArrayMeshes can be stored in a single VertexArray.

@@ -117,9 +117,6 @@ struct Renderer {
 
 	Light mLight;
 	Camera mCamera;
-	Mesh mMesh;
-	Mesh mPlane;
-	Mesh mCoordinateSystem;
 
 	Texture mDefaultTexture;
 

@@ -51,7 +51,7 @@ static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
 };
 
 VertexArray gVertexArray;
-VertexArrayMesh gVertexArrayMesh;
+VertexArrayMesh gCoordinateFrameMesh;
 VertexArrayMesh gXZPlaneMesh;
 VertexArrayMesh gUnitCubeMesh;
 
@@ -192,7 +192,7 @@ void Renderer::Initialize(int width, int height) {
 	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.2f, 0.2f, 0.2f));
 
 	gVertexArray.Initialize(1000, GL_STATIC_DRAW);
-	gVertexArrayMesh.Initialize(gVertexArray, 6);
+	gCoordinateFrameMesh.Initialize(gVertexArray, 6);
 
 	VertexArray::VertexData vertex_data[] = {
 		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
@@ -205,7 +205,7 @@ void Renderer::Initialize(int width, int height) {
 		{0.0f, 0.0f, 1.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255}
 	};
 
-	gVertexArrayMesh.SetData(vertex_data, 6);	
+	gCoordinateFrameMesh.SetData(vertex_data, 6);	
 
 	// Plane
 	const int plane_grid_size = 20;
@@ -289,27 +289,6 @@ void Renderer::Initialize(int width, int height) {
 	};
 	gUnitCubeMesh.SetIndexData(unit_cube_index_data, 36);
 
-	// Mesh
-	glGenVertexArrays(1, &mMesh.mVertexArrayId);
-	glBindVertexArray(mMesh.mVertexArrayId);
-	glGenBuffers(1, &mMesh.mVertexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-
-	// Plane
-	glGenVertexArrays(1, &mPlane.mVertexArrayId);
-	glBindVertexArray(mPlane.mVertexArrayId);
-	glGenBuffers(1, &mPlane.mVertexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, mPlane.mVertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-
-	// Coordinate System
-	glGenVertexArrays(1, &mCoordinateSystem.mVertexArrayId);
-	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
-	glGenBuffers(1, &mCoordinateSystem.mVertexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_coordinate_system_vertex_buffer_data), g_coordinate_system_vertex_buffer_data, GL_STATIC_DRAW);
-
 	// Simple Shader
 	mSimpleProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mSimpleProgram.Load();
@@ -357,12 +336,6 @@ void Renderer::Initialize(int width, int height) {
 }
 
 void Renderer::Shutdown() {
-	glDeleteVertexArrays(1, &mMesh.mVertexArrayId);
-	glDeleteBuffers(1, &mMesh.mVertexBuffer);
-	glDeleteVertexArrays(1, &mPlane.mVertexArrayId);
-	glDeleteBuffers(1, &mPlane.mVertexBuffer);
-	glDeleteVertexArrays(1, &mCoordinateSystem.mVertexArrayId);
-	glDeleteBuffers(1, &mCoordinateSystem.mVertexBuffer);
 }
 
 
@@ -406,42 +379,6 @@ void Renderer::RenderGl() {
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
 
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, mMesh.mVertexBuffer);
-	glVertexAttribPointer(
-			0,				// attribute 0
-			3,				// size
-			GL_FLOAT,	// type
-			GL_FALSE,	// normalized?
-			0,				// stride
-			(void*)0	// offset
-			);
-
-	// Coordinate system
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(mCoordinateSystem.mVertexArrayId);
-	mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 0.0f, 1.0f));
-	glBindBuffer(GL_ARRAY_BUFFER, mCoordinateSystem.mVertexBuffer);
-	glVertexAttribPointer(
-			0,
-			3,
-			GL_FLOAT,
-			GL_FALSE,
-			(sizeof(float)*6),
-			(void*)0
-			);
-
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(
-			1,
-			3,
-			GL_FLOAT,
-			GL_FALSE,
-			(sizeof(float)*6),
-			(void*)(sizeof(float) * 3)	
-			);
-	glDrawArrays(GL_LINES, 0, 6);
-
 	// Coordinate System: VertexArrayMesh
 	model_view_projection = 
 		TranslateMat44(0.0f, 0.0f, 0.0f)
@@ -450,7 +387,7 @@ void Renderer::RenderGl() {
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 	mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 0.0f, 1.0f));
 	gVertexArray.Bind();
-	gVertexArrayMesh.Draw(GL_LINES);
+	gCoordinateFrameMesh.Draw(GL_LINES);
 
 	// Plane
 	model_view_projection = 
@@ -464,12 +401,16 @@ void Renderer::RenderGl() {
 
 	// Unit cube
 	glUseProgram(mDefaultProgram.mProgramId);
+	gVertexArray.Bind();
 
 	model_matrix = TranslateMat44(3.0f, 0.0f, 1.0f);
+	Matrix33f normal_matrix = model_matrix.block<3,3>(0,0).transpose();
+	normal_matrix = normal_matrix.inverse();
 
 	mDefaultProgram.SetMat44("uModelMatrix", model_matrix);
 	mDefaultProgram.SetMat44("uViewMatrix", mCamera.mViewMatrix);
 	mDefaultProgram.SetMat44("uProjectionMatrix", mCamera.mProjectionMatrix);
+	mDefaultProgram.SetMat33("uNormalMatrix", normal_matrix);
 
   mDefaultProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
 	mDefaultProgram.SetVec3("uLightDirection", mLight.mDirection);

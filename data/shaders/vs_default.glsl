@@ -9,6 +9,7 @@ in vec4 inColor;
 uniform mat4 uModelMatrix;
 uniform mat4 uViewMatrix;
 uniform mat4 uProjectionMatrix;
+uniform mat3 uNormalMatrix;
 uniform vec3 uLightDirection;
 uniform vec3 uViewPosition;
 
@@ -19,6 +20,6 @@ out vec3 ioFragPosition;
 void main() {
 	gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * inCoord;
 	ioFragColor = inColor;
-	ioNormal = inNormal;
+	ioNormal = uNormalMatrix * inNormal;
 	ioFragPosition = (uModelMatrix * inCoord).xyz;
 }

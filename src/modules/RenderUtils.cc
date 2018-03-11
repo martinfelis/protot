@@ -469,7 +469,7 @@ void VertexArray::Bind() {
 			(void*)0
 			);
 	// Attribute 1: normals
-	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(
 			1,
 			3,
@@ -479,7 +479,7 @@ void VertexArray::Bind() {
 			(void*)(sizeof(float) * 4)
 			);
 	// Attribute 2: texture coordinates
-	glEnableVertexAttribArray(3);
+	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(
 			2,
 			2,
