@@ -26,7 +26,10 @@ void Camera::UpdateMatrices() {
 	mViewMatrix = LookAt(mEye, mPoi, mUp);
 
 	if (mIsOrthographic) {
-		mProjectionMatrix = Ortho(-1.0f, 1.0f, -1.0f, 1.0f, mNear, mFar);
+		float width = mWidth * 0.5f * (mFar - mNear * 0.5f) * 0.001f;
+		float height = width * mHeight / mWidth;
+
+		mProjectionMatrix = Ortho(-width * 0.5f, width * 0.5f, -height * 0.5f, height * 0.5f, mNear, mFar);
 	} else {
 		mProjectionMatrix = Perspective(mFov, mWidth / mHeight, mNear, mFar);
 	}
@@ -280,6 +283,8 @@ void RenderTarget::Initialize(int width, int height, int flags) {
 void RenderTarget::Bind() {
 	assert(glIsFramebuffer(mFrameBufferId));
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
+	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, DrawBuffers);
 }
 
 void RenderTarget::Cleanup() {
@@ -362,6 +367,8 @@ void RenderTarget::Resize(int width, int height) {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, mLinearizedDepthTexture, 0);
 		}
 	} else if (mFlags & EnableDepth) {
 		assert((mFlags & EnableDepthTexture) == false);
@@ -387,15 +394,16 @@ void RenderTarget::Resize(int width, int height) {
 	assert(result == GL_FRAMEBUFFER_COMPLETE);
 }
 
-void RenderTarget::RenderToLinearizedDepth(const Camera& camera) {
+void RenderTarget::RenderToLinearizedDepth(const float& near, const float& far, bool is_orthographic) {
 	assert(mFlags & EnableLinearizedDepthTexture);
 	assert(mLinearizedDepthTexture != -1);
 	assert(mQuadVertexArray != -1);
 	assert(mQuadVertexBuffer != -1);
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mLinearizedDepthTexture, 0);
-
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
+	GLenum draw_attachment_1[] = { GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(1, draw_attachment_1);
+
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 
@@ -407,9 +415,9 @@ void RenderTarget::RenderToLinearizedDepth(const Camera& camera) {
 	// render depth texture
 	glUseProgram(mLinearizeDepthProgram.mProgramId);
 	mLinearizeDepthProgram.SetMat44("uModelViewProj", model_view_projection);
-	mLinearizeDepthProgram.SetFloat("uNear", camera.mNear);
-	mLinearizeDepthProgram.SetFloat("uFar", camera.mFar);
-	mLinearizeDepthProgram.SetFloat("uIsOrthographic", camera.mIsOrthographic ? 1.0f : 0.0f);
+	mLinearizeDepthProgram.SetFloat("uNear", near);
+	mLinearizeDepthProgram.SetFloat("uFar", far);
+	mLinearizeDepthProgram.SetFloat("uIsOrthographic", is_orthographic ? 1.0f : 0.0f);
 	mLinearizeDepthProgram.SetInt("uDepthTexture", 0);
 
 	glEnableVertexAttribArray(0);
@@ -425,8 +433,10 @@ void RenderTarget::RenderToLinearizedDepth(const Camera& camera) {
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
 
-	if (mFlags & EnableColor)
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mColorTexture, 0);
+	if (mFlags & EnableColor) {
+		GLenum draw_attachment_0[] = { GL_COLOR_ATTACHMENT1 };
+		glDrawBuffers(1, draw_attachment_0);
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 

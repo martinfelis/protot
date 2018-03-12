@@ -13,7 +13,7 @@ void main() {
 	float z = texture(uDepthTexture, ioUV).r;
 	float c;
 	if (uIsOrthographic == 1.0) {
-		c = (z - uNear) / (uFar - uNear);
+		c = z;
 	} else {
 		c = (2.0 * uNear) / (uFar + uNear - z * (uFar - uNear));
 	}

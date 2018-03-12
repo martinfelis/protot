@@ -152,8 +152,8 @@ struct Camera {
 		mFar (150.f),
 		mFov (60.f),
 		mIsOrthographic (false),
-		mWidth (-1.f),
-		mHeight (-1.f),
+		mWidth (100.0f),
+		mHeight (100.0f),
 
 		mProjectionMatrix (
 			1.f, 0.f, 0.f, 0.f,
@@ -263,7 +263,7 @@ struct RenderTarget {
 	void Cleanup();
 	void Resize(int width, int height);
 
-	void RenderToLinearizedDepth(const Camera &camera);
+	void RenderToLinearizedDepth(const float& near, const float& far, bool is_orthographic);
 };
 
 struct Texture {

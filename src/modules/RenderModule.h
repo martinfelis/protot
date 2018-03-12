@@ -21,6 +21,8 @@ struct Light {
 	RenderTarget mShadowMapTarget;
 	RenderProgram mShadowMapProgram;
 
+	Camera mCamera;
+
 	float mShadowMapBias;
 	uint16_t mShadowMapSize;
 
@@ -28,8 +30,6 @@ struct Light {
 	float mFar;
 	float mBBoxSize;
 
-	Matrix44f mLightProjection;
-	Matrix44f mLightView;
 	Matrix44f mLightSpaceMatrix;
 
 	Light() :
@@ -37,11 +37,9 @@ struct Light {
 		mDirection (Vector3f(-1.f, -1.f, -1.f)),
 		mShadowMapBias (0.004f),
 		mShadowMapSize (1024),
-		mNear (0.1f),
-		mFar (100.f),
-		mBBoxSize (10.f),
-		mLightProjection(Matrix44f::Identity()),
-		mLightView(Matrix44f::Identity()),
+		mNear (0.01f),
+		mFar (6.f),
+		mBBoxSize (5.f),
 		mLightSpaceMatrix(Matrix44f::Identity())
 	{
 	}
@@ -97,6 +95,6 @@ struct Renderer {
 	void Initialize(int width, int height);
 	void Shutdown();
 	void RenderGl();
-	void RenderScene(RenderProgram &program);
+	void RenderScene(RenderProgram &program, const Camera& camera);
 	void RenderGui();
 };
