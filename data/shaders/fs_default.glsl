@@ -19,21 +19,18 @@ float ShadowCalculation(vec4 frag_pos_light_space) {
 	projected_coordinates = projected_coordinates * 0.5 + 0.5;
 
 	float closest_depth = texture(uShadowMap, projected_coordinates.xy).r;
-//	float closest_depth = texture(uAlbedoTexture, projected_coordinates.xy).r;
 	float current_depth = projected_coordinates.z;
 
-//	return current_depth;
-//	return closest_depth;
-	float bias = 0.005;
+	float bias = max(0.05 * (1.0 - dot(ioFragNormal, uLightDirection)), 0.005);
+	bias = 0.0;
 	return current_depth - bias > closest_depth ? 1.0 : 0.0;
-//	return current_depth;
 }
 
 void main() {
 	vec4 albedo_color = texture(uAlbedoTexture, ioFragTexCoords) * ioFragColor * uColor;
 
 	// ambient lighting
-	float ambient_strength = 0.1;
+	float ambient_strength = 0.2;
 	vec4 ambient = ambient_strength * albedo_color;
 
 	// diffuse lighting

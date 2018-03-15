@@ -2,17 +2,10 @@
 
 uniform vec4 uColor;
 
-in vec4 fragmentColor;
+in vec4 ioFragmentColor;
 
-out vec3 outColor;
+out vec4 outColor;
 
 void main() {
-	outColor = vec3(
-			uColor.r * fragmentColor.r,
-			uColor.g * fragmentColor.g,
-			uColor.b * fragmentColor.b
-			);
-
-
-	outColor = fragmentColor.rgb + uColor.rgb - uColor.rgb;
+	outColor = vec4(ioFragmentColor.xyz * uColor.xyz * ioFragmentColor.w * uColor.w, 1.0);
 }

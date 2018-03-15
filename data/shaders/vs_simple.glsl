@@ -8,9 +8,9 @@ in vec4 inColor;
 
 uniform mat4 uModelViewProj;
 
-out vec4 fragmentColor;
+out vec4 ioFragmentColor;
 
 void main() {
 	gl_Position = uModelViewProj * inCoord;
-	fragmentColor = inColor;
+	ioFragmentColor = inColor;
 }

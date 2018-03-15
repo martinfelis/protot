@@ -411,6 +411,7 @@ void Renderer::RenderGl() {
 		mLight.UpdateMatrices();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
+		glCullFace(GL_FRONT);
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
 		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
@@ -418,6 +419,7 @@ void Renderer::RenderGl() {
 		RenderScene(mLight.mShadowMapProgram, mLight.mCamera);
 		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, mLight.mCamera.mIsOrthographic);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glCullFace(GL_BACK);
 
 	// Regular rendering
 	glEnable(GL_LINE_SMOOTH);
@@ -465,7 +467,7 @@ void Renderer::RenderGl() {
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
+	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 0.4f));
 	gVertexArray.Bind();
 	gXZPlaneGrid.Draw(GL_LINES);
 
