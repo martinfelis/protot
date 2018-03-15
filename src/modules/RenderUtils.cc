@@ -29,9 +29,6 @@ void Camera::UpdateMatrices() {
 		float width = mWidth * 0.5f * (mFar - mNear * 0.5f) * 0.001f;
 		float height = width * mHeight / mWidth;
 
-//		width = mWidth;
-//		height = mHeight;
-
 		mProjectionMatrix = Ortho(-width * 0.5f, width * 0.5f, -height * 0.5f, height * 0.5f, mNear, mFar);
 	} else {
 		mProjectionMatrix = Perspective(mFov, mWidth / mHeight, mNear, mFar);
@@ -286,8 +283,8 @@ void RenderTarget::Initialize(int width, int height, int flags) {
 void RenderTarget::Bind() {
 	assert(glIsFramebuffer(mFrameBufferId));
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
-	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
-	glDrawBuffers(1, DrawBuffers);
+	GLenum shadow_map_draw_buffers[] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, shadow_map_draw_buffers);
 }
 
 void RenderTarget::Cleanup() {
@@ -412,14 +409,11 @@ void RenderTarget::RenderToLinearizedDepth(const float& near, const float& far, 
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 
-	Matrix44f model_view_projection = Matrix44f::Identity();
-
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mDepthTexture);
 
 	// render depth texture
 	glUseProgram(mLinearizeDepthProgram.mProgramId);
-	mLinearizeDepthProgram.SetMat44("uModelViewProj", model_view_projection);
 	mLinearizeDepthProgram.SetFloat("uNear", near);
 	mLinearizeDepthProgram.SetFloat("uFar", far);
 	mLinearizeDepthProgram.SetFloat("uIsOrthographic", is_orthographic ? 1.0f : 0.0f);

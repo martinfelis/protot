@@ -1,4 +1,5 @@
 #include "RuntimeModule.h"
+#include "Timer.h"
 #include "Globals.h"
 #include "RenderModule.h"
 #include <GLFW/glfw3.h>
@@ -89,15 +90,12 @@ static void module_serialize (
 	SerializeVec3(*serializer, "protot.RenderModule.Camera.mUp", gRenderer->mCamera.mUp);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mNear", gRenderer->mCamera.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFar", gRenderer->mCamera.mFar);
+
+	SerializeVec3(*serializer, "protot.RenderModule.mLight.mPosition", gRenderer->mLight.mPosition);
 	SerializeVec3(*serializer, "protot.RenderModule.mLight.mDirection", gRenderer->mLight.mDirection);
+	SerializeFloat(*serializer, "protot.RenderModule.mLight.mBBoxSize", gRenderer->mLight.mBBoxSize);
 	SerializeFloat(*serializer, "protot.RenderModule.mLight.mNear", gRenderer->mLight.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.mLight.mFar", gRenderer->mLight.mFar);
-
-//	SerializeBool (*serializer, "protot.RenderModule.draw_floor", gRenderer->drawFloor);
-//	SerializeBool (*serializer, "protot.RenderModule.draw_skybox", gRenderer->drawSkybox);
-//	SerializeBool (*serializer, "protot.RenderModule.debug_enabled", gRenderer->drawDebug);
-//	SerializeVec3 (*serializer, "protot.RenderModule.camera.eye", camera->eye);
-//	SerializeVec3 (*serializer, "protot.RenderModule.camera.poi", camera->poi);
 }
 
 static void module_finalize(struct module_state *state) {
@@ -178,17 +176,39 @@ void Light::Initialize() {
 
 void Light::UpdateMatrices() {
 	mCamera.mIsOrthographic = true;
-	mCamera.mWidth = 20.0f;
-	mCamera.mHeight = 20.0f;
-	mCamera.mNear = mNear;
-	mCamera.mFar = mFar;
 
-	mCamera.mEye = Vector3f (10.0f, 10.0f, 10.0f); 
-	mCamera.mPoi = Vector3f (0.0f, 0.0f, 0.0f); 
+	mCamera.mProjectionMatrix = Ortho (-mBBoxSize * 0.5f, mBBoxSize * 0.5f, -mBBoxSize * 0.5f, mBBoxSize * 0.5f, mNear, mFar);
+	mCamera.mViewMatrix = LookAt (mCamera.mEye, mCamera.mPoi, mCamera.mUp);
 
-	mCamera.UpdateMatrices();
+	mLightSpaceMatrix = mCamera.mViewMatrix * mCamera.mProjectionMatrix;
+}
 
-	mLightSpaceMatrix = mCamera.mProjectionMatrix * mCamera.mViewMatrix;
+void Light::DrawGui() {
+	ImGui::SliderFloat3("Position", mPosition.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("Direction", mDirection.data(), -1.0f, 1.0f);
+	ImGui::SliderFloat("Volume Size", &mBBoxSize, 1.0f, 50.0f);
+	ImGui::SliderFloat("Near", &mNear, -10.0f, 50.0f);
+	ImGui::SliderFloat("Far", &mFar, -10.0f, 50.0f);
+
+	mCamera.mEye = mPosition;
+	mCamera.mPoi = mPosition - mDirection;
+	mCamera.mUp = Vector3f (0.0f, 1.0f, 0.0f);
+
+	ImVec2 content_avail = ImGui::GetContentRegionAvail();
+
+	ImGui::Checkbox("Draw Light Depth", &sRendererSettings.DrawLightDepth);
+	void* texture;
+	if (sRendererSettings.DrawLightDepth) {
+		texture = (void*) mShadowMapTarget.mLinearizedDepthTexture;
+	} else {
+		texture = (void*) mShadowMapTarget.mColorTexture;
+	}
+
+	ImGui::Image(texture,
+			ImVec2(content_avail.x, content_avail.x),
+			ImVec2(0.0f, 1.0f),
+			ImVec2(1.0f, 0.0f)
+			);
 }
 
 //
@@ -248,10 +268,10 @@ void Renderer::Initialize(int width, int height) {
 	// Plane Mesh
 	gXZPlaneMesh.Initialize(gVertexArray, 4);
 	VertexArray::VertexData plane_mesh_vertex_data[] = {
-		{-10.0f, 0.0f, -10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		-10.0f, -10.0f,		255, 255, 255, 255},
-		{-10.0f, 0.0f,  10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		-10.0f,  10.0f,		255, 255, 255, 255},
-		{ 10.0f, 0.0f,  10.0f, 1.0f,		0.0f, 1.0f, 0.0f,	 	 10.0f,  10.0f,		255, 255, 255, 255},
-		{ 10.0f, 0.0f, -10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		 10.0f, -10.0f,		255, 255, 255, 255}
+		{-10.0f, 0.0f, -10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		-5.0f, -5.0f,		255, 255, 255, 255},
+		{-10.0f, 0.0f,  10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		-5.0f,  5.0f,		255, 255, 255, 255},
+		{ 10.0f, 0.0f,  10.0f, 1.0f,		0.0f, 1.0f, 0.0f,	 	 5.0f,  5.0f,		255, 255, 255, 255},
+		{ 10.0f, 0.0f, -10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		 5.0f, -5.0f,		255, 255, 255, 255}
 	};
 	gXZPlaneMesh.SetData(plane_mesh_vertex_data, 4);
 	GLuint xz_plane_index_data[] = {
@@ -390,6 +410,7 @@ void Renderer::RenderGl() {
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 		mLight.UpdateMatrices();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
 		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
@@ -415,8 +436,6 @@ void Renderer::RenderGl() {
 
 	// enable the render target
 	mRenderTarget.Bind();
-	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
-	glDrawBuffers(1, DrawBuffers);
 
 	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		gLog ("Cannot render: frame buffer invalid!");
@@ -457,7 +476,6 @@ void Renderer::RenderGl() {
 	if (mDefaultProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
 		gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
 	}
-
 	
 	RenderScene(mDefaultProgram, mCamera);
 
@@ -495,8 +513,36 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetInt("uAlbedoTexture",  1);
 
 	gVertexArray.Bind();
-	program.SetMat44("uModelMatrix", TranslateMat44(3.0, 2.0, 0.0));
+
+	program.SetMat44("uModelMatrix", 
+			RotateMat44(sin(0.3 * gTimer->mCurrentTime) * 180.0f,
+				0.0f, 1.0f, 0.0f)
+			* TranslateMat44(3.0, 1.0 + sin(2.0f * gTimer->mCurrentTime), 0.0)) ;
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gUnitCubeMesh.Draw(GL_TRIANGLES);
+
+	program.SetMat44("uModelMatrix", 
+			RotateMat44(60.0f, 0.0f, 1.0f, 0.0f)
+			* TranslateMat44(-4.0f, 1.0f, 4.0f)
+			* ScaleMat44(0.5f, 0.5f, 0.5f));
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	gUnitCubeMesh.Draw(GL_TRIANGLES);
+
+	program.SetMat44("uModelMatrix", 
+			RotateMat44(60.0f, 0.0f, 1.0f, 0.0f)
+			* TranslateMat44(4.0f, 1.0f, 5.0f)
+			* ScaleMat44(0.8f, 0.8f, 0.8f));
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	gUnitCubeMesh.Draw(GL_TRIANGLES);
+	
+	program.SetMat44("uModelMatrix", 
+			RotateMat44(200.0f, 0.0f, 1.0f, 0.0f)
+			* TranslateMat44(-2.0f, 1.0f, -8.0f)
+			* ScaleMat44(0.5f, 0.5f, 0.5f));
+	
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	gUnitCubeMesh.Draw(GL_TRIANGLES);
+
 
 	program.SetMat44("uModelMatrix", Matrix44f::Identity());
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
@@ -529,25 +575,7 @@ void Renderer::RenderGui() {
 	ImGui::EndDock();
 
 	if (ImGui::BeginDock("Light Settings")) {
-		mLight.mCamera.DrawGui();
-		ImGui::SliderFloat3("Direction", mLight.mDirection.data(), -10.0f, 10.0f);
-		ImVec2 content_avail = ImGui::GetContentRegionAvail();
-
-		ImGui::SliderFloat("Light Near", &mLight.mNear, -10.0f, 50.0f);
-		ImGui::SliderFloat("Light Far", &mLight.mFar, -10.0f, 50.0f);
-		ImGui::Checkbox("Draw Light Depth", &mSettings->DrawLightDepth);
-		void* texture;
-		if (mSettings->DrawLightDepth) {
-			texture = (void*) mLight.mShadowMapTarget.mLinearizedDepthTexture;
-		} else {
-			texture = (void*) mLight.mShadowMapTarget.mColorTexture;
-		}
-
-		ImGui::Image(texture,
-				ImVec2(content_avail.x, content_avail.x),
-				ImVec2(0.0f, 1.0f),
-				ImVec2(1.0f, 0.0f)
-				);
+		mLight.DrawGui();
 	}
 	ImGui::EndDock();
 

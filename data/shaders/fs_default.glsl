@@ -23,9 +23,9 @@ float ShadowCalculation(vec4 frag_pos_light_space) {
 	float current_depth = projected_coordinates.z;
 
 //	return current_depth;
-	return closest_depth;
-//	float bias = 0.005;
-//	return current_depth - bias > closest_depth ? 1.0 : 0.0;
+//	return closest_depth;
+	float bias = 0.005;
+	return current_depth - bias > closest_depth ? 1.0 : 0.0;
 //	return current_depth;
 }
 
