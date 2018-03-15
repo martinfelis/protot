@@ -53,8 +53,10 @@ static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
 
 VertexArray gVertexArray;
 VertexArrayMesh gCoordinateFrameMesh;
+VertexArrayMesh gXZPlaneGrid;
 VertexArrayMesh gXZPlaneMesh;
 VertexArrayMesh gUnitCubeMesh;
+VertexArrayMesh gScreenQuad;
 
 //
 // Module
@@ -141,6 +143,7 @@ static bool module_step(struct module_state *state, float dt) {
 	assert (gWindow != nullptr);
 	state->renderer->RenderGui();
 	state->renderer->RenderGl();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return true;
 }
@@ -175,13 +178,13 @@ void Light::Initialize() {
 
 void Light::UpdateMatrices() {
 	mCamera.mIsOrthographic = true;
-	mCamera.mWidth = mShadowMapSize;
-	mCamera.mHeight = mShadowMapSize;
+	mCamera.mWidth = 20.0f;
+	mCamera.mHeight = 20.0f;
 	mCamera.mNear = mNear;
 	mCamera.mFar = mFar;
 
-	mCamera.mEye = mDirection * mBBoxSize * 0.5;
-	mCamera.mPoi = mCamera.mEye - mDirection;
+	mCamera.mEye = Vector3f (10.0f, 10.0f, 10.0f); 
+	mCamera.mPoi = Vector3f (0.0f, 0.0f, 0.0f); 
 
 	mCamera.UpdateMatrices();
 
@@ -210,9 +213,9 @@ void Renderer::Initialize(int width, int height) {
 
 	gCoordinateFrameMesh.SetData(vertex_data, 6);	
 
-	// Plane
+	// Plane Grid
 	const int plane_grid_size = 20;
-	gXZPlaneMesh.Initialize(gVertexArray, (plane_grid_size + 1) * 4);
+	gXZPlaneGrid.Initialize(gVertexArray, (plane_grid_size + 1) * 4);
 
 	std::vector<VertexArray::VertexData> plane_data((plane_grid_size + 1) * 4);
 	for (int i = 0, n = plane_grid_size + 1; i < n; ++i) {
@@ -240,7 +243,22 @@ void Renderer::Initialize(int width, int height) {
 				 -1.0f * i, plane_grid_size * 0.5f,
 				255, 255, 255, 255);
 	}
-	gXZPlaneMesh.SetData(plane_data.data(), plane_data.size());
+	gXZPlaneGrid.SetData(plane_data.data(), plane_data.size());
+
+	// Plane Mesh
+	gXZPlaneMesh.Initialize(gVertexArray, 4);
+	VertexArray::VertexData plane_mesh_vertex_data[] = {
+		{-10.0f, 0.0f, -10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		-10.0f, -10.0f,		255, 255, 255, 255},
+		{-10.0f, 0.0f,  10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		-10.0f,  10.0f,		255, 255, 255, 255},
+		{ 10.0f, 0.0f,  10.0f, 1.0f,		0.0f, 1.0f, 0.0f,	 	 10.0f,  10.0f,		255, 255, 255, 255},
+		{ 10.0f, 0.0f, -10.0f, 1.0f,		0.0f, 1.0f, 0.0f,		 10.0f, -10.0f,		255, 255, 255, 255}
+	};
+	gXZPlaneMesh.SetData(plane_mesh_vertex_data, 4);
+	GLuint xz_plane_index_data[] = {
+		0, 1, 2,
+		2, 3, 0
+	};
+	gXZPlaneMesh.SetIndexData(xz_plane_index_data, 6);
 
 	// Unit Cube
 	gUnitCubeMesh.Initialize(gVertexArray, 4 * 6);
@@ -292,6 +310,21 @@ void Renderer::Initialize(int width, int height) {
 	};
 	gUnitCubeMesh.SetIndexData(unit_cube_index_data, 36);
 
+	// Screen Quad
+	gScreenQuad.Initialize(gVertexArray, 4);
+	VertexArray::VertexData screen_quad_data[] = {
+		{-1.0f, -1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		255, 255, 255, 255},
+		{ 1.0f, -1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f,		1.0f, 0.0f,		255, 255, 255, 255},
+		{ 1.0f,  1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f,		1.0f, 1.0f,		255, 255, 255, 255},
+		{-1.0f,  1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		255, 255, 255, 255}
+	};
+	gScreenQuad.SetData(screen_quad_data, 4);
+	GLuint screen_quad_indices[] = {
+		0, 1, 2,
+		2, 3, 0
+	};
+	gScreenQuad.SetIndexData(screen_quad_indices, 6);
+
 	// Simple Shader
 	mSimpleProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mSimpleProgram.Load();
@@ -308,19 +341,12 @@ void Renderer::Initialize(int width, int height) {
 	load_result = mRenderQuadProgramColor.Load();
 	mRenderQuadProgramColor.RegisterFileModification();
 	assert(load_result);
-	muRenderQuadModelViewProj = mRenderQuadProgramColor.GetUniformLocation("uModelViewProj");
 		
-	muRenderQuadTexture = mRenderQuadProgramColor.GetUniformLocation("uTexture");
-	muRenderQuadTime = mRenderQuadProgramColor.GetUniformLocation("uTime");	
-
 	// Program for depth texture rendering
 	mRenderQuadProgramDepth = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_depthbuffer.glsl");
 	load_result = mRenderQuadProgramDepth.Load();
 	mRenderQuadProgramDepth.RegisterFileModification();
 	assert(load_result);
-	muRenderQuadDepthModelViewProj = mRenderQuadProgramDepth.GetUniformLocation( "uModelViewProj");
-	muRenderQuadDepthNear = mRenderQuadProgramDepth.GetUniformLocation("uNear");	
-	muRenderQuadDepthFar = mRenderQuadProgramDepth.GetUniformLocation("uFar");	
 
 	// Render Target
 	gLog("Initializing main render target size: %d,%d", width, height);
@@ -329,23 +355,15 @@ void Renderer::Initialize(int width, int height) {
 			| RenderTarget::EnableDepthTexture 
 			| RenderTarget::EnableLinearizedDepthTexture);
 
-	// Render Target Quad
-	glGenVertexArrays(1, &mRenderQuadVertexArrayId);
-	glBindVertexArray(mRenderQuadVertexArrayId);
-	
-	glGenBuffers(1, &mRenderQuadVertexBufferId);
-	glBindBuffer(GL_ARRAY_BUFFER, mRenderQuadVertexBufferId);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
-	mRenderTarget.mQuadVertexArray = mRenderQuadVertexArrayId;
-	mRenderTarget.mQuadVertexBuffer = mRenderQuadVertexBufferId;
+	mRenderTarget.mVertexArray = &gVertexArray;
+	mRenderTarget.mQuadMesh = &gScreenQuad;
 	mRenderTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
 	mRenderTarget.mLinearizeDepthProgram.RegisterFileModification();
 
 	// Light
 	mLight.Initialize();
-	mLight.mShadowMapTarget.mQuadVertexArray = mRenderQuadVertexArrayId;
-	mLight.mShadowMapTarget.mQuadVertexBuffer = mRenderQuadVertexBufferId;
+	mLight.mShadowMapTarget.mVertexArray = &gVertexArray;
+	mLight.mShadowMapTarget.mQuadMesh = &gScreenQuad;
 	mLight.mShadowMapTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
 	mLight.mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
 }
@@ -372,8 +390,10 @@ void Renderer::RenderGl() {
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 		mLight.UpdateMatrices();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
+		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
+			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+		}
 		RenderScene(mLight.mShadowMapProgram, mLight.mCamera);
 		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, mLight.mCamera.mIsOrthographic);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -404,7 +424,7 @@ void Renderer::RenderGl() {
 
 	// clear color and depth
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 
 	glUseProgram(mSimpleProgram.mProgramId);
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
@@ -412,7 +432,7 @@ void Renderer::RenderGl() {
 
 	// Coordinate System: VertexArrayMesh
 	model_view_projection = 
-		TranslateMat44(0.0f, 0.0f, 0.0f)
+		TranslateMat44(0.0f, 0.002f, 0.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
@@ -422,27 +442,28 @@ void Renderer::RenderGl() {
 
 	// Plane
 	model_view_projection = 
-		TranslateMat44(0.0f, 0.0f, 0.0f)
+		TranslateMat44(0.0f, 0.001f, 0.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
 	gVertexArray.Bind();
-	gXZPlaneMesh.Draw(GL_LINES);
+	gXZPlaneGrid.Draw(GL_LINES);
 
 	// Scene
 	glUseProgram(mDefaultProgram.mProgramId);
-	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
 	glEnable(GL_DEPTH_TEST);
 
+	if (mDefaultProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
+		gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+	}
+
+	
 	RenderScene(mDefaultProgram, mCamera);
 
 	if (mSettings->DrawDepth) {
 		mRenderTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
 	}
-
-	glDisableVertexAttribArray(0);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
@@ -452,16 +473,34 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	Matrix33f normal_matrix = model_matrix.block<3,3>(0,0).transpose();
 	normal_matrix = normal_matrix.inverse();
 
-	program.SetMat44("uModelMatrix", model_matrix);
+	if (program.SetMat44("uModelMatrix", model_matrix) == -1) {
+		gLog ("Warning: could not find uModelMatrix");
+	}
 	program.SetMat44("uViewMatrix", camera.mViewMatrix);
 	program.SetMat44("uProjectionMatrix", camera.mProjectionMatrix);
 	program.SetMat33("uNormalMatrix", normal_matrix);
 
-  program.SetVec4("uColor", Vector4f (1.0f, 0.0f, 0.0f, 1.0f));
+  program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	program.SetVec3("uLightDirection", mLight.mDirection);
 	program.SetVec3("uViewPosition", camera.mEye);
+	
+	program.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix); 
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
+	program.SetInt("uShadowMap",  0);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, mDefaultTexture.mTextureId);
+	program.SetInt("uAlbedoTexture",  1);
+
 	gVertexArray.Bind();
+	program.SetMat44("uModelMatrix", TranslateMat44(3.0, 2.0, 0.0));
 	gUnitCubeMesh.Draw(GL_TRIANGLES);
+
+	program.SetMat44("uModelMatrix", Matrix44f::Identity());
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	gXZPlaneMesh.Draw(GL_TRIANGLES);
 }
 
 void Renderer::RenderGui() {
@@ -494,7 +533,7 @@ void Renderer::RenderGui() {
 		ImGui::SliderFloat3("Direction", mLight.mDirection.data(), -10.0f, 10.0f);
 		ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
-		ImGui::SliderFloat("Light Near", &mLight.mNear, -10.0f, 10.0f);
+		ImGui::SliderFloat("Light Near", &mLight.mNear, -10.0f, 50.0f);
 		ImGui::SliderFloat("Light Far", &mLight.mFar, -10.0f, 50.0f);
 		ImGui::Checkbox("Draw Light Depth", &mSettings->DrawLightDepth);
 		void* texture;

@@ -1090,7 +1090,13 @@ struct DockContext
 
 	}
 
-	Dock* getDockByIndex(int idx) { return idx < 0 ? nullptr : m_docks[(int)idx]; }
+	Dock* getDockByIndex(int idx) { 
+		if (idx >= 0 && idx >= m_docks.size()) {
+			fprintf(stderr, "Error loading docks: trying to get dock with id %d but only have %d docks", idx, m_docks.size());
+			IM_ASSERT(idx < m_docks.size());
+		}
+		return idx < 0 ? nullptr : m_docks[(int)idx]; 
+	}
 
 
 	void load()

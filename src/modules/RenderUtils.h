@@ -9,6 +9,10 @@
 
 #include <vector>
 
+// Forward declarations
+struct VertexArray;
+struct VertexArrayMesh;
+
 struct Transform {
 	Quaternion rotation = Quaternion (0.0f, 0.0f, 0.0f, 1.0f);
 	Vector3f translation = Vector3f (0.0f, 0.0f, 0.0f);
@@ -197,33 +201,40 @@ struct RenderProgram : AFileModificationListener {
 	GLuint CompileFragmentShader();
 	GLuint LinkProgram(GLuint vertex_shader, GLuint fragment_shader);
 
-	void SetInt(const char* name, const GLint& val) {
+	GLint SetInt(const char* name, const GLint& val) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform1i(location, val);
+		return location;
 	}
-	void SetFloat(const char* name, const float& val) {
+	GLint SetFloat(const char* name, const float& val) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform1f(location, val);
+		return location;
 	}
-	void SetVec3(const char* name, const Vector3f& vec) {
+	GLint SetVec3(const char* name, const Vector3f& vec) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform3fv(location, 1, vec.data()); 
+		return location;
 	}
-	void SetVec4(const char* name, const Vector3f& vec, float w = 1.0f)	{
+	GLint SetVec4(const char* name, const Vector3f& vec, float w = 1.0f)	{
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform4f(location, vec[0], vec[1], vec[2], w); 
+		return location;
 	}
-	void SetVec4(const char* name, const Vector4f& vec) {
+	GLint SetVec4(const char* name, const Vector4f& vec) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform4fv(location, 1, vec.data()); 
+		return location;
 	}
-	void SetMat44 (const char* name, const Matrix44f& mat) {
+	GLint SetMat44 (const char* name, const Matrix44f& mat) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniformMatrix4fv(location, 1, GL_FALSE, mat.data()); 
+		return location;
 	}
-	void SetMat33 (const char* name, const Matrix33f& mat) {
+	GLint SetMat33 (const char* name, const Matrix33f& mat) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniformMatrix3fv(location, 1, GL_FALSE, mat.data()); 
+		return location;
 	}
 
 	void RegisterFileModification();
@@ -252,8 +263,8 @@ struct RenderTarget {
 	int mFlags = 0;
 
 	RenderProgram mLinearizeDepthProgram;
-	GLuint mQuadVertexArray = -1;
-	GLuint mQuadVertexBuffer = -1;
+	VertexArray* mVertexArray = nullptr;
+	VertexArrayMesh* mQuadMesh = nullptr;	
 
 	RenderTarget() {};
 	~RenderTarget();
@@ -275,8 +286,6 @@ struct Texture {
 	void MakeGrid(const int& size, const Vector3f &c1, const Vector3f &c2);
 	bool Load(const char* path, int num_components = 3);
 };
-
-struct VertexArrayMesh;
 
 /**
  * Multiple VertexArrayMeshes can be stored in a single VertexArray.

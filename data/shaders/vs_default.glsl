@@ -9,17 +9,23 @@ in vec4 inColor;
 uniform mat4 uModelMatrix;
 uniform mat4 uViewMatrix;
 uniform mat4 uProjectionMatrix;
+uniform mat4 uLightSpaceMatrix;
 uniform mat3 uNormalMatrix;
 uniform vec3 uLightDirection;
 uniform vec3 uViewPosition;
 
-smooth out vec4 ioFragColor;
-out vec3 ioNormal;
 out vec3 ioFragPosition;
+out vec3 ioFragNormal;
+out vec2 ioFragTexCoords;
+smooth out vec4 ioFragColor;
+out vec4 ioFragPosLightSpace;
 
 void main() {
-	gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * inCoord;
-	ioFragColor = inColor;
-	ioNormal = uNormalMatrix * inNormal;
 	ioFragPosition = (uModelMatrix * inCoord).xyz;
+	ioFragNormal = uNormalMatrix * inNormal;
+	ioFragTexCoords = inUV;
+	ioFragColor = inColor;
+	ioFragPosLightSpace = uLightSpaceMatrix * vec4(ioFragPosition, 1.0);
+
+	gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * inCoord;
 }

@@ -29,6 +29,9 @@ void Camera::UpdateMatrices() {
 		float width = mWidth * 0.5f * (mFar - mNear * 0.5f) * 0.001f;
 		float height = width * mHeight / mWidth;
 
+//		width = mWidth;
+//		height = mHeight;
+
 		mProjectionMatrix = Ortho(-width * 0.5f, width * 0.5f, -height * 0.5f, height * 0.5f, mNear, mFar);
 	} else {
 		mProjectionMatrix = Perspective(mFov, mWidth / mHeight, mNear, mFar);
@@ -355,6 +358,8 @@ void RenderTarget::Resize(int width, int height) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthTexture, 0);
 
@@ -397,8 +402,8 @@ void RenderTarget::Resize(int width, int height) {
 void RenderTarget::RenderToLinearizedDepth(const float& near, const float& far, bool is_orthographic) {
 	assert(mFlags & EnableLinearizedDepthTexture);
 	assert(mLinearizedDepthTexture != -1);
-	assert(mQuadVertexArray != -1);
-	assert(mQuadVertexBuffer != -1);
+	assert(mVertexArray != nullptr);
+	assert(mQuadMesh != nullptr);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
 	GLenum draw_attachment_1[] = { GL_COLOR_ATTACHMENT1 };
@@ -420,24 +425,14 @@ void RenderTarget::RenderToLinearizedDepth(const float& near, const float& far, 
 	mLinearizeDepthProgram.SetFloat("uIsOrthographic", is_orthographic ? 1.0f : 0.0f);
 	mLinearizeDepthProgram.SetInt("uDepthTexture", 0);
 
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, mQuadVertexBuffer);
-	glVertexAttribPointer(
-			0,				// attribute 0
-			3,				// size
-			GL_FLOAT,	// type
-			GL_FALSE,	// normalized?
-			0,				// stride
-			(void*)0	// offset
-			);
-
-	glDrawArrays(GL_TRIANGLES, 0, 6);	// starting from vertex 0; 3 vertices total
+	mVertexArray->Bind();
+	mQuadMesh->Draw(GL_TRIANGLES);
 
 	if (mFlags & EnableColor) {
 		GLenum draw_attachment_0[] = { GL_COLOR_ATTACHMENT1 };
 		glDrawBuffers(1, draw_attachment_0);
+		glEnable(GL_DEPTH_TEST);
 	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 //

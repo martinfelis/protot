@@ -65,26 +65,12 @@ struct Renderer {
 	Texture mDefaultTexture;
 
 	RenderProgram mSimpleProgram;
-
 	RenderProgram mDefaultProgram;
-	GLuint muDefaultModelViewProjection;
-	GLuint muDefaultColor;
+	RenderProgram mRenderQuadProgramColor;
+	RenderProgram mRenderQuadProgramDepth;
 
 	RenderTarget mRenderTarget;
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
-
-	GLuint mRenderQuadVertexArrayId;
-	GLuint mRenderQuadVertexBufferId;
-
-	RenderProgram mRenderQuadProgramColor;
-	GLuint muRenderQuadModelViewProj;
-	GLuint muRenderQuadTexture;
-	GLuint muRenderQuadTime;
-
-	RenderProgram mRenderQuadProgramDepth;
-	GLuint muRenderQuadDepthModelViewProj;
-	GLuint muRenderQuadDepthNear;
-	GLuint muRenderQuadDepthFar;
 
 	Renderer() :
 		mInitialized(false),
