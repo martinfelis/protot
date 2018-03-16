@@ -177,6 +177,10 @@ void Light::Initialize() {
 void Light::UpdateMatrices() {
 	mCamera.mIsOrthographic = true;
 
+	mCamera.mEye = mPosition;
+	mCamera.mPoi = mPosition - mDirection;
+	mCamera.mUp = Vector3f (0.0f, 1.0f, 0.0f);
+
 	mCamera.mProjectionMatrix = Ortho (-mBBoxSize * 0.5f, mBBoxSize * 0.5f, -mBBoxSize * 0.5f, mBBoxSize * 0.5f, mNear, mFar);
 	mCamera.mViewMatrix = LookAt (mCamera.mEye, mCamera.mPoi, mCamera.mUp);
 
@@ -189,10 +193,6 @@ void Light::DrawGui() {
 	ImGui::SliderFloat("Volume Size", &mBBoxSize, 1.0f, 50.0f);
 	ImGui::SliderFloat("Near", &mNear, -10.0f, 50.0f);
 	ImGui::SliderFloat("Far", &mFar, -10.0f, 50.0f);
-
-	mCamera.mEye = mPosition;
-	mCamera.mPoi = mPosition - mDirection;
-	mCamera.mUp = Vector3f (0.0f, 1.0f, 0.0f);
 
 	ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
@@ -508,7 +508,6 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	program.SetInt("uShadowMap",  0);
 
 	glActiveTexture(GL_TEXTURE1);

@@ -36,7 +36,7 @@ struct Light {
 		mPosition (Vector3f(0.f, 3, 0.0f)),
 		mDirection (Vector3f(1.f, 1.f, 1.f)),
 		mShadowMapBias (0.004f),
-		mShadowMapSize (2048),
+		mShadowMapSize (1024),
 		mNear (-10.0f),
 		mFar (15.f),
 		mBBoxSize (35.f),
