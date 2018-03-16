@@ -215,7 +215,7 @@ void Light::DrawGui() {
 // Renderer
 //
 void Renderer::Initialize(int width, int height) {
-	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.2f, 0.2f, 0.2f));
+	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.7f, 0.7f, 0.7f));
 
 	gVertexArray.Initialize(1000, GL_STATIC_DRAW);
 	gCoordinateFrameMesh.Initialize(gVertexArray, 6);
@@ -411,7 +411,7 @@ void Renderer::RenderGl() {
 		mLight.UpdateMatrices();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
-		glCullFace(GL_FRONT);
+//		glCullFace(GL_FRONT);
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
 		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
@@ -419,7 +419,7 @@ void Renderer::RenderGl() {
 		RenderScene(mLight.mShadowMapProgram, mLight.mCamera);
 		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, mLight.mCamera.mIsOrthographic);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glCullFace(GL_BACK);
+//	glCullFace(GL_BACK);
 
 	// Regular rendering
 	glEnable(GL_LINE_SMOOTH);
@@ -508,6 +508,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 	program.SetInt("uShadowMap",  0);
 
 	glActiveTexture(GL_TEXTURE1);
