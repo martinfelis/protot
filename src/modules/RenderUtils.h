@@ -7,6 +7,8 @@
 
 #include "FileModificationObserver.h"
 
+#include "tinygltf/tiny_gltf.h"
+
 #include <vector>
 
 // Forward declarations
@@ -288,7 +290,7 @@ struct Texture {
 };
 
 /**
- * Multiple VertexArrayMeshes can be stored in a single VertexArray.
+ * Storage for (multiple) VertexArrayMeshes
  * Storage order is:
  *   (VVVV)(NNNN)(UV)(CCCC)
  */
@@ -411,6 +413,19 @@ struct VertexArrayMesh {
 	void SetIndexData(const GLuint* indices, const int& count);
 
 	void Draw(GLenum mode);
+};
+
+struct RenderCommand {
+	typedef enum {
+		EnableShadowPass = 1
+	} Flags;
+
+	int mFlags;
+	GLenum mDrawMode;
+	Vector4f mColor = Vector4f (1.0f, 1.0f, 1.0f, 1.0f);
+
+	Matrix44f mTransform;
+	VertexArrayMesh *mMesh;
 };
 
 #endif

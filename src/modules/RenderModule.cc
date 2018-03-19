@@ -10,7 +10,12 @@
 
 using namespace SimpleMath::GL;
 
+typedef tinygltf::Model Model;
+typedef tinygltf::TinyGLTF GLTFLoader;
+
 struct Renderer;
+
+float moving_factor = 1.0f;
 
 struct RendererSettings {
 	bool DrawDepth = false;
@@ -58,6 +63,9 @@ VertexArrayMesh gXZPlaneGrid;
 VertexArrayMesh gXZPlaneMesh;
 VertexArrayMesh gUnitCubeMesh;
 VertexArrayMesh gScreenQuad;
+
+Model gModel;
+GLTFLoader gLoader;
 
 //
 // Module
@@ -386,6 +394,16 @@ void Renderer::Initialize(int width, int height) {
 	mLight.mShadowMapTarget.mQuadMesh = &gScreenQuad;
 	mLight.mShadowMapTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
 	mLight.mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
+
+	// Model
+	std::string model_file = "data/models/Cube/Cube.gltf";
+	std::string err;
+	bool result = gLoader.LoadASCIIFromFile(&gModel, &err, model_file.c_str());
+	if (!err.empty()) {
+		gLog("Error loading model '%s': %s", model_file.c_str(), err.c_str());
+	} else {
+		gLog("Successfully loaded model '%s'", model_file.c_str());
+	}
 }
 
 void Renderer::Shutdown() {
@@ -539,7 +557,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	
 	program.SetMat44("uModelMatrix", 
 			RotateMat44(200.0f, 0.0f, 1.0f, 0.0f)
-			* TranslateMat44(-2.0f, 1.0f, -8.0f)
+			* TranslateMat44(moving_factor * sin(gTimer->mCurrentTime), 1.0f, 0.0f)
 			* ScaleMat44(0.5f, 0.5f, 0.5f));
 	
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
@@ -582,6 +600,9 @@ void Renderer::RenderGui() {
 	ImGui::EndDock();
 
 	if (ImGui::BeginDock("Render Settings")) {
+		ImGui::Text("Scene");
+		ImGui::SliderFloat("Moving Factor", &moving_factor, -10.0f, 10.0f);
+
 		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
