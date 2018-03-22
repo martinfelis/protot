@@ -10,9 +10,6 @@
 
 using namespace SimpleMath::GL;
 
-typedef tinygltf::Model Model;
-typedef tinygltf::TinyGLTF GLTFLoader;
-
 struct Renderer;
 
 float moving_factor = 1.0f;
@@ -64,8 +61,7 @@ VertexArrayMesh gXZPlaneMesh;
 VertexArrayMesh gUnitCubeMesh;
 VertexArrayMesh gScreenQuad;
 
-Model gModel;
-GLTFLoader gLoader;
+AssetFile gAssetFile;
 
 //
 // Module
@@ -147,7 +143,7 @@ static void module_unload(struct module_state *state, void* write_serializer) {
 static bool module_step(struct module_state *state, float dt) {
 	int width, height;
 	assert (gWindow != nullptr);
-	state->renderer->RenderGui();
+	state->renderer->DrawGui();
 	state->renderer->RenderGl();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -396,13 +392,8 @@ void Renderer::Initialize(int width, int height) {
 	mLight.mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
 
 	// Model
-	std::string model_file = "data/models/Cube/Cube.gltf";
-	std::string err;
-	bool result = gLoader.LoadASCIIFromFile(&gModel, &err, model_file.c_str());
-	if (!err.empty()) {
-		gLog("Error loading model '%s': %s", model_file.c_str(), err.c_str());
-	} else {
-		gLog("Successfully loaded model '%s'", model_file.c_str());
+	if (!gAssetFile.Load("data/models/RiggedFigure/glTF/RiggedFigure.gltf")) {
+		assert(false);
 	}
 }
 
@@ -569,7 +560,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	gXZPlaneMesh.Draw(GL_TRIANGLES);
 }
 
-void Renderer::RenderGui() {
+void Renderer::DrawGui() {
 	if (ImGui::BeginDock("Scene")) {
 		ImGui::Checkbox("Draw Depth", &mSettings->DrawDepth);
 
@@ -613,6 +604,11 @@ void Renderer::RenderGui() {
 				ImVec2(0.0f, 1.0f), 
 				ImVec2(1.0f, 0.0f)
 				);
+	}
+	ImGui::EndDock();
+
+	if (ImGui::BeginDock("Asset")) {
+		gAssetFile.DrawGui();
 	}
 	ImGui::EndDock();
 }

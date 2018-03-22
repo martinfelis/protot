@@ -83,5 +83,5 @@ struct Renderer {
 	void Shutdown();
 	void RenderGl();
 	void RenderScene(RenderProgram &program, const Camera& camera);
-	void RenderGui();
+	void DrawGui();
 };

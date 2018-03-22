@@ -415,6 +415,15 @@ struct VertexArrayMesh {
 	void Draw(GLenum mode);
 };
 
+struct AssetFile {
+	std::string mFilename;
+	tinygltf::Model mGLTFModel;
+
+	bool Load(const char* filename);
+	void DrawNodeGui(const tinygltf::Node& node);
+	void DrawGui();
+};
+
 struct RenderCommand {
 	typedef enum {
 		EnableShadowPass = 1

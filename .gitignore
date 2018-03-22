@@ -1,6 +1,8 @@
 .*.swp
 
 build/*
+cmake-build-debug/**
+cmake-build-release/**
 tags
 
 3rdparty/glfw/docs/**

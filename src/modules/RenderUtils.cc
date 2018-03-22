@@ -15,6 +15,10 @@
 using namespace SimpleMath;
 using namespace SimpleMath::GL;
 
+typedef tinygltf::TinyGLTF GLTFLoader;
+
+static GLTFLoader gLoader;
+
 //
 // Camera
 //
@@ -501,6 +505,7 @@ void Texture::MakeGrid(const int& size, const Vector3f &c1, const Vector3f &c2) 
 bool Texture::Load(const char* filename, int num_components) {
 //	unsigned char* rgb = stbi_load(filename, &mWidth, &mHeight, num_components);
 	assert(false);
+	return false;
 }
 
 VertexArray::~VertexArray() {
@@ -697,4 +702,63 @@ void VertexArrayMesh::Draw(GLenum mode) {
 		glDrawElements(mode, mIndexCount, GL_UNSIGNED_INT, (void*) 0);
 	}
 
+}
+
+//
+// AssetFile
+//
+bool AssetFile::Load(const char* filename) {
+	mFilename = filename;
+	std::string err;
+	bool result = gLoader.LoadASCIIFromFile(&mGLTFModel, &err, mFilename.c_str());
+	if (!err.empty()) {
+		gLog("Error loading model '%s': %s", mFilename.c_str(), err.c_str());
+	} else {
+		gLog("Successfully loaded model '%s'", mFilename.c_str());
+	}
+	
+	return result;
+}
+
+void AssetFile::DrawNodeGui(const tinygltf::Node& node) {
+	for (int i = 0, n = node.children.size(); i < n; ++i) {
+		const int child_node_id = node.children[i];
+		const tinygltf::Node& child_node = mGLTFModel.nodes[child_node_id];
+		ImGui::PushID("childnode");
+		ImGui::PushID("i");
+		if (ImGui::TreeNode((void*)(intptr_t)child_node_id, "[%d] %s", child_node_id, child_node.name.c_str())) {
+			DrawNodeGui(child_node);
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+		ImGui::PopID();
+	}
+}
+
+void AssetFile::DrawGui() {
+	ImGui::Text("File: %s", mFilename.c_str());
+	if (ImGui::TreeNode("Meshes")) {
+		for (int i = 0, n = mGLTFModel.meshes.size(); i < n; ++i) {
+			const tinygltf::Mesh& mesh = mGLTFModel.meshes[i];
+			ImGui::PushID("mesh");
+			if (ImGui::TreeNode((void*)(intptr_t)i, "[%d] %s", i, mesh.name.c_str())) {
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+		ImGui::TreePop();
+	}
+
+	if (ImGui::TreeNode("Nodes")) {
+		for (int i = 0, n = mGLTFModel.nodes.size(); i < n; ++i) {
+			const tinygltf::Node& node = mGLTFModel.nodes[i];
+			ImGui::PushID("node");
+			if (ImGui::TreeNode((void*)(intptr_t)i, "[%d] %s", i, node.name.c_str())) {
+				DrawNodeGui(node);
+				ImGui::TreePop();
+			}
+			ImGui::PopID();	
+		}
+		ImGui::TreePop();
+	}
 }
