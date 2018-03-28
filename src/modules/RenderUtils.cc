@@ -761,6 +761,12 @@ void AssetFile::LoadBuffers() {
 	}
 }
 
+enum PrimitiveType {
+	PrimitivePosition = 1,
+	PrimitiveNormal,
+	PrimitiveTexCoord0
+};
+
 void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f& matrix) {
 	for (int i = 0, n = mesh.primitives.size(); i < n; ++i) {
 		const tinygltf::Primitive& primitive = mesh.primitives[i];
@@ -786,7 +792,17 @@ void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f& matrix) {
 				default: assert(0); break;
 			}
 
-			
+			PrimitiveType primitive_type;
+			if (it->first.compare("POSITION") == 0) {
+				primitive_type = PrimitivePosition;
+			} else if (it->first.compare("NORMAL") == 0) {
+				primitive_type = PrimitiveNormal;
+			} else if (it->first.compare("TEXCOORD_0") == 0) {
+				primitive_type = PrimitiveTexCoord0;
+			} else {
+				gLog("Invalid primitive type: %s", it->first.c_str());
+				assert(false);
+			}
 
 			if ((it->first.compare("POSITION") == 0) 
 					|| (it->first.compare("NORMAL") == 0) 
