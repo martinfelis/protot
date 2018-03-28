@@ -418,8 +418,13 @@ struct VertexArrayMesh {
 struct AssetFile {
 	std::string mFilename;
 	tinygltf::Model mGLTFModel;
+	std::vector<GLuint> mBuffers;
 
 	bool Load(const char* filename);
+	void LoadBuffers();
+	void DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f &matrix);
+	void DrawNode(const tinygltf::Node &node, const Matrix44f &matrix);
+	void DrawModel();
 	void DrawNodeGui(const tinygltf::Node& node);
 	void DrawGui();
 };

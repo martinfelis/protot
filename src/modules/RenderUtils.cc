@@ -717,6 +717,8 @@ bool AssetFile::Load(const char* filename) {
 		gLog("Successfully loaded model '%s'", mFilename.c_str());
 	}
 	
+	LoadBuffers();
+
 	return result;
 }
 
@@ -732,6 +734,69 @@ void AssetFile::DrawNodeGui(const tinygltf::Node& node) {
 		}
 		ImGui::PopID();
 		ImGui::PopID();
+	}
+}
+
+void AssetFile::LoadBuffers() {
+	for (int i = 0, n = mGLTFModel.bufferViews.size(); i < n; ++i) {
+		const tinygltf::BufferView &buffer_view = mGLTFModel.bufferViews[i];
+		if (buffer_view.target == 0) {
+			gLog("Warning: buffer_view target at index %d is 0", i);
+			continue;
+		}
+
+		const tinygltf::Buffer &buffer = mGLTFModel.buffers[buffer_view.buffer];
+		GLuint buffer_id;
+		glGenBuffers(1, &buffer_id);
+		glBindBuffer(buffer_view.target, buffer_id);
+		if (buffer_view.name.size() > 0) {
+			gLog("Loading Buffer '%s': size %d offset %d", buffer_view.name.c_str(), buffer.data.size(), buffer_view.byteOffset);
+		} else {
+			gLog("Loading Buffer: size %d offset %d", buffer_view.name.c_str(), buffer.data.size(), buffer_view.byteOffset);
+		}
+		glBufferData(buffer_view.target, buffer_view.byteLength,
+				&buffer.data.at(0) + buffer_view.byteOffset, GL_STATIC_DRAW);
+		glBindBuffer(buffer_view.target, 0);
+		mBuffers.push_back(buffer_id);
+	}
+}
+
+void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f &matrix) {
+}
+
+void AssetFile::DrawNode(const tinygltf::Node &node, const Matrix44f &matrix) {
+	Matrix44f local_matrix = matrix;
+	if (node.matrix.size() == 16) {
+		Matrix44d mat44d = SimpleMath::Map<Matrix44d> (node.matrix.data(), 4, 4); 
+		local_matrix *= mat44d
+	} else {
+		if (node.scale.size() == 3) {
+			local_matrix *= ScaleMat44(node.scale[0], node.scale[1], node.scale[2]); 
+		}
+
+		if node.rotation.size() == 4) {
+			local_matrix *= Quaternion(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]).toGLMatrix();
+		}
+
+		if node.translation.size() == 3) {
+			local_matrix *= TranslateMat44(node.translation[0], node.translation[1], node.translation[2]);
+		}
+	}
+
+	DrawMesh (mGLTFModel.meshes[node.mesh], local_matrix);
+
+	for (int i = 0; i < node.children.size(); ++i) {
+		DrawNode(model.nodes[node.children[i]]);
+	}
+}
+
+void AssetFile::DrawModel() {
+	// todo: support non-default scenes
+	assert(mGLTFModel.defaultScene >= 0);
+	const tinygltf::Scene &scene = mGLTFModel.scenes[mGLTFModel.defaultScene];
+	for (int i = 0; i < scene.nodes.size(); ++i) {
+		const tinygltf::Node &node = mGLTFModel.nodes[scene.nodes[i]];
+		DrawNode(node, Matrix44f::Identity());
 	}
 }
 
@@ -762,3 +827,4 @@ void AssetFile::DrawGui() {
 		ImGui::TreePop();
 	}
 }
+
