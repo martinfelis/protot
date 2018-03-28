@@ -761,24 +761,61 @@ void AssetFile::LoadBuffers() {
 	}
 }
 
-void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f &matrix) {
+void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f& matrix) {
+	for (int i = 0, n = mesh.primitives.size(); i < n; ++i) {
+		const tinygltf::Primitive& primitive = mesh.primitives[i];
+
+		if (primitive.indices < 0) {
+			return;
+		}
+
+		std::map<std::string, int>::const_iterator it(primitive.attributes.begin());
+		std::map<std::string, int>::const_iterator it_end(primitive.attributes.end());
+
+		for (; it != it_end; it++) {
+			assert(it->second >= 0);
+			const tinygltf::Accessor& accessor = mGLTFModel.accessors[it->second];
+			glBindBuffer(GL_ARRAY_BUFFER, mBuffers[accessor.bufferView]);
+
+			int size = 1;
+			switch(accessor.type) {
+				case TINYGLTF_TYPE_SCALAR:	size = 1; break;
+				case TINYGLTF_TYPE_VEC2: 		size = 2; break;
+				case TINYGLTF_TYPE_VEC3: 		size = 3; break;
+				case TINYGLTF_TYPE_VEC4: 		size = 4; break;
+				default: assert(0); break;
+			}
+
+			
+
+			if ((it->first.compare("POSITION") == 0) 
+					|| (it->first.compare("NORMAL") == 0) 
+					|| (it->first.compare("TEXCOORD_0") == 0)) {
+				int byte_stride = accessor.ByteStride(mGLTFModel.bufferViews[accessor.bufferView]);
+				assert(byte_stride != -1);
+
+			}
+		}
+	
+	}
 }
 
-void AssetFile::DrawNode(const tinygltf::Node &node, const Matrix44f &matrix) {
+void AssetFile::DrawNode(const tinygltf::Node &node, const Matrix44f& matrix) {
 	Matrix44f local_matrix = matrix;
 	if (node.matrix.size() == 16) {
-		Matrix44d mat44d = SimpleMath::Map<Matrix44d> (node.matrix.data(), 4, 4); 
-		local_matrix *= mat44d
+		Matrix44f mat;
+		memcpy(mat.data(), node.matrix.data(), sizeof(float) * 4);
+		local_matrix *= mat; 
 	} else {
 		if (node.scale.size() == 3) {
 			local_matrix *= ScaleMat44(node.scale[0], node.scale[1], node.scale[2]); 
 		}
 
-		if node.rotation.size() == 4) {
+		if (node.rotation.size() == 4) {
 			local_matrix *= Quaternion(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]).toGLMatrix();
 		}
 
-		if node.translation.size() == 3) {
+		if (node.translation.size() == 3) {
 			local_matrix *= TranslateMat44(node.translation[0], node.translation[1], node.translation[2]);
 		}
 	}
@@ -786,7 +823,7 @@ void AssetFile::DrawNode(const tinygltf::Node &node, const Matrix44f &matrix) {
 	DrawMesh (mGLTFModel.meshes[node.mesh], local_matrix);
 
 	for (int i = 0; i < node.children.size(); ++i) {
-		DrawNode(model.nodes[node.children[i]]);
+		DrawNode(mGLTFModel.nodes[node.children[i]], matrix);
 	}
 }
 
