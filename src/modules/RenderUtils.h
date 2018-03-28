@@ -289,6 +289,14 @@ struct Texture {
 	bool Load(const char* path, int num_components = 3);
 };
 
+enum VertexAttributeType {
+	VertexAttributePosition = 0,
+	VertexAttributeNormal = 1,
+	VertexAttributeTexCoord0 = 2,
+	VertexAttributeColor = 3,
+	VertexAttributeTypeCount
+};
+
 /**
  * Storage for (multiple) VertexArrayMeshes
  * Storage order is:
@@ -422,9 +430,12 @@ struct AssetFile {
 
 	bool Load(const char* filename);
 	void LoadBuffers();
-	void DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f &matrix);
-	void DrawNode(const tinygltf::Node &node, const Matrix44f &matrix);
-	void DrawModel();
+	VertexAttributeType GetVertexAttributeType(const std::string &attribute_string) const;
+	void DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f &matrix) const;
+	void DrawNode(RenderProgram& program, const tinygltf::Node &node, const Matrix44f &matrix) const;
+	void DrawModel(RenderProgram& program) const;
+
+	// Debug UI
 	void DrawNodeGui(const tinygltf::Node& node);
 	void DrawGui();
 };

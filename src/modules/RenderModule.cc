@@ -558,6 +558,8 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetMat44("uModelMatrix", Matrix44f::Identity());
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gXZPlaneMesh.Draw(GL_TRIANGLES);
+
+	gAssetFile.DrawModel(program);
 }
 
 void Renderer::DrawGui() {

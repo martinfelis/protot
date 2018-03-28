@@ -554,7 +554,7 @@ void VertexArray::Bind() {
 	// Attribute 0: coords
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
-			0,
+			VertexAttributePosition,
 			4,
 			GL_FLOAT,
 			GL_FALSE,
@@ -564,7 +564,7 @@ void VertexArray::Bind() {
 	// Attribute 1: normals
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(
-			1,
+			VertexAttributeNormal,
 			3,
 			GL_FLOAT,
 			GL_FALSE,
@@ -574,17 +574,17 @@ void VertexArray::Bind() {
 	// Attribute 2: texture coordinates
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(
-			2,
+			VertexAttributeTexCoord0,
 			2,
 			GL_FLOAT,
 			GL_FALSE,
 			(sizeof(VertexData)),
 			(void*)(sizeof(float) * 7)
 			);
-	// Attribute 1: color
+	// Attribute 3: color
 	glEnableVertexAttribArray(3);
 	glVertexAttribPointer(
-			3,
+			VertexAttributeColor,
 			4,
 			GL_UNSIGNED_BYTE,
 			GL_TRUE,
@@ -761,13 +761,22 @@ void AssetFile::LoadBuffers() {
 	}
 }
 
-enum PrimitiveType {
-	PrimitivePosition = 1,
-	PrimitiveNormal,
-	PrimitiveTexCoord0
-};
+VertexAttributeType AssetFile::GetVertexAttributeType(const std::string &attribute_string) const {
+	VertexAttributeType attribute_type;
+	if (attribute_string.compare("POSITION") == 0) {
+		attribute_type = VertexAttributePosition;
+	} else if (attribute_string.compare("NORMAL") == 0) {
+		attribute_type = VertexAttributeNormal;
+	} else if (attribute_string.compare("TEXCOORD_0") == 0) {
+		attribute_type = VertexAttributeTexCoord0;
+	} else {
+		attribute_type = VertexAttributeTypeCount;
+	}
 
-void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f& matrix) {
+	return attribute_type;
+}
+
+void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f& matrix) const {
 	for (int i = 0, n = mesh.primitives.size(); i < n; ++i) {
 		const tinygltf::Primitive& primitive = mesh.primitives[i];
 
@@ -792,35 +801,64 @@ void AssetFile::DrawMesh(const tinygltf::Mesh &mesh, const Matrix44f& matrix) {
 				default: assert(0); break;
 			}
 
-			PrimitiveType primitive_type;
-			if (it->first.compare("POSITION") == 0) {
-				primitive_type = PrimitivePosition;
-			} else if (it->first.compare("NORMAL") == 0) {
-				primitive_type = PrimitiveNormal;
-			} else if (it->first.compare("TEXCOORD_0") == 0) {
-				primitive_type = PrimitiveTexCoord0;
-			} else {
-				gLog("Invalid primitive type: %s", it->first.c_str());
-				assert(false);
-			}
+			VertexAttributeType attribute_type = GetVertexAttributeType(it->first);
 
-			if ((it->first.compare("POSITION") == 0) 
-					|| (it->first.compare("NORMAL") == 0) 
-					|| (it->first.compare("TEXCOORD_0") == 0)) {
+			if (attribute_type != VertexAttributeTypeCount) {
 				int byte_stride = accessor.ByteStride(mGLTFModel.bufferViews[accessor.bufferView]);
 				assert(byte_stride != -1);
 
+				glVertexAttribPointer(
+						attribute_type,
+						size,
+						accessor.componentType,
+						accessor.normalized ? GL_TRUE : GL_FALSE,
+						byte_stride,
+						(char *)NULL + accessor.byteOffset);
+				glEnableVertexAttribArray(attribute_type);
 			}
 		}
-	
+
+		const tinygltf::Accessor& index_accessor = mGLTFModel.accessors[primitive.indices];
+		glBindBuffer(
+				GL_ELEMENT_ARRAY_BUFFER,
+				mBuffers[index_accessor.bufferView]
+				);
+
+		int mode = -1;
+		switch (primitive.mode) {
+			case TINYGLTF_MODE_TRIANGLES : mode = GL_TRIANGLES; break;
+			case TINYGLTF_MODE_TRIANGLE_STRIP: mode = GL_TRIANGLE_STRIP; break;
+			case TINYGLTF_MODE_TRIANGLE_FAN: mode = GL_TRIANGLE_FAN; break;
+			case TINYGLTF_MODE_POINTS: mode = GL_POINTS; break;
+			case TINYGLTF_MODE_LINE: mode = GL_LINES; break;
+			case TINYGLTF_MODE_LINE_LOOP: mode = GL_LINE_LOOP; break;
+			default: gLog("Invalid primitive mode: %d", primitive.mode); assert(false); 
+		}
+
+		glDrawElements(
+				mode,
+				index_accessor.count,
+				index_accessor.componentType,
+				(char *)NULL + index_accessor.byteOffset
+				);
+
+		for (; it != it_end; it++) {
+			VertexAttributeType attribute_type = GetVertexAttributeType(it->first);
+			if (attribute_type != VertexAttributeTypeCount) {
+				glDisableVertexAttribArray(attribute_type);
+			}
+		}
 	}
 }
 
-void AssetFile::DrawNode(const tinygltf::Node &node, const Matrix44f& matrix) {
+void AssetFile::DrawNode(RenderProgram &program, const tinygltf::Node &node, const Matrix44f& matrix) const {
 	Matrix44f local_matrix = matrix;
 	if (node.matrix.size() == 16) {
+		// convert the matrix from double to float
 		Matrix44f mat;
-		memcpy(mat.data(), node.matrix.data(), sizeof(float) * 4);
+		for (int i = 0; i < 16; ++i) {
+			mat.data()[i] = node.matrix.data()[i];
+		}
 		local_matrix *= mat; 
 	} else {
 		if (node.scale.size() == 3) {
@@ -836,20 +874,23 @@ void AssetFile::DrawNode(const tinygltf::Node &node, const Matrix44f& matrix) {
 		}
 	}
 
-	DrawMesh (mGLTFModel.meshes[node.mesh], local_matrix);
+	if (node.mesh >= 0) {
+		program.SetMat44("uModelMatrix", local_matrix);
+		DrawMesh (mGLTFModel.meshes[node.mesh], local_matrix);
+	}
 
 	for (int i = 0; i < node.children.size(); ++i) {
-		DrawNode(mGLTFModel.nodes[node.children[i]], matrix);
+		DrawNode(program, mGLTFModel.nodes[node.children[i]], local_matrix);
 	}
 }
 
-void AssetFile::DrawModel() {
+void AssetFile::DrawModel(RenderProgram& program) const {
 	// todo: support non-default scenes
 	assert(mGLTFModel.defaultScene >= 0);
 	const tinygltf::Scene &scene = mGLTFModel.scenes[mGLTFModel.defaultScene];
 	for (int i = 0; i < scene.nodes.size(); ++i) {
 		const tinygltf::Node &node = mGLTFModel.nodes[scene.nodes[i]];
-		DrawNode(node, Matrix44f::Identity());
+		DrawNode(program, node, RotateMat44(90, 0.0, 0.0, 1.0));
 	}
 }
 
