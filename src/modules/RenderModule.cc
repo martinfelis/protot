@@ -87,6 +87,8 @@ static void module_serialize (
 		Serializer* serializer) {
 	SerializeBool(*serializer, "protot.RenderModule.DrawDepth", sRendererSettings.DrawDepth);
 	SerializeBool(*serializer, "protot.RenderModule.DrawLightDepth", sRendererSettings.DrawLightDepth);
+	SerializeBool(*serializer, "protot.RenderModule.mIsSSAOEnabled", gRenderer->mIsSSAOEnabled);
+
 	SerializeBool(*serializer, "protot.RenderModule.Camera.mIsOrthographic", gRenderer->mCamera.mIsOrthographic);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFov", gRenderer->mCamera.mFov);
 	SerializeVec3(*serializer, "protot.RenderModule.Camera.mEye", gRenderer->mCamera.mEye);
@@ -374,10 +376,16 @@ void Renderer::Initialize(int width, int height) {
 
 	// Render Target
 	gLog("Initializing main render target size: %d,%d", width, height);
-	mRenderTarget.Initialize(width, height, 
-			RenderTarget::EnableColor 
+	int render_target_flags = RenderTarget::EnableColor 
 			| RenderTarget::EnableDepthTexture 
-			| RenderTarget::EnableLinearizedDepthTexture);
+			| RenderTarget::EnableLinearizedDepthTexture;
+
+	if (mIsSSAOEnabled) {
+		render_target_flags = render_target_flags
+			| RenderTarget::EnablePositionTexture
+			| RenderTarget::EnableNormalTexture;
+	}
+	mRenderTarget.Initialize(width, height, render_target_flags);
 
 	mRenderTarget.mVertexArray = &gVertexArray;
 	mRenderTarget.mQuadMesh = &gScreenQuad;
@@ -404,8 +412,22 @@ void Renderer::Shutdown() {
 void Renderer::RenderGl() {
 	mSceneAreaWidth = mSceneAreaWidth < 1 ? 1 : mSceneAreaWidth;
 	mSceneAreaHeight = mSceneAreaHeight < 1 ? 1 : mSceneAreaHeight;
-	if (mSceneAreaWidth != mRenderTarget.mWidth || mSceneAreaHeight != mRenderTarget.mHeight) {
-		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight);
+
+	// TODO: Refactor enabling/disabling buffers for SSAO
+	int required_render_flags = RenderTarget::EnableColor 
+			| RenderTarget::EnableDepthTexture 
+			| RenderTarget::EnableLinearizedDepthTexture;
+
+	if (mIsSSAOEnabled) {
+		required_render_flags = required_render_flags
+			| RenderTarget::EnablePositionTexture
+			| RenderTarget::EnableNormalTexture;
+	}
+
+	if (mSceneAreaWidth != mRenderTarget.mWidth 
+			|| mSceneAreaHeight != mRenderTarget.mHeight
+			|| mRenderTarget.mFlags != required_render_flags ) {
+		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
 	}
 
 	if (mCamera.mWidth != mSceneAreaWidth
@@ -487,7 +509,14 @@ void Renderer::RenderGl() {
 	if (mDefaultProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
 		gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
 	}
-	
+
+	if (mIsSSAOEnabled) {
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+		glDrawBuffers (3, buffers);
+	} else {
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
+		glDrawBuffers (1, buffers);
+	}
 	RenderScene(mDefaultProgram, mCamera);
 
 	if (mSettings->DrawDepth) {
@@ -593,19 +622,32 @@ void Renderer::DrawGui() {
 	ImGui::EndDock();
 
 	if (ImGui::BeginDock("Render Settings")) {
-		ImGui::Text("Scene");
-		ImGui::SliderFloat("Moving Factor", &moving_factor, -10.0f, 10.0f);
-
 		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
-		ImGui::Text("Default Texture");
-		ImVec2 content_avail = ImGui::GetContentRegionAvail();
-		ImGui::Image((void*) mDefaultTexture.mTextureId, 
-				ImVec2(content_avail.x, content_avail.x),
-				ImVec2(0.0f, 1.0f), 
-				ImVec2(1.0f, 0.0f)
-				);
+		ImGui::Checkbox("Enable SSAO", &mIsSSAOEnabled);
+
+		if (mIsSSAOEnabled) {
+			ImGui::Text("Position Texture");
+			mPositionTextureRef.mTextureIdPtr = &mRenderTarget.mPositionTexture;
+			mPositionTextureRef.magic = (GLuint)0xbadface;
+			float aspect = mRenderTarget.mHeight / mRenderTarget.mWidth;
+			ImVec2 content_avail = ImGui::GetContentRegionAvail();
+			ImGui::Image((void*) &mPositionTextureRef,
+					ImVec2(content_avail.x, content_avail.x * aspect),
+					ImVec2(0.0f, 1.0f),
+					ImVec2(1.0f, 0.0f)
+					);
+
+			ImGui::Text("Normal Texture");
+			mNormalTextureRef.mTextureIdPtr = &mRenderTarget.mNormalTexture;
+			mNormalTextureRef.magic = (GLuint)0xbadface;
+			ImGui::Image((void*) &mNormalTextureRef,
+					ImVec2(content_avail.x, content_avail.x * aspect),
+					ImVec2(0.0f, 1.0f),
+					ImVec2(1.0f, 0.0f)
+					);
+		}
 	}
 	ImGui::EndDock();
 

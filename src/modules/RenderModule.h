@@ -55,6 +55,8 @@ struct Renderer {
 	RendererSettings* mSettings = nullptr;
 
 	bool mInitialized = false;
+	bool mIsSSAOEnabled = false;
+
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;
 	uint32_t mSceneAreaWidth = 1;
@@ -72,6 +74,8 @@ struct Renderer {
 
 	RenderTarget mRenderTarget;
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
+	GLTextureRef mPositionTextureRef = { (int)0xbadface };
+	GLTextureRef mNormalTextureRef = { (int)0xbadface };
 
 	Renderer() :
 		mInitialized(false),

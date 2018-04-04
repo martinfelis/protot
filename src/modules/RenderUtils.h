@@ -254,12 +254,16 @@ struct RenderTarget {
 	GLuint mDepthBuffer = -1;
 	GLuint mDepthTexture = -1;
 	GLuint mLinearizedDepthTexture = -1;
+	GLuint mPositionTexture = -1;
+	GLuint mNormalTexture = -1;
 
 	typedef enum {
 		EnableColor = 1,
 		EnableDepth = 2,
 		EnableDepthTexture = 4,
-		EnableLinearizedDepthTexture = 8
+		EnableLinearizedDepthTexture = 8,
+		EnablePositionTexture = 16,
+		EnableNormalTexture = 32,
 	} Flags;
 
 	int mFlags = 0;
@@ -274,7 +278,7 @@ struct RenderTarget {
 	void Initialize(int width, int height, int flags);
 	void Bind();
 	void Cleanup();
-	void Resize(int width, int height);
+	void Resize(int width, int height, int flags);
 
 	void RenderToLinearizedDepth(const float& near, const float& far, bool is_orthographic);
 };

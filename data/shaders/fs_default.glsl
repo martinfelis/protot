@@ -20,6 +20,8 @@ smooth in vec4 ioFragColor;
 in vec4 ioFragPosLightSpace;
 
 out vec4 outColor;
+out vec3 outPosition;
+out vec3 outNormal;
 
 float ShadowCalculationPCF(vec4 frag_pos_light_space) {
 	vec3 projected_coordinates = frag_pos_light_space.xyz / frag_pos_light_space.w;
@@ -88,19 +90,9 @@ void main() {
 	vec4 specular = spec * vec4(0.5);
 
 	// shadow
-//	float shadow = ShadowCalculation(ioFragPosLightSpace);
 	float shadow = ShadowCalculationPCF(ioFragPosLightSpace);
 	outColor = ambient + (1.0 - shadow) * (diffuse + specular);
-//
-//
-//	vec3 projected_coordinates = ioFragPosLightSpace.xyz / ioFragPosLightSpace.w;
-//	projected_coordinates = projected_coordinates * 0.5 + 0.5;
-//	float shadow_map_value = texture(uShadowMap, projected_coordinates.xy).r;
-//	outColor = shadow_map_value * vec4(1.0, 1.0, 1.0, 1.0);
-//
-//	outColor = vec4(vec3(1.0f - shadow_map_value), 1.0);
 
-//	outColor = (shadow) * vec4(1.0, 1.0, 1.0, 1.0);
-//	outColor = ioFragPosLightSpace / ioFragPosLightSpace.w;
-//	outColor = ambient + diffuse + specular;
+	outPosition = ioFragPosition.xyz;
+	outNormal = ioFragNormal;
 }

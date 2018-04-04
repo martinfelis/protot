@@ -153,6 +153,10 @@ GLuint RenderProgram::LinkProgram(GLuint vertex_shader, GLuint fragment_shader) 
 	glBindAttribLocation(ProgramID, 2, "inUV");
 	glBindAttribLocation(ProgramID, 3, "inColor");
 
+	glBindFragDataLocation(ProgramID, 0, "outColor");
+	glBindFragDataLocation(ProgramID, 1, "outPosition");
+	glBindFragDataLocation(ProgramID, 2, "outNormal");
+
 	glLinkProgram(ProgramID);
 
 	GLint Result = GL_FALSE;
@@ -277,14 +281,29 @@ void RenderTarget::Initialize(int width, int height, int flags) {
 
 	mFlags = flags;
 
-	Resize(width, height);
+	Resize(width, height, mFlags);
 }
 
 void RenderTarget::Bind() {
 	assert(glIsFramebuffer(mFrameBufferId));
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
-	GLenum shadow_map_draw_buffers[] = { GL_COLOR_ATTACHMENT0 };
-	glDrawBuffers(1, shadow_map_draw_buffers);
+
+	GLenum buffers[8];
+	int num_buffers = 0;
+
+	if (mFlags & EnableColor) {
+		buffers[num_buffers++] = GL_COLOR_ATTACHMENT0;
+	}
+
+	if (mFlags & EnablePositionTexture ) {
+		buffers[num_buffers++] = GL_COLOR_ATTACHMENT2;
+	}
+
+	if (mFlags & EnableNormalTexture) {
+		buffers[num_buffers++] = GL_COLOR_ATTACHMENT3;
+	}
+
+	glDrawBuffers(num_buffers, buffers);
 }
 
 void RenderTarget::Cleanup() {
@@ -313,17 +332,30 @@ void RenderTarget::Cleanup() {
 		mLinearizedDepthTexture = -1;
 	}
 
+	if (mPositionTexture != -1) {
+		glDeleteTextures(1, &mPositionTexture);
+		mPositionTexture = -1;
+	}
+
+	if (mNormalTexture != -1) {
+		glDeleteTextures(1, &mNormalTexture);
+		mNormalTexture = -1;
+	}
+
 	mWidth = -1;
 	mHeight = -1;
+	mFlags = 0;
 }
 
-void RenderTarget::Resize(int width, int height) {
-	if (width == mWidth && height == mHeight)
+void RenderTarget::Resize(int width, int height, int flags) {
+	if (width == mWidth && height == mHeight && flags == mFlags)
 		return;
 
 	Cleanup();
 
-	gLog("Resizing RenderTarget to %d,%d", width, height);
+	mFlags = flags;
+
+	gLog("Resizing RenderTarget to %d,%d flags: %d", width, height, flags);
 
 	mWidth = width;
 	mHeight = height;
@@ -360,7 +392,6 @@ void RenderTarget::Resize(int width, int height) {
 		float border_color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
 
-
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mDepthTexture, 0);
 
 		if (mFlags & EnableLinearizedDepthTexture) {
@@ -381,6 +412,32 @@ void RenderTarget::Resize(int width, int height) {
 		glBindRenderbuffer(GL_RENDERBUFFER, mDepthBuffer);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, mWidth, mHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mDepthBuffer);
+	}
+
+	if (mFlags & EnablePositionTexture) {
+		glGenTextures(1, &mPositionTexture);
+		glBindTexture(GL_TEXTURE_2D, mPositionTexture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, mWidth, mHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, mPositionTexture, 0);
+	}
+
+	if (mFlags & EnableNormalTexture) {
+		glGenTextures(1, &mNormalTexture);
+		glBindTexture(GL_TEXTURE_2D, mNormalTexture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, mWidth, mHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, mNormalTexture, 0);
 	}
 
 	GLenum result = glCheckFramebufferStatus(GL_FRAMEBUFFER);
