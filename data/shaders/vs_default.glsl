@@ -21,10 +21,12 @@ out vec4 ioFragPosLightSpace;
 
 void main() {
 	ioFragPosition = (uViewMatrix * uModelMatrix * inCoord).xyz;
-	ioFragNormal = transpose(inverse(mat3(uModelMatrix))) * inNormal;
+
+	mat4 model_view_matrix = uViewMatrix * uModelMatrix;
+	ioFragNormal = transpose(inverse(mat3(model_view_matrix))) * inNormal;
 	ioFragTexCoords = inUV;
 	ioFragColor = inColor;
 	ioFragPosLightSpace = uLightSpaceMatrix * uModelMatrix * inCoord;
 
-	gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * inCoord;
+	gl_Position = uProjectionMatrix * model_view_matrix * inCoord;
 }
