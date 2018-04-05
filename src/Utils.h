@@ -78,5 +78,8 @@ inline void gLog (const char* format, ...) {
 	fprintf(gLogFile, "%s\n", buffer);
 
 	fflush(gLogFile);
+}
 
+inline float gRandomFloat() {
+	return (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
 }

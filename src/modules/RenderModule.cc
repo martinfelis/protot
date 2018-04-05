@@ -17,6 +17,7 @@ float moving_factor = 1.0f;
 struct RendererSettings {
 	bool DrawDepth = false;
 	bool DrawLightDepth = false;
+	bool DrawSSAO = false;
 };
 
 static RendererSettings sRendererSettings;
@@ -87,8 +88,9 @@ static void module_serialize (
 		Serializer* serializer) {
 	SerializeBool(*serializer, "protot.RenderModule.DrawDepth", sRendererSettings.DrawDepth);
 	SerializeBool(*serializer, "protot.RenderModule.DrawLightDepth", sRendererSettings.DrawLightDepth);
-	SerializeBool(*serializer, "protot.RenderModule.mIsSSAOEnabled", gRenderer->mIsSSAOEnabled);
+	SerializeBool(*serializer, "protot.RenderModule.DrawSSAO", sRendererSettings.DrawSSAO);
 
+	SerializeBool(*serializer, "protot.RenderModule.mIsSSAOEnabled", gRenderer->mIsSSAOEnabled);
 	SerializeBool(*serializer, "protot.RenderModule.Camera.mIsOrthographic", gRenderer->mCamera.mIsOrthographic);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFov", gRenderer->mCamera.mFov);
 	SerializeVec3(*serializer, "protot.RenderModule.Camera.mEye", gRenderer->mCamera.mEye);
@@ -162,8 +164,6 @@ const struct module_api MODULE_API = {
 	.finalize = module_finalize
 };
 }
-
-
 
 void Light::Initialize() {
   gLog("Initializing light");
@@ -374,6 +374,14 @@ void Renderer::Initialize(int width, int height) {
 	mRenderQuadProgramDepth.RegisterFileModification();
 	assert(load_result);
 
+	// Program for SSAO
+	mSSAOProgram = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_ssao.glsl");
+	load_result = mSSAOProgram.Load();
+	mSSAOProgram.RegisterFileModification();
+	assert(load_result);
+
+	InitializeSSAOKernelAndNoise();
+
 	// Render Target
 	gLog("Initializing main render target size: %d,%d", width, height);
 	int render_target_flags = RenderTarget::EnableColor 
@@ -392,6 +400,9 @@ void Renderer::Initialize(int width, int height) {
 	mRenderTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
 	mRenderTarget.mLinearizeDepthProgram.RegisterFileModification();
 
+	// SSAO Target
+	mSSAOTarget.Initialize(width, height, RenderTarget::EnableColor);
+
 	// Light
 	mLight.Initialize();
 	mLight.mShadowMapTarget.mVertexArray = &gVertexArray;
@@ -406,6 +417,9 @@ void Renderer::Initialize(int width, int height) {
 }
 
 void Renderer::Shutdown() {
+	if (mSSAONoiseTexture != -1) {
+		glDeleteTextures(1, &mSSAONoiseTexture);
+	}
 }
 
 
@@ -428,6 +442,9 @@ void Renderer::RenderGl() {
 			|| mSceneAreaHeight != mRenderTarget.mHeight
 			|| mRenderTarget.mFlags != required_render_flags ) {
 		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
+		if (mIsSSAOEnabled) {
+			mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+		}
 	}
 
 	if (mCamera.mWidth != mSceneAreaWidth
@@ -522,6 +539,46 @@ void Renderer::RenderGl() {
 	if (mSettings->DrawDepth) {
 		mRenderTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
 	}
+
+	if (mIsSSAOEnabled) {
+		mSSAOTarget.Bind();
+		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
+		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, draw_attachment_0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+	
+		// Positions
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mPositionTexture);
+
+		// Normals
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
+
+		// TODO: noise texture
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, mSSAONoiseTexture);
+
+		glUseProgram(mSSAOProgram.mProgramId);
+
+		mSSAOProgram.SetInt("uPositions", 0);
+		mSSAOProgram.SetInt("uNormals", 1);
+		mSSAOProgram.SetInt("uNoise", 2);
+
+		mSSAOProgram.SetFloat("uRadius", mSSAORadius);
+		mSSAOProgram.SetFloat("uBias", mSSAOBias);
+		mSSAOProgram.SetInt("uSampleCount", mSSAOKernel.size());
+		mSSAOProgram.SetMat44("uProjection", mCamera.mProjectionMatrix);
+
+		mSSAOProgram.SetVec3Array("uSamples", mSSAOKernel.size(), &mSSAOKernel[0][0]);
+//		for (int i = 0; i < mSSAOKernel.size(); ++i) {
+//			mSSAOProgram.SetVec3(std::string("uSamples[" + std::to_string(i) + "]").c_str(), mSSAOKernel[i]);
+//		}
+
+		gVertexArray.Bind();
+		gScreenQuad.Draw(GL_TRIANGLES);
+	}
 }
 
 void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
@@ -593,10 +650,33 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 
 void Renderer::DrawGui() {
 	if (ImGui::BeginDock("Scene")) {
-		ImGui::Checkbox("Draw Depth", &mSettings->DrawDepth);
+		static int e = 0;
+		if (mSettings->DrawDepth) {
+			e = 1;
+		} else if (mSettings->DrawSSAO) {
+			e = 2;
+		}
+
+		ImGui::RadioButton("Default", &e, 0); ImGui::SameLine();
+		ImGui::RadioButton("Depth", &e, 1); ImGui::SameLine();
+		ImGui::RadioButton("SSAO", &e, 2);
+
+		switch (e) {
+			case 0: 			mSettings->DrawDepth = 0;
+										mSettings->DrawSSAO = 0;
+										break;
+			case 1: 			mSettings->DrawDepth = 1;
+										mSettings->DrawSSAO = 0;
+										break;
+			case 2: 			mSettings->DrawDepth = 0;
+										mSettings->DrawSSAO = 1;
+										break;
+		}
 
 		if (mSettings->DrawDepth) {
 			mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mLinearizedDepthTexture;
+		} else if (mSettings->DrawSSAO) {
+			mRenderTextureRef.mTextureIdPtr = &mSSAOTarget.mColorTexture;
 		} else {
 			mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;
 		}
@@ -628,6 +708,14 @@ void Renderer::DrawGui() {
 		ImGui::Checkbox("Enable SSAO", &mIsSSAOEnabled);
 
 		if (mIsSSAOEnabled) {
+			ImGui::SliderFloat("Radius", &mSSAORadius, 0.0f, 1.0f);
+			ImGui::SliderFloat("Bias", &mSSAOBias, 0.0f, 0.1f);
+			ImGui::SliderInt("Samples", &mSSAOKernelSize, 1, 64);
+
+			if (mSSAOKernelSize != mSSAOKernel.size()) {
+				InitializeSSAOKernelAndNoise();
+			}
+
 			ImGui::Text("Position Texture");
 			mPositionTextureRef.mTextureIdPtr = &mRenderTarget.mPositionTexture;
 			mPositionTextureRef.magic = (GLuint)0xbadface;
@@ -655,5 +743,45 @@ void Renderer::DrawGui() {
 		gAssetFile.DrawGui();
 	}
 	ImGui::EndDock();
+}
+
+void Renderer::InitializeSSAOKernelAndNoise() {
+	mSSAOKernel.clear();
+
+	for (unsigned int i = 0; i < mSSAOKernelSize; ++i) {
+		Vector3f sample(
+				gRandomFloat() * 2.0f - 1.0f,
+				gRandomFloat() * 2.0f - 1.0f,
+				gRandomFloat()
+				);
+		sample.normalize();
+
+		// Have a higher distribution of samples close to the origin
+		float scale = (float) i / mSSAOKernelSize;
+		scale = 0.1 + scale * scale * (1.0f - 0.1);
+
+		mSSAOKernel.push_back(sample * scale);
+	}
+
+	std::vector<Vector3f> noise_vectors;
+	for (unsigned int i = 0; i < 16; ++i) {
+		Vector3f noise(
+				gRandomFloat() * 2.0f - 1.0f,
+				gRandomFloat() * 2.0f - 1.0f,
+				0.0f);
+		noise_vectors.push_back(noise);
+	}
+
+	if (mSSAONoiseTexture != -1) {
+		glDeleteTextures(1, &mSSAONoiseTexture);
+	}
+
+	glGenTextures(1, &mSSAONoiseTexture);
+	glBindTexture(GL_TEXTURE_2D, mSSAONoiseTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 4, 4, 0, GL_RGB, GL_FLOAT, &noise_vectors[0][0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 }
 

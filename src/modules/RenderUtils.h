@@ -218,6 +218,11 @@ struct RenderProgram : AFileModificationListener {
 		glUniform3fv(location, 1, vec.data()); 
 		return location;
 	}
+	GLint SetVec3Array(const char* name, int count, const float* array) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform3fv(location, count, array); 
+		return location;
+	}
 	GLint SetVec4(const char* name, const Vector3f& vec, float w = 1.0f)	{
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform4f(location, vec[0], vec[1], vec[2], w); 

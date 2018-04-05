@@ -1,11 +1,11 @@
 #version 150 core
 
-in vec2 ioUV;
+in vec2 ioFragTexCoords;
 
 out vec4 outColor;
 
 uniform sampler2D uTexture;
 
 void main() {
-	outColor = texture(uTexture, ioUV);
+	outColor = texture(uTexture, ioFragTexCoords);
 }

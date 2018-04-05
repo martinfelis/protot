@@ -3,9 +3,9 @@
 in vec4 inCoord;
 in vec2 inUV;
 
-out vec2 ioUV;
+out vec2 ioFragTexCoords;
 
 void main() {
-	ioUV = inUV;
+	ioFragTexCoords = inUV;
 	gl_Position = inCoord;
 }

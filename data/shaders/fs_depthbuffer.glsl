@@ -1,6 +1,6 @@
 #version 150 core
 
-in vec2 ioUV;
+in vec2 ioFragTexCoords;
 
 out vec3 outColor;
 
@@ -10,7 +10,7 @@ uniform float uNear;
 uniform float uFar;
 
 void main() {
-	float z = texture(uDepthTexture, ioUV).r;
+	float z = texture(uDepthTexture, ioFragTexCoords).r;
 	float c;
 	if (uIsOrthographic == 1.0) {
 		c = z;

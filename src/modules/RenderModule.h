@@ -71,11 +71,20 @@ struct Renderer {
 	RenderProgram mDefaultProgram;
 	RenderProgram mRenderQuadProgramColor;
 	RenderProgram mRenderQuadProgramDepth;
+	RenderProgram mSSAOProgram;
 
 	RenderTarget mRenderTarget;
+	RenderTarget mSSAOTarget;
+
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
 	GLTextureRef mPositionTextureRef = { (int)0xbadface };
 	GLTextureRef mNormalTextureRef = { (int)0xbadface };
+
+	float mSSAORadius = 0.5f;
+	float mSSAOBias = 0.025f;
+	int mSSAOKernelSize = 64;
+	std::vector<Vector3f> mSSAOKernel;
+	GLuint mSSAONoiseTexture = -1;
 
 	Renderer() :
 		mInitialized(false),
@@ -88,4 +97,6 @@ struct Renderer {
 	void RenderGl();
 	void RenderScene(RenderProgram &program, const Camera& camera);
 	void DrawGui();
+
+	void InitializeSSAOKernelAndNoise();
 };

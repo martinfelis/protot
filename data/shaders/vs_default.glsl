@@ -1,5 +1,4 @@
 #version 150 core
-#extension GL_ARB_explicit_attrib_location : require
 
 in vec4 inCoord;
 in vec3 inNormal;
@@ -21,11 +20,11 @@ smooth out vec4 ioFragColor;
 out vec4 ioFragPosLightSpace;
 
 void main() {
-	ioFragPosition = (uModelMatrix * inCoord).xyz;
+	ioFragPosition = (uViewMatrix * uModelMatrix * inCoord).xyz;
 	ioFragNormal = transpose(inverse(mat3(uModelMatrix))) * inNormal;
 	ioFragTexCoords = inUV;
 	ioFragColor = inColor;
-	ioFragPosLightSpace = uLightSpaceMatrix * vec4(ioFragPosition, 1.0);
+	ioFragPosLightSpace = uLightSpaceMatrix * uModelMatrix * inCoord;
 
 	gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * inCoord;
 }
