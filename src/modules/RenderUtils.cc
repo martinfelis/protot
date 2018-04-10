@@ -154,8 +154,8 @@ GLuint RenderProgram::LinkProgram(GLuint vertex_shader, GLuint fragment_shader) 
 	glBindAttribLocation(ProgramID, 3, "inColor");
 
 	glBindFragDataLocation(ProgramID, 0, "outColor");
-	glBindFragDataLocation(ProgramID, 1, "outPosition");
-	glBindFragDataLocation(ProgramID, 2, "outNormal");
+	glBindFragDataLocation(ProgramID, 1, "outNormal");
+	glBindFragDataLocation(ProgramID, 2, "outPosition");
 
 	glLinkProgram(ProgramID);
 
@@ -404,7 +404,7 @@ void RenderTarget::Resize(int width, int height, int flags) {
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, mLinearizedDepthTexture, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, mLinearizedDepthTexture, 0);
 		}
 	} else if (mFlags & EnableDepth) {
 		assert((mFlags & EnableDepthTexture) == false);
@@ -412,6 +412,19 @@ void RenderTarget::Resize(int width, int height, int flags) {
 		glBindRenderbuffer(GL_RENDERBUFFER, mDepthBuffer);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, mWidth, mHeight);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mDepthBuffer);
+	}
+
+	if (mFlags & EnableNormalTexture) {
+		glGenTextures(1, &mNormalTexture);
+		glBindTexture(GL_TEXTURE_2D, mNormalTexture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, mWidth, mHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, mNormalTexture, 0);
 	}
 
 	if (mFlags & EnablePositionTexture) {
@@ -425,19 +438,6 @@ void RenderTarget::Resize(int width, int height, int flags) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, mPositionTexture, 0);
-	}
-
-	if (mFlags & EnableNormalTexture) {
-		glGenTextures(1, &mNormalTexture);
-		glBindTexture(GL_TEXTURE_2D, mNormalTexture);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, mWidth, mHeight, 0, GL_RGB, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, mNormalTexture, 0);
 	}
 
 	GLenum result = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -463,7 +463,7 @@ void RenderTarget::RenderToLinearizedDepth(const float& near, const float& far, 
 	assert(mQuadMesh != nullptr);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, mFrameBufferId);
-	GLenum draw_attachment_1[] = { GL_COLOR_ATTACHMENT1 };
+	GLenum draw_attachment_1[] = { GL_COLOR_ATTACHMENT4 };
 	glDrawBuffers(1, draw_attachment_1);
 
 	glClear(GL_COLOR_BUFFER_BIT);

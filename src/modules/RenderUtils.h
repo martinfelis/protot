@@ -151,8 +151,8 @@ struct Camera {
 	Matrix44f mViewMatrix;
 
 	Camera() :
-		mEye {5.f, 4.f, 5.f},
-		mPoi {0.f, 2.f, 0.f},
+		mEye {-4.f, 4.4f, 0.f},
+		mPoi {-3.2f, 3.8f, 0.2f},
 		mUp  {0.f, 1.f, 0.f},
 		mNear (0.1f),
 		mFar (150.f),

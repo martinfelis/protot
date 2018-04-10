@@ -15,9 +15,18 @@ struct Renderer;
 float moving_factor = 1.0f;
 
 struct RendererSettings {
-	bool DrawDepth = false;
 	bool DrawLightDepth = false;
-	bool DrawSSAO = false;
+	int RenderMode = 0;
+};
+
+enum SceneRenderMode {
+	SceneRenderModeDefault = 0,
+	SceneRenderModeColor = 1,
+	SceneRenderModeDepth = 2,
+	SceneRenderModeNormals = 3,
+	SceneRenderModePositions = 4,
+	SceneRenderModeAmbientOcclusion = 5,
+	SceneRenderModeCount
 };
 
 static RendererSettings sRendererSettings;
@@ -86,10 +95,10 @@ template <typename Serializer>
 static void module_serialize (
 		struct module_state *state,
 		Serializer* serializer) {
-	SerializeBool(*serializer, "protot.RenderModule.DrawDepth", sRendererSettings.DrawDepth);
 	SerializeBool(*serializer, "protot.RenderModule.DrawLightDepth", sRendererSettings.DrawLightDepth);
-	SerializeBool(*serializer, "protot.RenderModule.DrawSSAO", sRendererSettings.DrawSSAO);
+	SerializeInt(*serializer, "protot.RenderModule.RenderMode", sRendererSettings.RenderMode);
 
+	SerializeBool(*serializer, "protot.RenderModule.mUseDeferred", gRenderer->mUseDeferred);
 	SerializeBool(*serializer, "protot.RenderModule.mIsSSAOEnabled", gRenderer->mIsSSAOEnabled);
 	SerializeBool(*serializer, "protot.RenderModule.Camera.mIsOrthographic", gRenderer->mCamera.mIsOrthographic);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFov", gRenderer->mCamera.mFov);
@@ -374,10 +383,26 @@ void Renderer::Initialize(int width, int height) {
 	mRenderQuadProgramDepth.RegisterFileModification();
 	assert(load_result);
 
+	// Deferred geomemtry pass
+	mDeferredGeometry = RenderProgram("data/shaders/vs_deferred_geometry.glsl", "data/shaders/fs_deferred_geometry.glsl");
+	load_result = mDeferredGeometry.Load();
+	mDeferredGeometry.RegisterFileModification();
+	assert(load_result);
+
+	mDeferredLighting = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_deferred_lighting.glsl");
+	load_result = mDeferredLighting.Load();
+	mDeferredLighting.RegisterFileModification();
+	assert(load_result);
+
 	// Program for SSAO
 	mSSAOProgram = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_ssao.glsl");
 	load_result = mSSAOProgram.Load();
 	mSSAOProgram.RegisterFileModification();
+	assert(load_result);
+
+	mBlurSSAOProgram = RenderProgram("data/shaders/vs_passthrough.glsl", "data/shaders/fs_blur_ssao.glsl");
+	load_result = mBlurSSAOProgram.Load();
+	mBlurSSAOProgram.RegisterFileModification();
 	assert(load_result);
 
 	InitializeSSAOKernelAndNoise();
@@ -403,6 +428,11 @@ void Renderer::Initialize(int width, int height) {
 	// SSAO Target
 	mSSAOTarget.Initialize(width, height, RenderTarget::EnableColor);
 
+	// Postprocess Target
+	mPostprocessTarget.Initialize(width, height, RenderTarget::EnableColor);
+
+	mDeferredLightingTarget.Initialize(width, height, RenderTarget::EnableColor);
+
 	// Light
 	mLight.Initialize();
 	mLight.mShadowMapTarget.mVertexArray = &gVertexArray;
@@ -422,7 +452,6 @@ void Renderer::Shutdown() {
 	}
 }
 
-
 void Renderer::RenderGl() {
 	mSceneAreaWidth = mSceneAreaWidth < 1 ? 1 : mSceneAreaWidth;
 	mSceneAreaHeight = mSceneAreaHeight < 1 ? 1 : mSceneAreaHeight;
@@ -438,12 +467,29 @@ void Renderer::RenderGl() {
 			| RenderTarget::EnableNormalTexture;
 	}
 
+	if (mUseDeferred) {
+		required_render_flags = RenderTarget::EnableColor
+			| RenderTarget::EnableDepthTexture
+			| RenderTarget::EnableNormalTexture
+
+			// TODO: remove these
+			| RenderTarget::EnablePositionTexture
+			| RenderTarget::EnableLinearizedDepthTexture
+			;
+	}
+
 	if (mSceneAreaWidth != mRenderTarget.mWidth 
 			|| mSceneAreaHeight != mRenderTarget.mHeight
 			|| mRenderTarget.mFlags != required_render_flags ) {
 		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
+		mPostprocessTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+
 		if (mIsSSAOEnabled) {
 			mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+		}
+
+		if (mUseDeferred) {
+			mDeferredLightingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 		}
 	}
 
@@ -491,9 +537,29 @@ void Renderer::RenderGl() {
 		gLog ("Cannot render: frame buffer invalid!");
 	}
 
+	glEnable(GL_DEPTH_TEST);
+	RenderProgram *program = &mDefaultProgram;
+	if (mUseDeferred) {
+		program = &mDeferredGeometry;
+		
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		glDrawBuffers(3, buffers);
+		glClear(GL_COLOR_BUFFER_BIT);
+	} else {
+		if (program->SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
+			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+		}
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
+		glDrawBuffers (1, buffers);
+	}
+
 	// clear color and depth
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_LINE_SMOOTH);
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_CULL_FACE);
 
 	glUseProgram(mSimpleProgram.mProgramId);
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
@@ -515,32 +581,23 @@ void Renderer::RenderGl() {
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 0.4f));
+	mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 0.1f));
 	gVertexArray.Bind();
 	gXZPlaneGrid.Draw(GL_LINES);
 
 	// Scene
-	glUseProgram(mDefaultProgram.mProgramId);
-	glEnable(GL_DEPTH_TEST);
+	glUseProgram(program->mProgramId);
 
-	if (mDefaultProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
-		gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+	RenderScene(*program, mCamera);
+
+	if (mSettings->RenderMode == SceneRenderModeDepth) {
+		mRenderTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
 	}
 
 	if (mIsSSAOEnabled) {
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 		glDrawBuffers (3, buffers);
-	} else {
-		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
-		glDrawBuffers (1, buffers);
-	}
-	RenderScene(mDefaultProgram, mCamera);
 
-	if (mSettings->DrawDepth) {
-		mRenderTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
-	}
-
-	if (mIsSSAOEnabled) {
 		mSSAOTarget.Bind();
 		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
@@ -556,7 +613,7 @@ void Renderer::RenderGl() {
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
 
-		// TODO: noise texture
+		// Noise
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, mSSAONoiseTexture);
 
@@ -572,9 +629,74 @@ void Renderer::RenderGl() {
 		mSSAOProgram.SetMat44("uProjection", mCamera.mProjectionMatrix);
 
 		mSSAOProgram.SetVec3Array("uSamples", mSSAOKernel.size(), &mSSAOKernel[0][0]);
-//		for (int i = 0; i < mSSAOKernel.size(); ++i) {
-//			mSSAOProgram.SetVec3(std::string("uSamples[" + std::to_string(i) + "]").c_str(), mSSAOKernel[i]);
-//		}
+
+		gVertexArray.Bind();
+		gScreenQuad.Draw(GL_TRIANGLES);
+
+		// Blur pass
+		mPostprocessTarget.Bind();
+		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
+		glDrawBuffers(1, draw_attachment_0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+		
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, mSSAOTarget.mColorTexture);
+
+		glUseProgram(mBlurSSAOProgram.mProgramId);
+		mBlurSSAOProgram.SetInt("uColor", 0);
+		mBlurSSAOProgram.SetInt("uAmbientOcclusion", 1);
+		mBlurSSAOProgram.SetInt("uBlurSize", mSSAOBlurSize);
+		mBlurSSAOProgram.SetInt("uDisableColor", mSSAODisableColor);
+
+		gScreenQuad.Draw(GL_TRIANGLES);
+	}
+
+	if (mUseDeferred) {
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
+		glDrawBuffers (1, buffers);
+
+		mDeferredLightingTarget.Bind();
+		glClear(GL_COLOR_BUFFER_BIT);
+	
+		glUseProgram(mDeferredLighting.mProgramId);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+		mDeferredLighting.SetInt("uColorTexture", 0);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
+		mDeferredLighting.SetInt("uNormal", 1);
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
+		mDeferredLighting.SetInt("uDepth", 2);
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
+		mDeferredLighting.SetInt("uDepth", 3);
+		mDeferredLighting.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix);
+
+		// TODO: remove and reconstruct position from depth
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mPositionTexture);
+		mDeferredLighting.SetInt("uPosition", 4);
+
+		mDeferredLighting.SetMat44("uViewMatrix", mCamera.mViewMatrix);
+		Matrix33f view_mat_rot = mCamera.mViewMatrix.block<3,3>(0,0);
+		view_mat_rot = view_mat_rot.transpose();
+		Vector3f light_direction = view_mat_rot * mLight.mDirection.normalized();
+		
+//		gLog ("Light direction %3.4f, %3.4f, %3.4f", 
+//				light_direction[0],
+//				light_direction[1],
+//				light_direction[2]);
+
+		mDeferredLighting.SetVec3("uLightDirection", light_direction);
+		mDeferredLighting.SetVec3("uViewPosition", mCamera.mEye);
 
 		gVertexArray.Bind();
 		gScreenQuad.Draw(GL_TRIANGLES);
@@ -596,6 +718,13 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetMat33("uNormalMatrix", normal_matrix);
 
   program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	Vector3f light_dir = (camera.mViewMatrix * Vector4f (
+			mLight.mDirection[0],
+			mLight.mDirection[1],
+			mLight.mDirection[2],
+			1.0f
+			)).block<3,1>(0,0);
+//	program.SetVec3("uLightDirection", light_dir.normalize());
 	program.SetVec3("uLightDirection", mLight.mDirection);
 	program.SetVec3("uViewPosition", camera.mEye);
 	
@@ -614,7 +743,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetMat44("uModelMatrix", 
 			RotateMat44(sin(0.3 * gTimer->mCurrentTime) * 180.0f,
 				0.0f, 1.0f, 0.0f)
-			* TranslateMat44(3.0, 1.0 + sin(2.0f * gTimer->mCurrentTime), 0.0)) ;
+			* TranslateMat44(5.0, 1.0 + sin(2.0f * gTimer->mCurrentTime), 0.0)) ;
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gUnitCubeMesh.Draw(GL_TRIANGLES);
 
@@ -634,7 +763,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	
 	program.SetMat44("uModelMatrix", 
 			RotateMat44(200.0f, 0.0f, 1.0f, 0.0f)
-			* TranslateMat44(moving_factor * sin(gTimer->mCurrentTime), 1.0f, 0.0f)
+			* TranslateMat44(moving_factor * sin(gTimer->mCurrentTime), 1.0f, -3.0f)
 			* ScaleMat44(0.5f, 0.5f, 0.5f));
 	
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
@@ -650,35 +779,37 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 
 void Renderer::DrawGui() {
 	if (ImGui::BeginDock("Scene")) {
-		static int e = 0;
-		if (mSettings->DrawDepth) {
-			e = 1;
-		} else if (mSettings->DrawSSAO) {
-			e = 2;
-		}
+		ImGui::RadioButton("Default", &sRendererSettings.RenderMode, 0); ImGui::SameLine();
+		ImGui::RadioButton("Color", &sRendererSettings.RenderMode, 1); ImGui::SameLine();
+		ImGui::RadioButton("Depth", &sRendererSettings.RenderMode, 2); ImGui::SameLine();
+		ImGui::RadioButton("Normals", &sRendererSettings.RenderMode, 3); ImGui::SameLine();
+		ImGui::RadioButton("Positions", &sRendererSettings.RenderMode, 4); 
+		
+		if (mIsSSAOEnabled) {
+			ImGui::SameLine();
+			ImGui::RadioButton("AO", &sRendererSettings.RenderMode, 5);
+		};
 
-		ImGui::RadioButton("Default", &e, 0); ImGui::SameLine();
-		ImGui::RadioButton("Depth", &e, 1); ImGui::SameLine();
-		ImGui::RadioButton("SSAO", &e, 2);
-
-		switch (e) {
-			case 0: 			mSettings->DrawDepth = 0;
-										mSettings->DrawSSAO = 0;
-										break;
-			case 1: 			mSettings->DrawDepth = 1;
-										mSettings->DrawSSAO = 0;
-										break;
-			case 2: 			mSettings->DrawDepth = 0;
-										mSettings->DrawSSAO = 1;
-										break;
-		}
-
-		if (mSettings->DrawDepth) {
-			mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mLinearizedDepthTexture;
-		} else if (mSettings->DrawSSAO) {
-			mRenderTextureRef.mTextureIdPtr = &mSSAOTarget.mColorTexture;
-		} else {
-			mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;
+		switch (sRendererSettings.RenderMode) {
+			case SceneRenderModeDefault:	
+				mRenderTextureRef.mTextureIdPtr =
+					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mPostprocessTarget.mColorTexture;
+				break;
+			case SceneRenderModeColor:	
+				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;
+				break;
+			case SceneRenderModeDepth:	
+				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mLinearizedDepthTexture;
+				break;
+			case SceneRenderModeNormals:	
+				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mNormalTexture;
+				break;
+			case SceneRenderModePositions:	
+				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mPositionTexture;
+				break;
+			case SceneRenderModeAmbientOcclusion:	
+				mRenderTextureRef.mTextureIdPtr = &mSSAOTarget.mColorTexture;
+				break;
 		}
 
 		ImGui::Text("Scene");
@@ -705,12 +836,15 @@ void Renderer::DrawGui() {
 		ImGui::Text("Camera");
 		mCamera.DrawGui();
 
+		ImGui::Checkbox("Enable Deferred", &mUseDeferred);
 		ImGui::Checkbox("Enable SSAO", &mIsSSAOEnabled);
 
 		if (mIsSSAOEnabled) {
 			ImGui::SliderFloat("Radius", &mSSAORadius, 0.0f, 1.0f);
 			ImGui::SliderFloat("Bias", &mSSAOBias, 0.0f, 0.1f);
 			ImGui::SliderInt("Samples", &mSSAOKernelSize, 1, 64);
+			ImGui::SliderInt("Blur Size", &mSSAOBlurSize, 0, 8);
+			ImGui::Checkbox("Disable Color", &mSSAODisableColor);
 
 			if (mSSAOKernelSize != mSSAOKernel.size()) {
 				InitializeSSAOKernelAndNoise();

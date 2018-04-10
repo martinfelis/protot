@@ -56,6 +56,7 @@ struct Renderer {
 
 	bool mInitialized = false;
 	bool mIsSSAOEnabled = false;
+	bool mUseDeferred = false;
 
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;
@@ -68,13 +69,18 @@ struct Renderer {
 	Texture mDefaultTexture;
 
 	RenderProgram mSimpleProgram;
+	RenderProgram mDeferredGeometry;
+	RenderProgram mDeferredLighting;
 	RenderProgram mDefaultProgram;
 	RenderProgram mRenderQuadProgramColor;
 	RenderProgram mRenderQuadProgramDepth;
 	RenderProgram mSSAOProgram;
+	RenderProgram mBlurSSAOProgram;
 
 	RenderTarget mRenderTarget;
+	RenderTarget mDeferredLightingTarget;
 	RenderTarget mSSAOTarget;
+	RenderTarget mPostprocessTarget;
 
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
 	GLTextureRef mPositionTextureRef = { (int)0xbadface };
@@ -85,6 +91,8 @@ struct Renderer {
 	int mSSAOKernelSize = 64;
 	std::vector<Vector3f> mSSAOKernel;
 	GLuint mSSAONoiseTexture = -1;
+	int mSSAOBlurSize = 1;
+	bool mSSAODisableColor = false;
 
 	Renderer() :
 		mInitialized(false),

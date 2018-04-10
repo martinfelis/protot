@@ -13,6 +13,9 @@ uniform sampler2DShadow uShadowMap;
 uniform sampler2D uShadowMap;
 #endif
 
+uniform mat4 uModelMatrix;
+uniform mat4 uViewMatrix;
+
 in vec3 ioFragPosition;
 in vec3 ioFragNormal;
 in vec2 ioFragTexCoords;
@@ -78,15 +81,16 @@ void main() {
 
 	// diffuse lighting
 	vec3 normal_dir = normalize(ioFragNormal);
-	vec3 light_dir = normalize(uLightDirection);
+//	vec3 light_dir = normalize(uLightDirection);
+	vec3 light_dir = transpose(inverse(mat3(uViewMatrix * uModelMatrix))) * uLightDirection;
 	float diff = max(dot(normal_dir, light_dir), 0.0);
 	vec4 diffuse = diff * albedo_color;
 
 	// specular lighting
-	vec3 view_dir = normalize(uViewPosition - ioFragPosition);
+	vec3 view_dir = normalize(-ioFragPosition);
 	vec3 halfway_dir = normalize(light_dir + view_dir);
 
-	float spec = pow(max(dot(normal_dir, halfway_dir), 0.0), 32);
+	float spec = pow(max(dot(normal_dir, halfway_dir), 0.0), 64);
 	vec4 specular = spec * vec4(0.5);
 
 	// shadow
@@ -94,5 +98,5 @@ void main() {
 	outColor = ambient + (1.0 - shadow) * (diffuse + specular);
 
 	outPosition = ioFragPosition.xyz;
-	outNormal = ioFragNormal;
+	outNormal = normalize(ioFragNormal);
 }
