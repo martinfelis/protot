@@ -102,6 +102,7 @@ struct Renderer {
 
 	void Initialize(int width, int height);
 	void Shutdown();
+	void CheckRenderBuffers();
 	void RenderGl();
 	void RenderScene(RenderProgram &program, const Camera& camera);
 	void DrawGui();

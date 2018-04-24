@@ -452,14 +452,14 @@ void Renderer::Shutdown() {
 	}
 }
 
-void Renderer::RenderGl() {
+void Renderer::CheckRenderBuffers() {
 	mSceneAreaWidth = mSceneAreaWidth < 1 ? 1 : mSceneAreaWidth;
 	mSceneAreaHeight = mSceneAreaHeight < 1 ? 1 : mSceneAreaHeight;
 
 	// TODO: Refactor enabling/disabling buffers for SSAO
 	int required_render_flags = RenderTarget::EnableColor 
-			| RenderTarget::EnableDepthTexture 
-			| RenderTarget::EnableLinearizedDepthTexture;
+		| RenderTarget::EnableDepthTexture 
+		| RenderTarget::EnableLinearizedDepthTexture;
 
 	if (mIsSSAOEnabled) {
 		required_render_flags = required_render_flags
@@ -484,14 +484,20 @@ void Renderer::RenderGl() {
 		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
 		mPostprocessTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 
-		if (mIsSSAOEnabled) {
-			mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
-		}
-
 		if (mUseDeferred) {
 			mDeferredLightingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 		}
 	}
+
+	if (mIsSSAOEnabled 
+			&& (mSSAOTarget.mWidth != mSceneAreaWidth 
+				|| mSSAOTarget.mHeight != mSceneAreaHeight)) {
+		mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+	}
+}
+
+void Renderer::RenderGl() {
+	CheckRenderBuffers();
 
 	if (mCamera.mWidth != mSceneAreaWidth
 			|| mCamera.mHeight != mSceneAreaHeight) {
@@ -556,7 +562,7 @@ void Renderer::RenderGl() {
 	// clear color and depth
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_LINE_SMOOTH);
+	glDisable(GL_LINE_SMOOTH);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_CULL_FACE);
@@ -594,10 +600,7 @@ void Renderer::RenderGl() {
 		mRenderTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
 	}
 
-	if (mIsSSAOEnabled) {
-		GLenum buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-		glDrawBuffers (3, buffers);
-
+	if (mUseDeferred && mIsSSAOEnabled) {
 		mSSAOTarget.Bind();
 		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
@@ -656,6 +659,7 @@ void Renderer::RenderGl() {
 	}
 
 	if (mUseDeferred) {
+		// Deferred: Lighting pass
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
 		glDrawBuffers (1, buffers);
 
