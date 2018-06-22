@@ -3,6 +3,7 @@
 uniform sampler2D uColor;
 uniform sampler2D uNormal;
 uniform sampler2D uDepth;
+uniform sampler2D uAmbientOcclusion;
 
 #define USE_SAMPLER2D_SHADOW 1
 
@@ -13,7 +14,6 @@ uniform sampler2D uShadowMap;
 #endif
 
 uniform sampler2D uPosition;
-uniform vec3 uViewPosition;
 
 uniform vec3 uLightDirection;
 uniform mat4 uLightSpaceMatrix;
@@ -74,12 +74,13 @@ void main() {
 	vec3 normal = texture (uNormal, ioFragTexCoords).xyz;
 	float depth = texture (uDepth, ioFragTexCoords).r;
 	vec3 position = texture (uPosition, ioFragTexCoords).xyz;
+	float ambient_occlusion = texture(uAmbientOcclusion, ioFragTexCoords).r;
 
 	// ambient lighting
 	float ambient_strength = 0.2;
 	vec3 ambient = ambient_strength * color;
 
-	vec3 light_dir = normalize(uLightDirection);
+	vec3 light_dir = uLightDirection;
 
 	// diffuse lighting
 	float diff = max(dot(normal, light_dir), 0.0);
@@ -92,14 +93,11 @@ void main() {
 	float spec = pow(max(dot(normal, halfway_dir), 0.0), 32);
 	vec3 specular = spec * vec3(0.5);
 
-	// shadow
-	
-	// TODO: transform to light space
+	// shadow (need to transform position and normal to light space)
 	vec4 position_light_space = uViewToLightSpaceMatrix * vec4(position, 1.0);
-	vec3 normal_light_space = normal;
-
+	vec3 normal_light_space = (transpose(inverse(uViewToLightSpaceMatrix)) * vec4(normal, 1.0)).xyz;
 	float shadow = ShadowCalculationPCF(position_light_space, normal);
-	outColor = ambient + (1.0 - shadow) * (diffuse + specular);
 
-//	outColor = ambient + (diffuse + specular);
+	outColor = (ambient * ambient_occlusion + (1.0 - shadow) * (diffuse + specular)) * ambient_occlusion;
+//	outColor = (ambient + (diffuse + specular)) * ambient_occlusion;
 }

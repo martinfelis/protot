@@ -427,6 +427,7 @@ void Renderer::Initialize(int width, int height) {
 
 	// SSAO Target
 	mSSAOTarget.Initialize(width, height, RenderTarget::EnableColor);
+	mSSAOBlurTarget.Initialize(width, height, RenderTarget::EnableColor);
 
 	// Postprocess Target
 	mPostprocessTarget.Initialize(width, height, RenderTarget::EnableColor);
@@ -493,6 +494,7 @@ void Renderer::CheckRenderBuffers() {
 			&& (mSSAOTarget.mWidth != mSceneAreaWidth 
 				|| mSSAOTarget.mHeight != mSceneAreaHeight)) {
 		mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+		mSSAOBlurTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 	}
 }
 
@@ -637,23 +639,18 @@ void Renderer::RenderGl() {
 		gScreenQuad.Draw(GL_TRIANGLES);
 
 		// Blur pass
-		mPostprocessTarget.Bind();
+		mSSAOBlurTarget.Bind();
 		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 		glDrawBuffers(1, draw_attachment_0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_DEPTH_TEST);
 		
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
-
-		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, mSSAOTarget.mColorTexture);
 
 		glUseProgram(mBlurSSAOProgram.mProgramId);
-		mBlurSSAOProgram.SetInt("uColor", 0);
-		mBlurSSAOProgram.SetInt("uAmbientOcclusion", 1);
+		mBlurSSAOProgram.SetInt("uAmbientOcclusion", 0);
 		mBlurSSAOProgram.SetInt("uBlurSize", mSSAOBlurSize);
-		mBlurSSAOProgram.SetInt("uDisableColor", mSSAODisableColor);
 
 		gScreenQuad.Draw(GL_TRIANGLES);
 	}
@@ -682,6 +679,7 @@ void Renderer::RenderGl() {
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
 		mDeferredLighting.SetInt("uShadowMap", 3);
+
 		mDeferredLighting.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix);
 		Matrix44f view_to_light_matrix = mCamera.mViewMatrix.inverse() * mLight.mLightSpaceMatrix;
 		mDeferredLighting.SetMat44("uViewToLightSpaceMatrix", view_to_light_matrix);
@@ -691,13 +689,16 @@ void Renderer::RenderGl() {
 		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mPositionTexture);
 		mDeferredLighting.SetInt("uPosition", 4);
 
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, mSSAOBlurTarget.mColorTexture);
+		mDeferredLighting.SetInt("uAmbientOcclusion", 5);
+
 		mDeferredLighting.SetMat44("uViewMatrix", mCamera.mViewMatrix);
 		Matrix33f view_mat_rot = mCamera.mViewMatrix.block<3,3>(0,0);
 		view_mat_rot = view_mat_rot.transpose();
 		Vector3f light_direction = view_mat_rot * mLight.mDirection.normalized();
 
-		mDeferredLighting.SetVec3("uLightDirection", light_direction);
-		mDeferredLighting.SetVec3("uViewPosition", mCamera.mEye);
+		mDeferredLighting.SetVec3("uLightDirection", light_direction.normalized());
 
 		gVertexArray.Bind();
 		gScreenQuad.Draw(GL_TRIANGLES);
@@ -770,7 +771,6 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gUnitCubeMesh.Draw(GL_TRIANGLES);
 
-
 	program.SetMat44("uModelMatrix", Matrix44f::Identity());
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gXZPlaneMesh.Draw(GL_TRIANGLES);
@@ -809,7 +809,7 @@ void Renderer::DrawGui() {
 				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mPositionTexture;
 				break;
 			case SceneRenderModeAmbientOcclusion:	
-				mRenderTextureRef.mTextureIdPtr = &mSSAOTarget.mColorTexture;
+				mRenderTextureRef.mTextureIdPtr = &mSSAOBlurTarget.mColorTexture;
 				break;
 		}
 

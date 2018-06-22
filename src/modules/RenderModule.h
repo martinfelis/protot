@@ -80,6 +80,7 @@ struct Renderer {
 	RenderTarget mRenderTarget;
 	RenderTarget mDeferredLightingTarget;
 	RenderTarget mSSAOTarget;
+	RenderTarget mSSAOBlurTarget;
 	RenderTarget mPostprocessTarget;
 
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
