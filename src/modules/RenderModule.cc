@@ -681,8 +681,10 @@ void Renderer::RenderGl() {
 
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
-		mDeferredLighting.SetInt("uDepth", 3);
+		mDeferredLighting.SetInt("uShadowMap", 3);
 		mDeferredLighting.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix);
+		Matrix44f view_to_light_matrix = mCamera.mViewMatrix.inverse() * mLight.mLightSpaceMatrix;
+		mDeferredLighting.SetMat44("uViewToLightSpaceMatrix", view_to_light_matrix);
 
 		// TODO: remove and reconstruct position from depth
 		glActiveTexture(GL_TEXTURE4);
@@ -693,11 +695,6 @@ void Renderer::RenderGl() {
 		Matrix33f view_mat_rot = mCamera.mViewMatrix.block<3,3>(0,0);
 		view_mat_rot = view_mat_rot.transpose();
 		Vector3f light_direction = view_mat_rot * mLight.mDirection.normalized();
-		
-//		gLog ("Light direction %3.4f, %3.4f, %3.4f", 
-//				light_direction[0],
-//				light_direction[1],
-//				light_direction[2]);
 
 		mDeferredLighting.SetVec3("uLightDirection", light_direction);
 		mDeferredLighting.SetVec3("uViewPosition", mCamera.mEye);
