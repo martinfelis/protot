@@ -29,7 +29,7 @@ float ShadowCalculationPCF(vec4 frag_pos_light_space, vec3 frag_normal_light_spa
 	projected_coordinates = projected_coordinates * 0.5 + 0.5;
 
 	if (abs(projected_coordinates.z) > 1.0 ) {
-		return 1.0;
+		return 0.0;
 	}
 
 	float current_depth = projected_coordinates.z;
@@ -74,6 +74,16 @@ float ShadowCalculation(vec4 frag_pos_light_space, vec3 frag_normal_light_space)
 	return current_depth - bias > closest_depth ? 1.0 : 0.0;
 }
 
+vec3 get_cascade_color (float depth) {
+	if (depth < 0.97) {
+		return vec3 (1.0, 0.0, 0.0);
+	} else if (depth < 0.99) {
+		return vec3 (0.0, 1.0, 0.0);
+	} 
+
+	return vec3 (0.0, 0.0, 1.0);
+}
+
 void main() {
 	vec3 color = texture(uColor, ioFragTexCoords).rgb;
 	vec3 normal = texture (uNormal, ioFragTexCoords).xyz;
@@ -102,7 +112,9 @@ void main() {
 	vec4 position_light_space = uViewToLightSpaceMatrix * vec4(position, 1.0);
 	vec3 normal_light_space = (transpose(inverse(uViewToLightSpaceMatrix)) * vec4(normal, 1.0)).xyz;
 	float shadow = ShadowCalculationPCF(position_light_space, normal);
-
-	outColor = (ambient * ambient_occlusion + (1.0 - shadow) * (diffuse + specular)) * ambient_occlusion;
+	
+//	vec3 cascade = get_cascade_color(depth);
+//	ambient = cascade;
+	outColor = (ambient + (1.0 - shadow) * (diffuse + specular)) * ambient_occlusion;
 //	outColor = (ambient + (diffuse + specular)) * ambient_occlusion;
 }
