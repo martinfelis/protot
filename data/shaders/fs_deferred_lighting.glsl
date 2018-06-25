@@ -28,10 +28,14 @@ float ShadowCalculationPCF(vec4 frag_pos_light_space, vec3 frag_normal_light_spa
 	vec3 projected_coordinates = frag_pos_light_space.xyz / frag_pos_light_space.w;
 	projected_coordinates = projected_coordinates * 0.5 + 0.5;
 
+	if (abs(projected_coordinates.z) > 1.0 ) {
+		return 1.0;
+	}
+
 	float current_depth = projected_coordinates.z;
 
 	float bias = 0.00;
-	bias = max(0.01 * (1.0 - dot(frag_normal_light_space, uLightDirection)), uShadowBias);
+	bias = max(0.001 * (1.0 - dot(frag_normal_light_space, uLightDirection)), uShadowBias);
 
 	float shadow = 0.0;
 	vec2 texel_size = 1.0 / textureSize(uShadowMap, 0);

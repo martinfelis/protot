@@ -510,6 +510,7 @@ void Renderer::RenderGl() {
 
 	// Shadow Map
 	mLight.mShadowMapTarget.Bind();
+		mLight.mPosition = mCamera.mEye;
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 		mLight.UpdateMatrices();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
