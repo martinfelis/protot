@@ -18,6 +18,7 @@ uniform sampler2D uPosition;
 uniform vec3 uLightDirection;
 uniform mat4 uLightSpaceMatrix;
 uniform mat4 uViewToLightSpaceMatrix;
+uniform float uShadowBias;
 
 in vec2 ioFragTexCoords;
 
@@ -30,7 +31,7 @@ float ShadowCalculationPCF(vec4 frag_pos_light_space, vec3 frag_normal_light_spa
 	float current_depth = projected_coordinates.z;
 
 	float bias = 0.00;
-	bias = max(0.02 * (1.0 - dot(frag_normal_light_space, uLightDirection)), 0.003);
+	bias = max(0.01 * (1.0 - dot(frag_normal_light_space, uLightDirection)), uShadowBias);
 
 	float shadow = 0.0;
 	vec2 texel_size = 1.0 / textureSize(uShadowMap, 0);

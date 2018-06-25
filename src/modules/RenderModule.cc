@@ -208,6 +208,7 @@ void Light::DrawGui() {
 	ImGui::SliderFloat("Volume Size", &mBBoxSize, 1.0f, 50.0f);
 	ImGui::SliderFloat("Near", &mNear, -10.0f, 50.0f);
 	ImGui::SliderFloat("Far", &mFar, -10.0f, 50.0f);
+	ImGui::SliderFloat("Shadow Bias", &mShadowBias, 0.0f, 0.01f, "%.5f", 1.0f);
 
 	ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
@@ -699,6 +700,7 @@ void Renderer::RenderGl() {
 		Vector3f light_direction = view_mat_rot * mLight.mDirection.normalized();
 
 		mDeferredLighting.SetVec3("uLightDirection", light_direction.normalized());
+		mDeferredLighting.SetFloat("uShadowBias", mLight.mShadowBias);
 
 		gVertexArray.Bind();
 		gScreenQuad.Draw(GL_TRIANGLES);

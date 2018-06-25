@@ -29,6 +29,7 @@ struct Light {
 	float mNear;
 	float mFar;
 	float mBBoxSize;
+	float mShadowBias = 0.003;
 
 	Matrix44f mLightSpaceMatrix;
 
