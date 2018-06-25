@@ -631,6 +631,7 @@ void Renderer::RenderGl() {
 
 		mSSAOProgram.SetFloat("uRadius", mSSAORadius);
 		mSSAOProgram.SetFloat("uBias", mSSAOBias);
+		mSSAOProgram.SetFloat("uPower", mSSAOPower);
 		mSSAOProgram.SetInt("uSampleCount", mSSAOKernel.size());
 		mSSAOProgram.SetMat44("uProjection", mCamera.mProjectionMatrix);
 
@@ -845,6 +846,7 @@ void Renderer::DrawGui() {
 		if (mIsSSAOEnabled) {
 			ImGui::SliderFloat("Radius", &mSSAORadius, 0.0f, 1.0f);
 			ImGui::SliderFloat("Bias", &mSSAOBias, 0.0f, 0.1f);
+			ImGui::SliderFloat("Power", &mSSAOPower, 1.0f, 10.0f);
 			ImGui::SliderInt("Samples", &mSSAOKernelSize, 1, 64);
 			ImGui::SliderInt("Blur Size", &mSSAOBlurSize, 0, 8);
 			ImGui::Checkbox("Disable Color", &mSSAODisableColor);

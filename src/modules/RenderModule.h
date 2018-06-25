@@ -90,6 +90,7 @@ struct Renderer {
 
 	float mSSAORadius = 0.5f;
 	float mSSAOBias = 0.025f;
+	float mSSAOPower = 1.0f;
 	int mSSAOKernelSize = 64;
 	std::vector<Vector3f> mSSAOKernel;
 	GLuint mSSAONoiseTexture = -1;

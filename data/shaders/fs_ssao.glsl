@@ -10,6 +10,7 @@ uniform sampler2D uNoise;
 
 uniform float uRadius;
 uniform float uBias;
+uniform float uPower;
 uniform int uSampleCount;
 uniform vec3 uSamples[64];
 uniform mat4 uProjection;
@@ -40,6 +41,6 @@ void main() {
 		occlusion += (sample_depth >= sample.z + uBias ? 1.0 : 0.0) * range_check; 
 	}
 
-	occlusion = 1.0 - (occlusion / uSampleCount);
+	occlusion = pow(1.0 - (occlusion / uSampleCount), uPower);
 	outColor = vec3(occlusion);	
 }
