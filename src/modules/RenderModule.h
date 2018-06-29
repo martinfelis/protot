@@ -25,6 +25,7 @@ struct Light {
 
 	float mShadowMapBias;
 	uint16_t mShadowMapSize;
+	Vector4f mShadowSplits = Vector4f (0.1f, 0.3f, 0.7f, 1.0f);
 
 	float mNear;
 	float mFar;
@@ -58,6 +59,7 @@ struct Renderer {
 	bool mInitialized = false;
 	bool mIsSSAOEnabled = false;
 	bool mUseDeferred = false;
+	bool mDrawDebugCamera = true;
 
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;
@@ -66,6 +68,7 @@ struct Renderer {
 
 	Light mLight;
 	Camera mCamera;
+	Camera mDebugCamera;
 
 	Texture mDefaultTexture;
 

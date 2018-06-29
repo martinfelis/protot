@@ -69,6 +69,7 @@ VertexArrayMesh gCoordinateFrameMesh;
 VertexArrayMesh gXZPlaneGrid;
 VertexArrayMesh gXZPlaneMesh;
 VertexArrayMesh gUnitCubeMesh;
+VertexArrayMesh gUnitCubeLines;
 VertexArrayMesh gScreenQuad;
 
 AssetFile gAssetFile;
@@ -100,6 +101,8 @@ static void module_serialize (
 
 	SerializeBool(*serializer, "protot.RenderModule.mUseDeferred", gRenderer->mUseDeferred);
 	SerializeBool(*serializer, "protot.RenderModule.mIsSSAOEnabled", gRenderer->mIsSSAOEnabled);
+
+	// Camera
 	SerializeBool(*serializer, "protot.RenderModule.Camera.mIsOrthographic", gRenderer->mCamera.mIsOrthographic);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFov", gRenderer->mCamera.mFov);
 	SerializeVec3(*serializer, "protot.RenderModule.Camera.mEye", gRenderer->mCamera.mEye);
@@ -107,6 +110,17 @@ static void module_serialize (
 	SerializeVec3(*serializer, "protot.RenderModule.Camera.mUp", gRenderer->mCamera.mUp);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mNear", gRenderer->mCamera.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.Camera.mFar", gRenderer->mCamera.mFar);
+
+	// Debug Camera
+	SerializeBool(*serializer, "protot.RenderModule.DebugCamera.mIsOrthographic", gRenderer->mDebugCamera.mIsOrthographic);
+	SerializeFloat(*serializer, "protot.RenderModule.DebugCamera.mFov", gRenderer->mDebugCamera.mFov);
+	SerializeVec3(*serializer, "protot.RenderModule.DebugCamera.mEye", gRenderer->mDebugCamera.mEye);
+	SerializeVec3(*serializer, "protot.RenderModule.DebugCamera.mPoi", gRenderer->mDebugCamera.mPoi);
+	SerializeVec3(*serializer, "protot.RenderModule.DebugCamera.mUp", gRenderer->mDebugCamera.mUp);
+	SerializeFloat(*serializer, "protot.RenderModule.DebugCamera.mNear", gRenderer->mDebugCamera.mNear);
+	SerializeFloat(*serializer, "protot.RenderModule.DebugCamera.mFar", gRenderer->mDebugCamera.mFar);
+
+
 
 	SerializeVec3(*serializer, "protot.RenderModule.mLight.mPosition", gRenderer->mLight.mPosition);
 	SerializeVec3(*serializer, "protot.RenderModule.mLight.mDirection", gRenderer->mLight.mDirection);
@@ -209,6 +223,7 @@ void Light::DrawGui() {
 	ImGui::SliderFloat("Near", &mNear, -10.0f, 50.0f);
 	ImGui::SliderFloat("Far", &mFar, -10.0f, 50.0f);
 	ImGui::SliderFloat("Shadow Bias", &mShadowBias, 0.0f, 0.01f, "%.5f", 1.0f);
+	ImGui::SliderFloat4("Shadow Splits", mShadowSplits.data(), 0.01f, 1.0f);
 
 	ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
@@ -300,10 +315,10 @@ void Renderer::Initialize(int width, int height) {
 	gUnitCubeMesh.Initialize(gVertexArray, 4 * 6);
 	VertexArray::VertexData unit_cube_data[] = {
 		// front: +x
-		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
 
 		// back: -x
 		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
@@ -312,10 +327,10 @@ void Renderer::Initialize(int width, int height) {
 		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
 
 		// side: +z
-		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
 
 		// back side: -z
 		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
@@ -324,10 +339,10 @@ void Renderer::Initialize(int width, int height) {
 		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
 
 		// top: +y
-		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
 
 		// bottom: -y
 		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
@@ -345,6 +360,59 @@ void Renderer::Initialize(int width, int height) {
 		20, 23, 22, 22, 21, 20
 	};
 	gUnitCubeMesh.SetIndexData(unit_cube_index_data, 36);
+
+	// Unit Cube (but only lines)
+	gUnitCubeLines.Initialize(gVertexArray, 4 * 6);
+	VertexArray::VertexData unit_cube_lines_data[] = {
+		// front: +x
+		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+
+		// back: -x
+		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-1.0f, -1.0f, 1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-1.0f, -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+
+		// side: +z
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// back side: -z
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// top: +y
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// bottom: -y
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+	};
+
+
+	gUnitCubeLines.SetData(unit_cube_lines_data, 4 * 6);
+	// TODO: 
+	GLuint unit_cube_lines_index_data[] = {
+		0,  1,  1,  2,  2,  3,  3,  0,
+		4,  5,  5,  6,  6,  7,  7,  4,
+		8,  9,  9, 10, 10, 11, 11,  8,
+		12, 13, 13, 14, 14, 15, 15, 12,
+		16, 17, 17, 18, 18, 19, 19, 16,
+		20, 21, 21, 22, 22, 23, 23, 20
+	};
+	gUnitCubeLines.SetIndexData(unit_cube_lines_index_data, 8 * 6);
 
 	// Screen Quad
 	gScreenQuad.Initialize(gVertexArray, 4);
@@ -506,6 +574,8 @@ void Renderer::RenderGl() {
 			|| mCamera.mHeight != mSceneAreaHeight) {
 		mCamera.mWidth = mSceneAreaWidth;
 		mCamera.mHeight = mSceneAreaHeight;
+		mDebugCamera.mWidth = mSceneAreaWidth;
+		mDebugCamera.mHeight = mSceneAreaHeight;
 	}
 
 	// Shadow Map
@@ -706,6 +776,41 @@ void Renderer::RenderGl() {
 
 		gVertexArray.Bind();
 		gScreenQuad.Draw(GL_TRIANGLES);
+	}
+
+	if (mDrawDebugCamera && mUseDeferred) {
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
+		glDrawBuffers (1, buffers);
+
+		mDeferredLightingTarget.Bind();
+
+		glUseProgram(mSimpleProgram.mProgramId);
+		// Enable wireframe
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+
+		gVertexArray.Bind();
+
+		float near = 0.5f;
+		float far = 10.0f;
+		float length = far - near;
+		float split_near = near;
+		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
+			float split_far = mLight.mShadowSplits[i] * length;
+			model_view_projection = 
+				Perspective (45.0, 1.0f, split_near, split_far).inverse()
+				* TranslateMat44(0.0f, 0.001f, 0.0f)
+				* mCamera.mViewMatrix
+				* mCamera.mProjectionMatrix;
+			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+			mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
+			gUnitCubeLines.Draw(GL_LINES);
+			split_near = split_far;
+		}
+
+		// Disable wireframe
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
 	}
 }
 
