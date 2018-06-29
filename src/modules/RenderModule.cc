@@ -798,19 +798,20 @@ void Renderer::DebugDrawShadowCascades() {
 
 		gVertexArray.Bind();
 
-		float fov = 45.0f;
+		float fov = 50.0f;
 		float aspect = 1.0f;
-		float near = 0.5f;
+		float near = 0.01f;
 		float far = 10.0f;
 		float length = far - near;
 		float split_near = near;
 
-		float tan_half_hfov = tan(0.5f * fov * M_PI / 180.0f);
-		float tan_half_vfov = tan(0.5f * aspect * fov * M_PI / 180.0f);
+		float tan_half_hfov = tanf(0.5f * fov * M_PI / 180.0f);
+		float tan_half_vfov = tanf(0.5f * aspect * fov * M_PI / 180.0f);
 
 //		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
-		for (int i = 0; i < 1; ++i) {
-			float split_far = mLight.mShadowSplits[i] * length;
+		for (int i = 0; i < 3; ++i) {
+			split_near = near + mLight.mShadowSplits[i] * length;
+			float split_far = near + mLight.mShadowSplits[i + 1] * length;
 
 			Matrix44f view_frustum = Perspective (fov, aspect, split_near, split_far).inverse();
 
@@ -823,10 +824,10 @@ void Renderer::DebugDrawShadowCascades() {
 			mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
 			gUnitCubeLines.Draw(GL_LINES);
 
-			float xn = split_near * tan_half_hfov;
-			float xf = split_far * tan_half_hfov;
-			float yn = split_near * tan_half_vfov;
-			float yf = split_far * tan_half_vfov;
+			float xn = split_near * tan_half_vfov;
+			float xf = split_far * tan_half_vfov;
+			float yn = split_near * tan_half_hfov;
+			float yf = split_far * tan_half_hfov;
 
 			Vector4f frustum_corners[] = {
 				Vector4f (xn, yn, split_near, 1.0f),
@@ -834,25 +835,30 @@ void Renderer::DebugDrawShadowCascades() {
 				Vector4f (xn, -yn, split_near, 1.0f),
 				Vector4f (-xn, -yn, split_near, 1.0f),
 
-				Vector4f (xn, yn, split_far, 1.0f),
-				Vector4f (-xn, yn, split_far, 1.0f),
-				Vector4f (xn, -yn, split_far, 1.0f),
-				Vector4f (-xn, -yn, split_far, 1.0f)
+				Vector4f (xf, yf, split_far, 1.0f),
+				Vector4f (-xf, yf, split_far, 1.0f),
+				Vector4f (xf, -yf, split_far, 1.0f),
+				Vector4f (-xf, -yf, split_far, 1.0f)
 			};
 
 			Vector4f frustum_corners_world[8];
 			
 			float min_x = std::numeric_limits<float>::max();
-			float max_x = std::numeric_limits<float>::min();
+			float max_x = -std::numeric_limits<float>::max();
 			float min_y = std::numeric_limits<float>::max();
-			float max_y = std::numeric_limits<float>::min();
+			float max_y = -std::numeric_limits<float>::max();
 			float min_z = std::numeric_limits<float>::max();
-			float max_z = std::numeric_limits<float>::min();
+			float max_z = -std::numeric_limits<float>::max();
 
 			for (int j = 0; j < 8; ++j) {
-				Vector4f v_world = view_frustum.transpose() * frustum_corners[j];
+				Vector4f v_world = frustum_corners[j];
 
 				frustum_corners_world[j] = v_world;
+//				gLog("vworld %d: %.3f, %.3f, %.3f, %.3f", j, 
+//						v_world[0],
+//						v_world[1],
+//						v_world[2],
+//						v_world[3]);
 
 				min_x = fmin(min_x, frustum_corners_world[j][0]);
 				max_x = fmax(max_x, frustum_corners_world[j][0]);
@@ -862,26 +868,29 @@ void Renderer::DebugDrawShadowCascades() {
 				max_z = fmax(max_z, frustum_corners_world[j][2]);
 			}
 
-			Vector3f dimensions (
+//			gLog ("min/max %.3f,%.3f, %.3f,%.3f, %.3f,%.3f", 
+//					min_x, max_x,
+//					min_y, max_y,
+//					min_z, max_z
+//					);
+
+			Vector3f dimensions = Vector3f(
 					max_x - min_x,
 					max_y - min_y,
-					(split_far - split_near)
-//					max_z - min_z
-					);
+					max_z - min_z
+					) * 0.5f;
 
-			Vector3f center = Vector3f (min_x, min_y, min_z) + dimensions * 0.5f;
+			Vector3f center = Vector3f (min_x, min_y, min_z) + dimensions;
 
 			model_view_projection = 
-				TranslateMat44(center[0], center[1], center[2])
-				* ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
+				ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
+				* TranslateMat44(center[0], center[1], -center[2])
 				* mCamera.mViewMatrix
 				* mCamera.mProjectionMatrix;
 			
 			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
 			gUnitCubeLines.Draw(GL_LINES);
-
-			split_near = split_far;
 		}
 
 		// Disable wireframe

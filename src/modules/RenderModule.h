@@ -25,7 +25,7 @@ struct Light {
 
 	float mShadowMapBias;
 	uint16_t mShadowMapSize;
-	Vector4f mShadowSplits = Vector4f (0.1f, 0.3f, 0.7f, 1.0f);
+	Vector4f mShadowSplits = Vector4f (0.0, 0.1, 0.4, 1.0);
 
 	float mNear;
 	float mFar;
