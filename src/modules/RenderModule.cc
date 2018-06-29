@@ -808,12 +808,17 @@ void Renderer::DebugDrawShadowCascades() {
 		float tan_half_hfov = tanf(0.5f * fov * M_PI / 180.0f);
 		float tan_half_vfov = tanf(0.5f * aspect * fov * M_PI / 180.0f);
 
+		Vector3f eye (4., 4., 2.0);
+		Vector3f dir (1., 0., sin(gTimer->mCurrentTime));
+
+		Matrix44f look_at = LookAt(eye, eye + dir, Vector3f (0., 1.0, 0.0));
+
 //		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
 		for (int i = 0; i < 3; ++i) {
 			split_near = near + mLight.mShadowSplits[i] * length;
 			float split_far = near + mLight.mShadowSplits[i + 1] * length;
 
-			Matrix44f view_frustum = Perspective (fov, aspect, split_near, split_far).inverse();
+			Matrix44f view_frustum = (look_at * Perspective (fov, aspect, split_near, split_far)).inverse();
 
 			Matrix44f model_view_projection = 
 				view_frustum
@@ -851,7 +856,7 @@ void Renderer::DebugDrawShadowCascades() {
 			float max_z = -std::numeric_limits<float>::max();
 
 			for (int j = 0; j < 8; ++j) {
-				Vector4f v_world = frustum_corners[j];
+				Vector4f v_world = look_at.inverse().transpose() * frustum_corners[j];
 
 				frustum_corners_world[j] = v_world;
 //				gLog("vworld %d: %.3f, %.3f, %.3f, %.3f", j, 
@@ -884,7 +889,7 @@ void Renderer::DebugDrawShadowCascades() {
 
 			model_view_projection = 
 				ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
-				* TranslateMat44(center[0], center[1], -center[2])
+				* TranslateMat44(center[0], center[1], center[2])
 				* mCamera.mViewMatrix
 				* mCamera.mProjectionMatrix;
 			
