@@ -1,3 +1,5 @@
+#include <limits>
+
 #include "RuntimeModule.h"
 #include "Timer.h"
 #include "Globals.h"
@@ -779,6 +781,11 @@ void Renderer::RenderGl() {
 	}
 
 	if (mDrawDebugCamera && mUseDeferred) {
+		DebugDrawShadowCascades();
+	}
+}
+
+void Renderer::DebugDrawShadowCascades() {
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
 		glDrawBuffers (1, buffers);
 
@@ -791,27 +798,95 @@ void Renderer::RenderGl() {
 
 		gVertexArray.Bind();
 
+		float fov = 45.0f;
+		float aspect = 1.0f;
 		float near = 0.5f;
 		float far = 10.0f;
 		float length = far - near;
 		float split_near = near;
-		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
+
+		float tan_half_hfov = tan(0.5f * fov * M_PI / 180.0f);
+		float tan_half_vfov = tan(0.5f * aspect * fov * M_PI / 180.0f);
+
+//		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
+		for (int i = 0; i < 1; ++i) {
 			float split_far = mLight.mShadowSplits[i] * length;
-			model_view_projection = 
-				Perspective (45.0, 1.0f, split_near, split_far).inverse()
-				* TranslateMat44(0.0f, 0.001f, 0.0f)
+
+			Matrix44f view_frustum = Perspective (fov, aspect, split_near, split_far).inverse();
+
+			Matrix44f model_view_projection = 
+				view_frustum
 				* mCamera.mViewMatrix
 				* mCamera.mProjectionMatrix;
+			
 			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 			mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
 			gUnitCubeLines.Draw(GL_LINES);
+
+			float xn = split_near * tan_half_hfov;
+			float xf = split_far * tan_half_hfov;
+			float yn = split_near * tan_half_vfov;
+			float yf = split_far * tan_half_vfov;
+
+			Vector4f frustum_corners[] = {
+				Vector4f (xn, yn, split_near, 1.0f),
+				Vector4f (-xn, yn, split_near, 1.0f),
+				Vector4f (xn, -yn, split_near, 1.0f),
+				Vector4f (-xn, -yn, split_near, 1.0f),
+
+				Vector4f (xn, yn, split_far, 1.0f),
+				Vector4f (-xn, yn, split_far, 1.0f),
+				Vector4f (xn, -yn, split_far, 1.0f),
+				Vector4f (-xn, -yn, split_far, 1.0f)
+			};
+
+			Vector4f frustum_corners_world[8];
+			
+			float min_x = std::numeric_limits<float>::max();
+			float max_x = std::numeric_limits<float>::min();
+			float min_y = std::numeric_limits<float>::max();
+			float max_y = std::numeric_limits<float>::min();
+			float min_z = std::numeric_limits<float>::max();
+			float max_z = std::numeric_limits<float>::min();
+
+			for (int j = 0; j < 8; ++j) {
+				Vector4f v_world = view_frustum.transpose() * frustum_corners[j];
+
+				frustum_corners_world[j] = v_world;
+
+				min_x = fmin(min_x, frustum_corners_world[j][0]);
+				max_x = fmax(max_x, frustum_corners_world[j][0]);
+				min_y = fmin(min_y, frustum_corners_world[j][1]);
+				max_y = fmax(max_y, frustum_corners_world[j][1]);
+				min_z = fmin(min_z, frustum_corners_world[j][2]);
+				max_z = fmax(max_z, frustum_corners_world[j][2]);
+			}
+
+			Vector3f dimensions (
+					max_x - min_x,
+					max_y - min_y,
+					(split_far - split_near)
+//					max_z - min_z
+					);
+
+			Vector3f center = Vector3f (min_x, min_y, min_z) + dimensions * 0.5f;
+
+			model_view_projection = 
+				TranslateMat44(center[0], center[1], center[2])
+				* ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
+				* mCamera.mViewMatrix
+				* mCamera.mProjectionMatrix;
+			
+			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
+			gUnitCubeLines.Draw(GL_LINES);
+
 			split_near = split_far;
 		}
 
 		// Disable wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glEnable(GL_CULL_FACE);
-	}
 }
 
 void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {

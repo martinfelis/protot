@@ -111,6 +111,7 @@ struct Renderer {
 	void CheckRenderBuffers();
 	void RenderGl();
 	void RenderScene(RenderProgram &program, const Camera& camera);
+	void DebugDrawShadowCascades();
 	void DrawGui();
 
 	void InitializeSSAOKernelAndNoise();
