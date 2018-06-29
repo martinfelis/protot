@@ -794,6 +794,7 @@ void Renderer::DebugDrawShadowCascades() {
 		glUseProgram(mSimpleProgram.mProgramId);
 		// Enable wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 
 		gVertexArray.Bind();
@@ -835,15 +836,15 @@ void Renderer::DebugDrawShadowCascades() {
 			float yf = split_far * tan_half_hfov;
 
 			Vector4f frustum_corners[] = {
-				Vector4f (xn, yn, split_near, 1.0f),
-				Vector4f (-xn, yn, split_near, 1.0f),
-				Vector4f (xn, -yn, split_near, 1.0f),
-				Vector4f (-xn, -yn, split_near, 1.0f),
+				Vector4f (xn, yn, -split_near, 1.0f),
+				Vector4f (-xn, yn, -split_near, 1.0f),
+				Vector4f (xn, -yn, -split_near, 1.0f),
+				Vector4f (-xn, -yn, -split_near, 1.0f),
 
-				Vector4f (xf, yf, split_far, 1.0f),
-				Vector4f (-xf, yf, split_far, 1.0f),
-				Vector4f (xf, -yf, split_far, 1.0f),
-				Vector4f (-xf, -yf, split_far, 1.0f)
+				Vector4f (xf, yf, -split_far, 1.0f),
+				Vector4f (-xf, yf, -split_far, 1.0f),
+				Vector4f (xf, -yf, -split_far, 1.0f),
+				Vector4f (-xf, -yf, -split_far, 1.0f)
 			};
 
 			Vector4f frustum_corners_world[8];
@@ -901,6 +902,7 @@ void Renderer::DebugDrawShadowCascades() {
 		// Disable wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glEnable(GL_CULL_FACE);
+		glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
