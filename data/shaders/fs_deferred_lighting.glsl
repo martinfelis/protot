@@ -95,7 +95,7 @@ void main() {
 	float ambient_strength = 0.2;
 	vec3 ambient = ambient_strength * color;
 
-	vec3 light_dir = uLightDirection;
+	vec3 light_dir = -uLightDirection;
 
 	// diffuse lighting
 	float diff = max(dot(normal, light_dir), 0.0);

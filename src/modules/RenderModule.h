@@ -14,6 +14,19 @@
 #include "Globals.h"
 #include "RenderUtils.h"
 
+struct ShadowSplitInfo {
+	float mLeft;
+	float mRight;
+	float mTop;
+	float mBottom;
+	float mNear;
+	float mFar;
+
+	Matrix44f mFrustum;
+	RenderTarget mShadowMapTarget; 
+	Camera mCamera;
+};
+
 struct Light {
 	Vector3f mPosition;
 	Vector3f mDirection;
@@ -25,7 +38,6 @@ struct Light {
 
 	float mShadowMapBias;
 	uint16_t mShadowMapSize;
-	Vector4f mShadowSplits = Vector4f (0.0, 0.1, 0.4, 1.0);
 
 	float mNear;
 	float mFar;
@@ -34,11 +46,14 @@ struct Light {
 
 	Matrix44f mLightSpaceMatrix;
 
+	Vector4f mShadowSplits = Vector4f (0.0, 0.1, 0.4, 1.0);
+	ShadowSplitInfo mSplits[4];
+
 	Light() :
 		mPosition (Vector3f(0.f, 3, 0.0f)),
 		mDirection (Vector3f(1.f, 1.f, 1.f)),
 		mShadowMapBias (0.004f),
-		mShadowMapSize (1024),
+		mShadowMapSize (512),
 		mNear (-10.0f),
 		mFar (15.f),
 		mBBoxSize (35.f),

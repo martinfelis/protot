@@ -135,6 +135,30 @@ struct Transform {
 	}
 };
 
+struct BBox {
+	Vector3f mMin = Vector3f (
+			std::numeric_limits<float>::max(),
+			std::numeric_limits<float>::max(),
+			std::numeric_limits<float>::max()
+			);
+	Vector3f mMax = Vector3f (
+			- std::numeric_limits<float>::max(),
+			- std::numeric_limits<float>::max(),
+			- std::numeric_limits<float>::max()
+			);
+
+	void Update (const Vector3f &v) {
+		mMin[0] = fmin(mMin[0], v[0]);
+		mMax[0] = fmax(mMax[0], v[0]);
+		mMin[1] = fmin(mMin[1], v[1]);
+		mMax[1] = fmax(mMax[1], v[1]);
+		mMin[2] = fmin(mMin[2], v[2]);
+		mMax[2] = fmax(mMax[2], v[2]);
+	}
+};
+
+
+
 struct Camera {
 	Vector3f mEye;
 	Vector3f mPoi;

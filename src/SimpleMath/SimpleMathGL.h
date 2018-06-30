@@ -102,6 +102,22 @@ inline Matrix44f Perspective(float fovy, float aspect,
 			);
 }
 
+inline Matrix44f Frustum(float left, float right,
+		float bottom, float top,
+		float near, float far) {
+	float A = (right + left) / (right - left);
+	float B = (top + bottom) / (top - bottom);
+	float C = -(far + near) / (far - near);
+	float D = - (2.0f * far * near) / (far - near);
+
+	return Matrix44f(
+			2.0f * near / (right - left), 0.0f, 0.0f, 0.0f,
+			0.0f, 2.0f * near / (top - bottom), 0.0f, 0.0f,
+			A, B, C, -1.0f,
+			0.0f, 0.0f, D, 0.0f
+			);
+}
+
 inline Matrix44f LookAt(
 		const Vector3f& eye,
 		const Vector3f& poi,

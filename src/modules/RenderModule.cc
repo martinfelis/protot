@@ -15,10 +15,12 @@ using namespace SimpleMath::GL;
 struct Renderer;
 
 float moving_factor = 1.0f;
+const int cNumSplits = 3;
 
 struct RendererSettings {
 	bool DrawLightDepth = false;
 	int RenderMode = 0;
+	int ActiveShadowMapSplit = 0;
 };
 
 enum SceneRenderMode {
@@ -203,13 +205,28 @@ void Light::Initialize() {
 			RenderTarget::EnableColor
 			| RenderTarget::EnableDepthTexture
 			| RenderTarget::EnableLinearizedDepthTexture);
+
+	mSplits[0].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
+			RenderTarget::EnableColor
+			| RenderTarget::EnableDepthTexture
+			| RenderTarget::EnableLinearizedDepthTexture);
+
+	mSplits[1].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
+			RenderTarget::EnableColor
+			| RenderTarget::EnableDepthTexture
+			| RenderTarget::EnableLinearizedDepthTexture);
+
+	mSplits[2].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
+			RenderTarget::EnableColor
+			| RenderTarget::EnableDepthTexture
+			| RenderTarget::EnableLinearizedDepthTexture);
 }
 
 void Light::UpdateMatrices() {
 	mCamera.mIsOrthographic = true;
 
 	mCamera.mEye = mPosition;
-	mCamera.mPoi = mPosition - mDirection;
+	mCamera.mPoi = mPosition + mDirection;
 	mCamera.mUp = Vector3f (0.0f, 1.0f, 0.0f);
 
 	mCamera.mProjectionMatrix = Ortho (-mBBoxSize * 0.5f, mBBoxSize * 0.5f, -mBBoxSize * 0.5f, mBBoxSize * 0.5f, mNear, mFar);
@@ -230,11 +247,18 @@ void Light::DrawGui() {
 	ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
 	ImGui::Checkbox("Draw Light Depth", &sRendererSettings.DrawLightDepth);
+
+	ImGui::RadioButton("Split 0", &sRendererSettings.ActiveShadowMapSplit, 0); ImGui::SameLine();
+	ImGui::RadioButton("Split 1", &sRendererSettings.ActiveShadowMapSplit, 1); ImGui::SameLine();
+	ImGui::RadioButton("Split 2", &sRendererSettings.ActiveShadowMapSplit, 2); 
+
+	RenderTarget* shadow_split_target = &mSplits[sRendererSettings.ActiveShadowMapSplit].mShadowMapTarget;
+
 	void* texture;
 	if (sRendererSettings.DrawLightDepth) {
-		texture = (void*) mShadowMapTarget.mLinearizedDepthTexture;
+		texture = (void*) shadow_split_target->mLinearizedDepthTexture;
 	} else {
-		texture = (void*) mShadowMapTarget.mColorTexture;
+		texture = (void*) shadow_split_target->mColorTexture;
 	}
 
 	ImGui::Image(texture,
@@ -580,15 +604,29 @@ void Renderer::RenderGl() {
 		mDebugCamera.mHeight = mSceneAreaHeight;
 	}
 
+	// Cascaded Shadow Maps
+	for (int i = 0; i < cNumSplits; ++i) {
+		mLight.mSplits[i].mShadowMapTarget.Bind();
+		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+		glUseProgram(mLight.mShadowMapProgram.mProgramId);
+		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mSplits[i].mFrustum) == -1) {
+			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+		}
+		RenderScene(mLight.mShadowMapProgram, mLight.mSplits[i].mCamera);
+		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
+	}
+
 	// Shadow Map
 	mLight.mShadowMapTarget.Bind();
-		mLight.mPosition = mCamera.mEye;
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 		mLight.UpdateMatrices();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
-//		glCullFace(GL_FRONT);
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
+
+		// TODO: use mLight.mSplits to render shadow splits
 		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
 		}
@@ -809,13 +847,17 @@ void Renderer::DebugDrawShadowCascades() {
 		float tan_half_hfov = tanf(0.5f * fov * M_PI / 180.0f);
 		float tan_half_vfov = tanf(0.5f * aspect * fov * M_PI / 180.0f);
 
-		Vector3f eye (4., 4., 2.0);
-		Vector3f dir (1., 0., sin(gTimer->mCurrentTime));
+		Vector3f eye (-4.0f, 4.4f, 0.0f);
+		Vector3f poi (-3.2f, 3.8f, 0.2f);
+		Vector3f dir = (poi - eye).normalized();
 
 		Matrix44f look_at = LookAt(eye, eye + dir, Vector3f (0., 1.0, 0.0));
+		Matrix44f look_at_inv = look_at.inverse();
+		Matrix44f light_matrix = LookAt (mLight.mPosition, mLight.mPosition + mLight.mDirection, Vector3f (0.f, 1.0f, 0.0f));
+		Matrix44f light_matrix_inv = light_matrix.inverse();
 
 //		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
-		for (int i = 0; i < 3; ++i) {
+		for (int i = 0; i < cNumSplits; ++i) {
 			split_near = near + mLight.mShadowSplits[i] * length;
 			float split_far = near + mLight.mShadowSplits[i + 1] * length;
 
@@ -847,31 +889,21 @@ void Renderer::DebugDrawShadowCascades() {
 				Vector4f (-xf, -yf, -split_far, 1.0f)
 			};
 
-			Vector4f frustum_corners_world[8];
-			
-			float min_x = std::numeric_limits<float>::max();
-			float max_x = -std::numeric_limits<float>::max();
-			float min_y = std::numeric_limits<float>::max();
-			float max_y = -std::numeric_limits<float>::max();
-			float min_z = std::numeric_limits<float>::max();
-			float max_z = -std::numeric_limits<float>::max();
+			BBox bbox_world;
+			BBox bbox_light;
 
 			for (int j = 0; j < 8; ++j) {
 				Vector4f v_world = look_at.inverse().transpose() * frustum_corners[j];
+				Vector4f v_light = light_matrix.transpose() * v_world;
 
-				frustum_corners_world[j] = v_world;
 //				gLog("vworld %d: %.3f, %.3f, %.3f, %.3f", j, 
 //						v_world[0],
 //						v_world[1],
 //						v_world[2],
 //						v_world[3]);
 
-				min_x = fmin(min_x, frustum_corners_world[j][0]);
-				max_x = fmax(max_x, frustum_corners_world[j][0]);
-				min_y = fmin(min_y, frustum_corners_world[j][1]);
-				max_y = fmax(max_y, frustum_corners_world[j][1]);
-				min_z = fmin(min_z, frustum_corners_world[j][2]);
-				max_z = fmax(max_z, frustum_corners_world[j][2]);
+				bbox_world.Update(v_world.block<3,1>(0,0));
+				bbox_light.Update(v_light.block<3,1>(0,0));
 			}
 
 //			gLog ("min/max %.3f,%.3f, %.3f,%.3f, %.3f,%.3f", 
@@ -880,23 +912,54 @@ void Renderer::DebugDrawShadowCascades() {
 //					min_z, max_z
 //					);
 
-			Vector3f dimensions = Vector3f(
-					max_x - min_x,
-					max_y - min_y,
-					max_z - min_z
-					) * 0.5f;
+			// Draw in world space
+			{
+				Vector3f dimensions = (bbox_world.mMax - bbox_world.mMin) * 0.5f;
 
-			Vector3f center = Vector3f (min_x, min_y, min_z) + dimensions;
+				Vector3f center = bbox_world.mMin + dimensions;
 
-			model_view_projection = 
-				ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
-				* TranslateMat44(center[0], center[1], center[2])
-				* mCamera.mViewMatrix
-				* mCamera.mProjectionMatrix;
-			
-			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
-			gUnitCubeLines.Draw(GL_LINES);
+				model_view_projection = 
+					ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
+					* TranslateMat44(center[0], center[1], center[2])
+					* mCamera.mViewMatrix
+					* mCamera.mProjectionMatrix;
+
+				mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+				mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
+//				gUnitCubeLines.Draw(GL_LINES);
+			}
+
+			// Draw in light space
+			{
+				Vector3f dimensions = (bbox_light.mMax - bbox_light.mMin) * 0.5f;
+				Vector3f center = bbox_light.mMin + dimensions;
+
+				mLight.mSplits[i].mCamera.mViewMatrix = light_matrix;
+
+				// TODO: values for near and far planes are off
+				mLight.mSplits[i].mCamera.mProjectionMatrix = Ortho (
+						bbox_light.mMin[0], bbox_light.mMax[0],
+						bbox_light.mMin[1], bbox_light.mMax[1],
+//						mLight.mNear, bbox_light.mMax[2]
+						mLight.mNear, mLight.mFar
+//						bbox_light.mMin[2], mLight.mFar
+//						bbox_light.mMin[2], bbox_light.mMax[2]
+						) 					;
+
+				mLight.mSplits[i].mFrustum = 
+					mLight.mSplits[i].mCamera.mViewMatrix
+					* mLight.mSplits[i].mCamera.mProjectionMatrix;
+					
+				model_view_projection = 
+					mLight.mSplits[i].mFrustum.inverse()
+//					* light_matrix_inv
+					* mCamera.mViewMatrix
+					* mCamera.mProjectionMatrix;
+
+				mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+				mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 1.0f, 1.0f));
+				gUnitCubeLines.Draw(GL_LINES);
+			}
 		}
 
 		// Disable wireframe
@@ -920,12 +983,6 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetMat33("uNormalMatrix", normal_matrix);
 
   program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
-	Vector3f light_dir = (camera.mViewMatrix * Vector4f (
-			mLight.mDirection[0],
-			mLight.mDirection[1],
-			mLight.mDirection[2],
-			1.0f
-			)).block<3,1>(0,0);
 //	program.SetVec3("uLightDirection", light_dir.normalize());
 	program.SetVec3("uLightDirection", mLight.mDirection);
 	program.SetVec3("uViewPosition", camera.mEye);
