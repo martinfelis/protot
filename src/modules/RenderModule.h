@@ -15,13 +15,8 @@
 #include "RenderUtils.h"
 
 struct ShadowSplitInfo {
-	float mLeft;
-	float mRight;
-	float mTop;
-	float mBottom;
-	float mNear;
-	float mFar;
-
+	BBox mBoundsLight;
+	BBox mBoundsWorld;
 	Matrix44f mFrustum;
 	RenderTarget mShadowMapTarget; 
 	Camera mCamera;
@@ -64,6 +59,7 @@ struct Light {
 	void Initialize();
 	void UpdateMatrices();
 	void DrawGui();
+	void UpdateSplits(const Camera& camera);
 };
 
 struct RendererSettings;

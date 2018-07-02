@@ -268,6 +268,95 @@ void Light::DrawGui() {
 			);
 }
 
+void Light::UpdateSplits(const Camera& camera) {
+	assert(camera.mIsOrthographic == false);
+
+	float near = camera.mNear;
+	float far = camera.mFar;
+	float length = far - near;
+	float split_near = near;
+
+	float tan_half_hfov = tanf(0.5f * camera.mFov * M_PI / 180.0f);
+	float tan_half_vfov = tanf(0.5f * camera.mWidth / camera.mHeight * camera.mFov  * M_PI / 180.0f);
+
+	Matrix44f look_at = mCamera.mViewMatrix;
+	Matrix44f look_at_inv = look_at.inverse();
+	Matrix44f light_matrix = LookAt (mPosition, mPosition + mDirection, Vector3f (0.f, 1.0f, 0.0f));
+	Matrix44f light_matrix_inv = light_matrix.inverse();
+
+	for (int i = 0; i < cNumSplits; ++i) {
+		split_near = near + mShadowSplits[i] * length;
+		float split_far = near + mShadowSplits[i + 1] * length;
+
+		float xn = split_near * tan_half_vfov;
+		float xf = split_far * tan_half_vfov;
+		float yn = split_near * tan_half_hfov;
+		float yf = split_far * tan_half_hfov;
+
+		Vector4f frustum_corners[] = {
+			Vector4f (xn, yn, -split_near, 1.0f),
+			Vector4f (-xn, yn, -split_near, 1.0f),
+			Vector4f (xn, -yn, -split_near, 1.0f),
+			Vector4f (-xn, -yn, -split_near, 1.0f),
+
+			Vector4f (xf, yf, -split_far, 1.0f),
+			Vector4f (-xf, yf, -split_far, 1.0f),
+			Vector4f (xf, -yf, -split_far, 1.0f),
+			Vector4f (-xf, -yf, -split_far, 1.0f)
+		};
+
+		BBox bbox_world;
+		BBox bbox_light;
+
+		for (int j = 0; j < 8; ++j) {
+			Vector4f v_world = look_at_inv.transpose() * frustum_corners[j];
+			Vector4f v_light = light_matrix.transpose() * v_world;
+
+			//				gLog("vworld %d: %.3f, %.3f, %.3f, %.3f", j, 
+			//						v_world[0],
+			//						v_world[1],
+			//						v_world[2],
+			//						v_world[3]);
+
+			bbox_world.Update(v_world.block<3,1>(0,0));
+			bbox_light.Update(v_light.block<3,1>(0,0));
+		}
+
+		ShadowSplitInfo &split = mSplits[i];
+		split.mBoundsWorld = bbox_world;
+		split.mBoundsLight = bbox_light;
+
+		//			gLog ("min/max %.3f,%.3f, %.3f,%.3f, %.3f,%.3f", 
+		//					min_x, max_x,
+		//					min_y, max_y,
+		//					min_z, max_z
+		//					);
+
+		// Draw in light space
+		{
+			Vector3f dimensions = (bbox_light.mMax - bbox_light.mMin) * 0.5f;
+			Vector3f center = bbox_light.mMin + dimensions;
+
+			split.mCamera.mViewMatrix = light_matrix;
+
+			// TODO: values for near and far planes are off
+			split.mCamera.mProjectionMatrix = Ortho (
+					bbox_light.mMin[0], bbox_light.mMax[0],
+					bbox_light.mMin[1], bbox_light.mMax[1],
+					//						mLight.mNear, bbox_light.mMax[2]
+					mNear, mFar
+					//						bbox_light.mMin[2], mLight.mFar
+					//						bbox_light.mMin[2], bbox_light.mMax[2]
+					) 					;
+
+			split.mFrustum = 
+				split.mCamera.mViewMatrix
+				* split.mCamera.mProjectionMatrix;
+		}
+	}
+}
+
+
 //
 // Renderer
 //
@@ -604,6 +693,16 @@ void Renderer::RenderGl() {
 		mDebugCamera.mHeight = mSceneAreaHeight;
 	}
 
+	mDebugCamera.mEye = Vector3d(-4.0f, 4.4f, 0.0f);
+	mDebugCamera.mPoi = Vector3d(-3.2f, 3.8f, 0.2f);
+	mDebugCamera.mUp = Vector3d(0.0f, 1.0f, 0.0f);
+	mDebugCamera.mWidth = 300.0f;
+	mDebugCamera.mHeight = 300.0f;
+	mDebugCamera.mNear = 0.8f;
+	mDebugCamera.mFar = 10.0f;
+	mDebugCamera.UpdateMatrices();
+	mLight.UpdateSplits(mDebugCamera);
+
 	// Cascaded Shadow Maps
 	for (int i = 0; i < cNumSplits; ++i) {
 		mLight.mSplits[i].mShadowMapTarget.Bind();
@@ -836,89 +935,34 @@ void Renderer::DebugDrawShadowCascades() {
 		glDisable(GL_CULL_FACE);
 
 		gVertexArray.Bind();
+		glUseProgram(mSimpleProgram.mProgramId);
 
-		float fov = 50.0f;
-		float aspect = 1.0f;
-		float near = 0.01f;
-		float far = 10.0f;
-		float length = far - near;
-		float split_near = near;
+		Matrix44f view_frustum = 
+			mDebugCamera.mViewMatrix
+			* mDebugCamera.mProjectionMatrix;
 
-		float tan_half_hfov = tanf(0.5f * fov * M_PI / 180.0f);
-		float tan_half_vfov = tanf(0.5f * aspect * fov * M_PI / 180.0f);
+		mDebugCamera.UpdateMatrices();
+		Matrix44f model_view_projection = 
+			view_frustum.inverse()
+			//					* light_matrix_inv
+			* mCamera.mViewMatrix
+			* mCamera.mProjectionMatrix;
 
-		Vector3f eye (-4.0f, 4.4f, 0.0f);
-		Vector3f poi (-3.2f, 3.8f, 0.2f);
-		Vector3f dir = (poi - eye).normalized();
+		mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+		mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
+		gUnitCubeLines.Draw(GL_LINES);
 
-		Matrix44f look_at = LookAt(eye, eye + dir, Vector3f (0., 1.0, 0.0));
-		Matrix44f look_at_inv = look_at.inverse();
-		Matrix44f light_matrix = LookAt (mLight.mPosition, mLight.mPosition + mLight.mDirection, Vector3f (0.f, 1.0f, 0.0f));
-		Matrix44f light_matrix_inv = light_matrix.inverse();
-
-//		for (int i = 0; i < mLight.mShadowSplits.size(); ++i) {
 		for (int i = 0; i < cNumSplits; ++i) {
-			split_near = near + mLight.mShadowSplits[i] * length;
-			float split_far = near + mLight.mShadowSplits[i + 1] * length;
+			const ShadowSplitInfo& split = mLight.mSplits[i];
+			const BBox& bbox_light = split.mBoundsLight;
+			const BBox& bbox_world = split.mBoundsWorld;
 
-			Matrix44f view_frustum = (look_at * Perspective (fov, aspect, split_near, split_far)).inverse();
-
-			Matrix44f model_view_projection = 
-				view_frustum
-				* mCamera.mViewMatrix
-				* mCamera.mProjectionMatrix;
-			
-			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-			mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
-			gUnitCubeLines.Draw(GL_LINES);
-
-			float xn = split_near * tan_half_vfov;
-			float xf = split_far * tan_half_vfov;
-			float yn = split_near * tan_half_hfov;
-			float yf = split_far * tan_half_hfov;
-
-			Vector4f frustum_corners[] = {
-				Vector4f (xn, yn, -split_near, 1.0f),
-				Vector4f (-xn, yn, -split_near, 1.0f),
-				Vector4f (xn, -yn, -split_near, 1.0f),
-				Vector4f (-xn, -yn, -split_near, 1.0f),
-
-				Vector4f (xf, yf, -split_far, 1.0f),
-				Vector4f (-xf, yf, -split_far, 1.0f),
-				Vector4f (xf, -yf, -split_far, 1.0f),
-				Vector4f (-xf, -yf, -split_far, 1.0f)
-			};
-
-			BBox bbox_world;
-			BBox bbox_light;
-
-			for (int j = 0; j < 8; ++j) {
-				Vector4f v_world = look_at.inverse().transpose() * frustum_corners[j];
-				Vector4f v_light = light_matrix.transpose() * v_world;
-
-//				gLog("vworld %d: %.3f, %.3f, %.3f, %.3f", j, 
-//						v_world[0],
-//						v_world[1],
-//						v_world[2],
-//						v_world[3]);
-
-				bbox_world.Update(v_world.block<3,1>(0,0));
-				bbox_light.Update(v_light.block<3,1>(0,0));
-			}
-
-//			gLog ("min/max %.3f,%.3f, %.3f,%.3f, %.3f,%.3f", 
-//					min_x, max_x,
-//					min_y, max_y,
-//					min_z, max_z
-//					);
-
-			// Draw in world space
+			// Draw bounding boxes in world space 
 			{
 				Vector3f dimensions = (bbox_world.mMax - bbox_world.mMin) * 0.5f;
-
 				Vector3f center = bbox_world.mMin + dimensions;
 
-				model_view_projection = 
+				Matrix44f model_view_projection = 
 					ScaleMat44 (dimensions[0], dimensions[1], dimensions[2])
 					* TranslateMat44(center[0], center[1], center[2])
 					* mCamera.mViewMatrix
@@ -926,15 +970,13 @@ void Renderer::DebugDrawShadowCascades() {
 
 				mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 				mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
-//				gUnitCubeLines.Draw(GL_LINES);
+				gUnitCubeLines.Draw(GL_LINES);
 			}
 
-			// Draw in light space
+			// Draw bounding boxes in light space
 			{
 				Vector3f dimensions = (bbox_light.mMax - bbox_light.mMin) * 0.5f;
 				Vector3f center = bbox_light.mMin + dimensions;
-
-				mLight.mSplits[i].mCamera.mViewMatrix = light_matrix;
 
 				// TODO: values for near and far planes are off
 				mLight.mSplits[i].mCamera.mProjectionMatrix = Ortho (
@@ -950,7 +992,7 @@ void Renderer::DebugDrawShadowCascades() {
 					mLight.mSplits[i].mCamera.mViewMatrix
 					* mLight.mSplits[i].mCamera.mProjectionMatrix;
 					
-				model_view_projection = 
+				Matrix44f model_view_projection = 
 					mLight.mSplits[i].mFrustum.inverse()
 //					* light_matrix_inv
 					* mCamera.mViewMatrix
