@@ -17,6 +17,7 @@
 struct ShadowSplitInfo {
 	BBox mBoundsLight;
 	BBox mBoundsWorld;
+	Matrix44f mViewFrustum;
 	Matrix44f mFrustum;
 	RenderTarget mShadowMapTarget; 
 	Camera mCamera;

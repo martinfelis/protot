@@ -21,6 +21,7 @@ struct RendererSettings {
 	bool DrawLightDepth = false;
 	int RenderMode = 0;
 	int ActiveShadowMapSplit = 0;
+	int ActiveCameraDebugUi = 0;
 };
 
 enum SceneRenderMode {
@@ -275,18 +276,24 @@ void Light::UpdateSplits(const Camera& camera) {
 	float far = camera.mFar;
 	float length = far - near;
 	float split_near = near;
+	float aspect = camera.mWidth / camera.mHeight;
 
 	float tan_half_hfov = tanf(0.5f * camera.mFov * M_PI / 180.0f);
-	float tan_half_vfov = tanf(0.5f * camera.mWidth / camera.mHeight * camera.mFov  * M_PI / 180.0f);
+	float tan_half_vfov = tanf(0.5f * aspect * camera.mFov  * M_PI / 180.0f);
 
-	Matrix44f look_at = mCamera.mViewMatrix;
+	Matrix44f look_at = camera.mViewMatrix;
 	Matrix44f look_at_inv = look_at.inverse();
 	Matrix44f light_matrix = LookAt (mPosition, mPosition + mDirection, Vector3f (0.f, 1.0f, 0.0f));
 	Matrix44f light_matrix_inv = light_matrix.inverse();
 
 	for (int i = 0; i < cNumSplits; ++i) {
+		ShadowSplitInfo &split = mSplits[i];
+
 		split_near = near + mShadowSplits[i] * length;
 		float split_far = near + mShadowSplits[i + 1] * length;
+
+		split.mViewFrustum = 
+			look_at * Perspective (camera.mFov, aspect, split_near, split_far);
 
 		float xn = split_near * tan_half_vfov;
 		float xf = split_far * tan_half_vfov;
@@ -322,7 +329,6 @@ void Light::UpdateSplits(const Camera& camera) {
 			bbox_light.Update(v_light.block<3,1>(0,0));
 		}
 
-		ShadowSplitInfo &split = mSplits[i];
 		split.mBoundsWorld = bbox_world;
 		split.mBoundsLight = bbox_light;
 
@@ -693,13 +699,13 @@ void Renderer::RenderGl() {
 		mDebugCamera.mHeight = mSceneAreaHeight;
 	}
 
-	mDebugCamera.mEye = Vector3d(-4.0f, 4.4f, 0.0f);
-	mDebugCamera.mPoi = Vector3d(-3.2f, 3.8f, 0.2f);
-	mDebugCamera.mUp = Vector3d(0.0f, 1.0f, 0.0f);
+//	mDebugCamera.mEye = Vector3d(-4.0f, 4.4f, 0.0f);
+//	mDebugCamera.mPoi = Vector3d(-3.2f, 3.8f, 0.2f);
+//	mDebugCamera.mUp = Vector3d(0.0f, 1.0f, 0.0f);
 	mDebugCamera.mWidth = 300.0f;
 	mDebugCamera.mHeight = 300.0f;
-	mDebugCamera.mNear = 0.8f;
-	mDebugCamera.mFar = 10.0f;
+//	mDebugCamera.mNear = 0.8f;
+//	mDebugCamera.mFar = 10.0f;
 	mDebugCamera.UpdateMatrices();
 	mLight.UpdateSplits(mDebugCamera);
 
@@ -942,20 +948,25 @@ void Renderer::DebugDrawShadowCascades() {
 			* mDebugCamera.mProjectionMatrix;
 
 		mDebugCamera.UpdateMatrices();
-		Matrix44f model_view_projection = 
-			view_frustum.inverse()
-			//					* light_matrix_inv
-			* mCamera.mViewMatrix
-			* mCamera.mProjectionMatrix;
-
-		mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-		mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
-		gUnitCubeLines.Draw(GL_LINES);
 
 		for (int i = 0; i < cNumSplits; ++i) {
 			const ShadowSplitInfo& split = mLight.mSplits[i];
 			const BBox& bbox_light = split.mBoundsLight;
 			const BBox& bbox_world = split.mBoundsWorld;
+
+			// Draw view split frustum
+			{
+				Matrix44f model_view_projection = 
+					split.mViewFrustum.inverse()
+					//					* light_matrix_inv
+					* mCamera.mViewMatrix
+					* mCamera.mProjectionMatrix;
+
+				mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+				mSimpleProgram.SetVec4("uColor", Vector4f (1.0f, 0.0f, 1.0f, 1.0f));
+				gUnitCubeLines.Draw(GL_LINES);
+			}
+
 
 			// Draw bounding boxes in world space 
 			{
@@ -1134,7 +1145,15 @@ void Renderer::DrawGui() {
 
 	if (ImGui::BeginDock("Render Settings")) {
 		ImGui::Text("Camera");
-		mCamera.DrawGui();
+
+		ImGui::RadioButton("Main", &sRendererSettings.ActiveCameraDebugUi, 0); ImGui::SameLine();
+		ImGui::RadioButton("Debug1", &sRendererSettings.ActiveCameraDebugUi, 1); 
+
+		if (sRendererSettings.ActiveCameraDebugUi == 0) {
+			mCamera.DrawGui();
+		} else {
+			mDebugCamera.DrawGui();
+		}
 
 		ImGui::Checkbox("Enable Deferred", &mUseDeferred);
 		ImGui::Checkbox("Enable SSAO", &mIsSSAOEnabled);

@@ -42,10 +42,11 @@ void Camera::DrawGui() {
 	ImGui::SliderFloat3("EyeS", mEye.data(), -10.0f, 10.0f);
 
 	ImGui::InputFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("PoiS", mPoi.data(), -10.0f, 10.0f);
 	ImGui::InputFloat3("Up", mUp.data(), -10.0f, 10.0f);
 	ImGui::Checkbox("Orthographic", &mIsOrthographic);
 	ImGui::SliderFloat("Fov", &mFov, 5, 160);
-	ImGui::SliderFloat("Near", &mNear, -10, 10);
+	ImGui::SliderFloat("Near", &mNear, 0.001, 10);
 	ImGui::SliderFloat("Far", &mFar, -20, 50);
 	if (ImGui::Button("Reset")) {
 		*this = Camera();
