@@ -5,8 +5,6 @@ in vec3 inNormal;
 in vec2 inUV;
 in vec4 inColor;
 
-uniform mat4 uViewMatrix;
-uniform mat4 uProjectionMatrix;
 uniform mat4 uModelMatrix;
 uniform mat4 uLightSpaceMatrix;
 

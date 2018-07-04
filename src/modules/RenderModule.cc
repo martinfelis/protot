@@ -207,20 +207,14 @@ void Light::Initialize() {
 			| RenderTarget::EnableDepthTexture
 			| RenderTarget::EnableLinearizedDepthTexture);
 
-	mSplits[0].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
-			RenderTarget::EnableColor
-			| RenderTarget::EnableDepthTexture
-			| RenderTarget::EnableLinearizedDepthTexture);
-
-	mSplits[1].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
-			RenderTarget::EnableColor
-			| RenderTarget::EnableDepthTexture
-			| RenderTarget::EnableLinearizedDepthTexture);
-
-	mSplits[2].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
-			RenderTarget::EnableColor
-			| RenderTarget::EnableDepthTexture
-			| RenderTarget::EnableLinearizedDepthTexture);
+	for (int i = 0; i < cNumSplits; ++i) {
+		mSplits[i].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
+				RenderTarget::EnableColor
+				| RenderTarget::EnableDepthTexture
+				| RenderTarget::EnableLinearizedDepthTexture);
+		mSplits[i].mShadowMapTarget.mVertexArray = &gVertexArray;
+		mSplits[i].mShadowMapTarget.mQuadMesh = &gScreenQuad;
+	}
 }
 
 void Light::UpdateMatrices() {
@@ -245,8 +239,6 @@ void Light::DrawGui() {
 	ImGui::SliderFloat("Shadow Bias", &mShadowBias, 0.0f, 0.01f, "%.5f", 1.0f);
 	ImGui::SliderFloat4("Shadow Splits", mShadowSplits.data(), 0.01f, 1.0f);
 
-	ImVec2 content_avail = ImGui::GetContentRegionAvail();
-
 	ImGui::Checkbox("Draw Light Depth", &sRendererSettings.DrawLightDepth);
 
 	ImGui::RadioButton("Split 0", &sRendererSettings.ActiveShadowMapSplit, 0); ImGui::SameLine();
@@ -254,6 +246,7 @@ void Light::DrawGui() {
 	ImGui::RadioButton("Split 2", &sRendererSettings.ActiveShadowMapSplit, 2); 
 
 	RenderTarget* shadow_split_target = &mSplits[sRendererSettings.ActiveShadowMapSplit].mShadowMapTarget;
+//	shadow_split_target = &mShadowMapTarget;
 
 	void* texture;
 	if (sRendererSettings.DrawLightDepth) {
@@ -261,6 +254,10 @@ void Light::DrawGui() {
 	} else {
 		texture = (void*) shadow_split_target->mColorTexture;
 	}
+
+	gLog ("Split index %d, Pointing at %d", sRendererSettings.ActiveShadowMapSplit, texture);
+
+	ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
 	ImGui::Image(texture,
 			ImVec2(content_avail.x, content_avail.x),
@@ -338,21 +335,23 @@ void Light::UpdateSplits(const Camera& camera) {
 		//					min_z, max_z
 		//					);
 
-		// Draw in light space
+		// Compute the light matrices for each frustum
 		{
 			Vector3f dimensions = (bbox_light.mMax - bbox_light.mMin) * 0.5f;
 			Vector3f center = bbox_light.mMin + dimensions;
 
+			split.mCamera.mIsOrthographic = true;
 			split.mCamera.mViewMatrix = light_matrix;
+			split.mCamera.mEye = center;
 
 			// TODO: values for near and far planes are off
 			split.mCamera.mProjectionMatrix = Ortho (
 					bbox_light.mMin[0], bbox_light.mMax[0],
 					bbox_light.mMin[1], bbox_light.mMax[1],
-					//						mLight.mNear, bbox_light.mMax[2]
+//											mLight.mNear, bbox_light.mMax[2]
 					mNear, mFar
 					//						bbox_light.mMin[2], mLight.mFar
-					//						bbox_light.mMin[2], bbox_light.mMax[2]
+//											bbox_light.mMin[2], bbox_light.mMax[2]
 					) 					;
 
 			split.mFrustum = 
@@ -631,6 +630,11 @@ void Renderer::Initialize(int width, int height) {
 	mLight.mShadowMapTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
 	mLight.mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
 
+	for (int i = 0; i < cNumSplits; ++i) {
+		mLight.mSplits[i].mShadowMapTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
+		mLight.mSplits[i].mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
+	}
+
 	// Model
 	if (!gAssetFile.Load("data/models/RiggedFigure/glTF/RiggedFigure.gltf")) {
 		assert(false);
@@ -710,20 +714,31 @@ void Renderer::RenderGl() {
 	mLight.UpdateSplits(mDebugCamera);
 
 	// Cascaded Shadow Maps
-	for (int i = 0; i < cNumSplits; ++i) {
-		mLight.mSplits[i].mShadowMapTarget.Bind();
+	for (int i = 0; i < cNumSplits; i++) {
+		ShadowSplitInfo &split = mLight.mSplits[i];
+		split.mShadowMapTarget.Bind();
+		gLog ("Rendering shadow map to %d", split.mShadowMapTarget.mColorTexture);
+
+		glUseProgram(mLight.mShadowMapProgram.mProgramId);
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
-		glUseProgram(mLight.mShadowMapProgram.mProgramId);
-		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mSplits[i].mFrustum) == -1) {
+//		gLog ("Split %d Matrix:\n %3.3f, %3.3f, %3.3f, %3.3f\n %3.3f, %3.3f, %3.3f, %3.3f\n %3.3f, %3.3f, %3.3f, %3.3f\n %3.3f, %3.3f, %3.3f, %3.3f\n",
+//				i,
+//				split.mFrustum(0,0), split.mFrustum(0,1), split.mFrustum(0,2), split.mFrustum(0,3),
+//				split.mFrustum(1,0), split.mFrustum(1,1), split.mFrustum(1,2), split.mFrustum(1,3),
+//				split.mFrustum(2,0), split.mFrustum(2,1), split.mFrustum(2,2), split.mFrustum(2,3),
+//				split.mFrustum(3,0), split.mFrustum(3,1), split.mFrustum(3,2), split.mFrustum(3,3));
+
+		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", split.mFrustum) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
 		}
-		RenderScene(mLight.mShadowMapProgram, mLight.mSplits[i].mCamera);
-		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
+		RenderScene(mLight.mShadowMapProgram, split.mCamera);
+		split.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	// Shadow Map
+//	// Shadow Map
 	mLight.mShadowMapTarget.Bind();
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 		mLight.UpdateMatrices();
@@ -738,6 +753,8 @@ void Renderer::RenderGl() {
 		RenderScene(mLight.mShadowMapProgram, mLight.mCamera);
 		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, mLight.mCamera.mIsOrthographic);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
 //	glCullFace(GL_BACK);
 
 	// Regular rendering
@@ -958,7 +975,6 @@ void Renderer::DebugDrawShadowCascades() {
 			{
 				Matrix44f model_view_projection = 
 					split.mViewFrustum.inverse()
-					//					* light_matrix_inv
 					* mCamera.mViewMatrix
 					* mCamera.mProjectionMatrix;
 
@@ -986,26 +1002,8 @@ void Renderer::DebugDrawShadowCascades() {
 
 			// Draw bounding boxes in light space
 			{
-				Vector3f dimensions = (bbox_light.mMax - bbox_light.mMin) * 0.5f;
-				Vector3f center = bbox_light.mMin + dimensions;
-
-				// TODO: values for near and far planes are off
-				mLight.mSplits[i].mCamera.mProjectionMatrix = Ortho (
-						bbox_light.mMin[0], bbox_light.mMax[0],
-						bbox_light.mMin[1], bbox_light.mMax[1],
-//						mLight.mNear, bbox_light.mMax[2]
-						mLight.mNear, mLight.mFar
-//						bbox_light.mMin[2], mLight.mFar
-//						bbox_light.mMin[2], bbox_light.mMax[2]
-						) 					;
-
-				mLight.mSplits[i].mFrustum = 
-					mLight.mSplits[i].mCamera.mViewMatrix
-					* mLight.mSplits[i].mCamera.mProjectionMatrix;
-					
 				Matrix44f model_view_projection = 
 					mLight.mSplits[i].mFrustum.inverse()
-//					* light_matrix_inv
 					* mCamera.mViewMatrix
 					* mCamera.mProjectionMatrix;
 
