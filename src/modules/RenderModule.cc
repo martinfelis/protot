@@ -125,13 +125,15 @@ static void module_serialize (
 	SerializeFloat(*serializer, "protot.RenderModule.DebugCamera.mNear", gRenderer->mDebugCamera.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.DebugCamera.mFar", gRenderer->mDebugCamera.mFar);
 
-
-
 	SerializeVec3(*serializer, "protot.RenderModule.mLight.mPosition", gRenderer->mLight.mPosition);
 	SerializeVec3(*serializer, "protot.RenderModule.mLight.mDirection", gRenderer->mLight.mDirection);
 	SerializeFloat(*serializer, "protot.RenderModule.mLight.mBBoxSize", gRenderer->mLight.mBBoxSize);
 	SerializeFloat(*serializer, "protot.RenderModule.mLight.mNear", gRenderer->mLight.mNear);
 	SerializeFloat(*serializer, "protot.RenderModule.mLight.mFar", gRenderer->mLight.mFar);
+
+	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitViewBounds", gRenderer->mLight.mDebugDrawSplitViewBounds);
+	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitWorldBounds", gRenderer->mLight.mDebugDrawSplitWorldBounds);
+	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitLightBounds", gRenderer->mLight.mDebugDrawSplitLightBounds);
 }
 
 static void module_finalize(struct module_state *state) {
@@ -239,14 +241,24 @@ void Light::DrawGui() {
 	ImGui::SliderFloat("Shadow Bias", &mShadowBias, 0.0f, 0.01f, "%.5f", 1.0f);
 	ImGui::SliderFloat4("Shadow Splits", mShadowSplits.data(), 0.01f, 1.0f);
 
+	ImGui::Checkbox("Draw Split View Bounds", &mDebugDrawSplitViewBounds);
+	ImGui::Checkbox("Draw Split World Bounds", &mDebugDrawSplitWorldBounds);
+	ImGui::Checkbox("Draw Split Light Bounds", &mDebugDrawSplitLightBounds);
+
 	ImGui::Checkbox("Draw Light Depth", &sRendererSettings.DrawLightDepth);
 
 	ImGui::RadioButton("Split 0", &sRendererSettings.ActiveShadowMapSplit, 0); ImGui::SameLine();
 	ImGui::RadioButton("Split 1", &sRendererSettings.ActiveShadowMapSplit, 1); ImGui::SameLine();
-	ImGui::RadioButton("Split 2", &sRendererSettings.ActiveShadowMapSplit, 2); 
+	ImGui::RadioButton("Split 2", &sRendererSettings.ActiveShadowMapSplit, 2); ImGui::SameLine();
+	ImGui::RadioButton("Default", &sRendererSettings.ActiveShadowMapSplit, 3); 
 
-	RenderTarget* shadow_split_target = &mSplits[sRendererSettings.ActiveShadowMapSplit].mShadowMapTarget;
-//	shadow_split_target = &mShadowMapTarget;
+	RenderTarget* shadow_split_target = nullptr;
+
+	if (sRendererSettings.ActiveShadowMapSplit == 3) {
+		shadow_split_target = &mShadowMapTarget;
+	} else {
+		shadow_split_target = &mSplits[sRendererSettings.ActiveShadowMapSplit].mShadowMapTarget;
+	}
 
 	void* texture;
 	if (sRendererSettings.DrawLightDepth) {
@@ -254,8 +266,6 @@ void Light::DrawGui() {
 	} else {
 		texture = (void*) shadow_split_target->mColorTexture;
 	}
-
-	gLog ("Split index %d, Pointing at %d", sRendererSettings.ActiveShadowMapSplit, texture);
 
 	ImVec2 content_avail = ImGui::GetContentRegionAvail();
 
@@ -277,6 +287,8 @@ void Light::UpdateSplits(const Camera& camera) {
 
 	float tan_half_hfov = tanf(0.5f * camera.mFov * M_PI / 180.0f);
 	float tan_half_vfov = tanf(0.5f * aspect * camera.mFov  * M_PI / 180.0f);
+
+	Vector3f direction = mDirection.normalize();
 
 	Matrix44f look_at = camera.mViewMatrix;
 	Matrix44f look_at_inv = look_at.inverse();
@@ -341,18 +353,17 @@ void Light::UpdateSplits(const Camera& camera) {
 			Vector3f center = bbox_light.mMin + dimensions;
 
 			split.mCamera.mIsOrthographic = true;
-			split.mCamera.mViewMatrix = light_matrix;
-			split.mCamera.mEye = center;
+			split.mCamera.mViewMatrix =	light_matrix;
 
 			// TODO: values for near and far planes are off
 			split.mCamera.mProjectionMatrix = Ortho (
 					bbox_light.mMin[0], bbox_light.mMax[0],
 					bbox_light.mMin[1], bbox_light.mMax[1],
-//											mLight.mNear, bbox_light.mMax[2]
-					mNear, mFar
+					//											mLight.mNear, bbox_light.mMax[2]
+										mNear, mFar
 					//						bbox_light.mMin[2], mLight.mFar
-//											bbox_light.mMin[2], bbox_light.mMax[2]
-					) 					;
+//					bbox_light.mMin[2], bbox_light.mMax[2]
+					);
 
 			split.mFrustum = 
 				split.mCamera.mViewMatrix
@@ -530,9 +541,10 @@ void Renderer::Initialize(int width, int height) {
 		8,  9,  9, 10, 10, 11, 11,  8,
 		12, 13, 13, 14, 14, 15, 15, 12,
 		16, 17, 17, 18, 18, 19, 19, 16,
-		20, 21, 21, 22, 22, 23, 23, 20
+		20, 21, 21, 22, 22, 23, 23, 20,
+		12, 14, 13, 15
 	};
-	gUnitCubeLines.SetIndexData(unit_cube_lines_index_data, 8 * 6);
+	gUnitCubeLines.SetIndexData(unit_cube_lines_index_data, 8 * 6 + 4);
 
 	// Screen Quad
 	gScreenQuad.Initialize(gVertexArray, 4);
@@ -711,61 +723,51 @@ void Renderer::RenderGl() {
 //	mDebugCamera.mNear = 0.8f;
 //	mDebugCamera.mFar = 10.0f;
 	mDebugCamera.UpdateMatrices();
+
+	mCamera.UpdateMatrices();
+	mLight.UpdateMatrices();
 	mLight.UpdateSplits(mDebugCamera);
 
 	// Cascaded Shadow Maps
 	for (int i = 0; i < cNumSplits; i++) {
 		ShadowSplitInfo &split = mLight.mSplits[i];
 		split.mShadowMapTarget.Bind();
-		gLog ("Rendering shadow map to %d", split.mShadowMapTarget.mColorTexture);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
-		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
-//		gLog ("Split %d Matrix:\n %3.3f, %3.3f, %3.3f, %3.3f\n %3.3f, %3.3f, %3.3f, %3.3f\n %3.3f, %3.3f, %3.3f, %3.3f\n %3.3f, %3.3f, %3.3f, %3.3f\n",
-//				i,
-//				split.mFrustum(0,0), split.mFrustum(0,1), split.mFrustum(0,2), split.mFrustum(0,3),
-//				split.mFrustum(1,0), split.mFrustum(1,1), split.mFrustum(1,2), split.mFrustum(1,3),
-//				split.mFrustum(2,0), split.mFrustum(2,1), split.mFrustum(2,2), split.mFrustum(2,3),
-//				split.mFrustum(3,0), split.mFrustum(3,1), split.mFrustum(3,2), split.mFrustum(3,3));
 
-		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", split.mFrustum) == -1) {
-			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+		if (mLight.mShadowMapProgram.SetMat44("uViewProjectionMatrix", split.mFrustum) == -1) {
+			gLog ("Warning: Uniform %s not found!", "uViewProjectionMatrix");
 		}
+		
 		RenderScene(mLight.mShadowMapProgram, split.mCamera);
 		split.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+//		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-//	// Shadow Map
+	// Shadow Map
 	mLight.mShadowMapTarget.Bind();
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
-		mLight.UpdateMatrices();
+		mLight.mShadowMapTarget.Bind();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
+
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
+		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 
-		// TODO: use mLight.mSplits to render shadow splits
-		if (mLight.mShadowMapProgram.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
-			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
+		if (mLight.mShadowMapProgram.SetMat44("uViewProjectionMatrix", mLight.mLightSpaceMatrix) == -1) {
+			gLog ("Warning: Uniform %s not found!", "uViewProjectionMatrix");
 		}
+		
 		RenderScene(mLight.mShadowMapProgram, mLight.mCamera);
-		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, mLight.mCamera.mIsOrthographic);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-//	glCullFace(GL_BACK);
-
-	// Regular rendering
-	glEnable(GL_LINE_SMOOTH);
-	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-	glEnable(GL_MULTISAMPLE);
-	glEnable(GL_CULL_FACE);
+		mLight.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
 
 	glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
-	mCamera.UpdateMatrices();
 
+
+//		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	Matrix44f model_matrix = TranslateMat44(0.0f, 0.0f, 0.0f);
 	Matrix44f model_view_projection = 
 		model_matrix
@@ -788,7 +790,7 @@ void Renderer::RenderGl() {
 		glDrawBuffers(3, buffers);
 		glClear(GL_COLOR_BUFFER_BIT);
 	} else {
-		if (program->SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix) == -1) {
+		if (program->SetMat44("uViewProjectionMatrix", mLight.mLightSpaceMatrix) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
 		}
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
@@ -960,19 +962,13 @@ void Renderer::DebugDrawShadowCascades() {
 		gVertexArray.Bind();
 		glUseProgram(mSimpleProgram.mProgramId);
 
-		Matrix44f view_frustum = 
-			mDebugCamera.mViewMatrix
-			* mDebugCamera.mProjectionMatrix;
-
-		mDebugCamera.UpdateMatrices();
-
 		for (int i = 0; i < cNumSplits; ++i) {
 			const ShadowSplitInfo& split = mLight.mSplits[i];
 			const BBox& bbox_light = split.mBoundsLight;
 			const BBox& bbox_world = split.mBoundsWorld;
 
 			// Draw view split frustum
-			{
+			if (mLight.mDebugDrawSplitViewBounds) {
 				Matrix44f model_view_projection = 
 					split.mViewFrustum.inverse()
 					* mCamera.mViewMatrix
@@ -985,7 +981,7 @@ void Renderer::DebugDrawShadowCascades() {
 
 
 			// Draw bounding boxes in world space 
-			{
+			if (mLight.mDebugDrawSplitWorldBounds) {
 				Vector3f dimensions = (bbox_world.mMax - bbox_world.mMin) * 0.5f;
 				Vector3f center = bbox_world.mMin + dimensions;
 
@@ -1001,7 +997,7 @@ void Renderer::DebugDrawShadowCascades() {
 			}
 
 			// Draw bounding boxes in light space
-			{
+			if (mLight.mDebugDrawSplitLightBounds) {
 				Matrix44f model_view_projection = 
 					mLight.mSplits[i].mFrustum.inverse()
 					* mCamera.mViewMatrix
@@ -1011,7 +1007,20 @@ void Renderer::DebugDrawShadowCascades() {
 				mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 1.0f, 1.0f));
 				gUnitCubeLines.Draw(GL_LINES);
 			}
+
 		}
+
+//		// Draw bounding box in light space
+//		if (mLight.mDebugDrawSplitLightBounds) {
+			Matrix44f model_view_projection = 
+				mLight.mLightSpaceMatrix.inverse()
+				* mCamera.mViewMatrix
+				* mCamera.mProjectionMatrix;
+
+			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
+			gUnitCubeLines.Draw(GL_LINES);
+//		}
 
 		// Disable wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

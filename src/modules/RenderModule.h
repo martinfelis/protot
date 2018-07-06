@@ -40,6 +40,10 @@ struct Light {
 	float mBBoxSize;
 	float mShadowBias = 0.003;
 
+	bool mDebugDrawSplitViewBounds = true;
+	bool mDebugDrawSplitWorldBounds = true;
+	bool mDebugDrawSplitLightBounds = true;
+
 	Matrix44f mLightSpaceMatrix;
 
 	Vector4f mShadowSplits = Vector4f (0.0, 0.1, 0.4, 1.0);
