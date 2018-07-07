@@ -210,12 +210,12 @@ void Light::Initialize() {
 			| RenderTarget::EnableLinearizedDepthTexture);
 
 	for (int i = 0; i < cNumSplits; ++i) {
-		mSplits[i].mShadowMapTarget.Initialize(mShadowMapSize, mShadowMapSize,
+		mSplitTarget[i].Initialize(mShadowMapSize, mShadowMapSize,
 				RenderTarget::EnableColor
 				| RenderTarget::EnableDepthTexture
 				| RenderTarget::EnableLinearizedDepthTexture);
-		mSplits[i].mShadowMapTarget.mVertexArray = &gVertexArray;
-		mSplits[i].mShadowMapTarget.mQuadMesh = &gScreenQuad;
+		mSplitTarget[i].mVertexArray = &gVertexArray;
+		mSplitTarget[i].mQuadMesh = &gScreenQuad;
 	}
 }
 
@@ -257,7 +257,7 @@ void Light::DrawGui() {
 	if (sRendererSettings.ActiveShadowMapSplit == 3) {
 		shadow_split_target = &mShadowMapTarget;
 	} else {
-		shadow_split_target = &mSplits[sRendererSettings.ActiveShadowMapSplit].mShadowMapTarget;
+		shadow_split_target = &mSplitTarget[sRendererSettings.ActiveShadowMapSplit];
 	}
 
 	void* texture;
@@ -295,14 +295,16 @@ void Light::UpdateSplits(const Camera& camera) {
 	Matrix44f light_matrix = LookAt (mPosition, mPosition + mDirection, Vector3f (0.f, 1.0f, 0.0f));
 	Matrix44f light_matrix_inv = light_matrix.inverse();
 
+	mShadowSplits[0] = near;
+	mShadowSplits[1] = near + length * 0.02;
+	mShadowSplits[2] = near + length * 0.2;
+	mShadowSplits[3] = far;
+
 	for (int i = 0; i < cNumSplits; ++i) {
-		ShadowSplitInfo &split = mSplits[i];
+		split_near = mShadowSplits[i];
+		float split_far = mShadowSplits[i + 1];
 
-		split_near = near + mShadowSplits[i] * length;
-		float split_far = near + mShadowSplits[i + 1] * length;
-
-		split.mViewFrustum = 
-			look_at * Perspective (camera.mFov, aspect, split_near, split_far);
+		mSplitViewFrustum[i] = look_at * Perspective (camera.mFov, aspect, split_near, split_far);
 
 		float xn = split_near * tan_half_vfov;
 		float xf = split_far * tan_half_vfov;
@@ -338,8 +340,8 @@ void Light::UpdateSplits(const Camera& camera) {
 			bbox_light.Update(v_light.block<3,1>(0,0));
 		}
 
-		split.mBoundsWorld = bbox_world;
-		split.mBoundsLight = bbox_light;
+		mSplitBoundsWorldSpace[i] = bbox_world;
+		mSplitBoundsLightSpace[i] = bbox_light;
 
 		//			gLog ("min/max %.3f,%.3f, %.3f,%.3f, %.3f,%.3f", 
 		//					min_x, max_x,
@@ -352,11 +354,11 @@ void Light::UpdateSplits(const Camera& camera) {
 			Vector3f dimensions = (bbox_light.mMax - bbox_light.mMin) * 0.5f;
 			Vector3f center = bbox_light.mMin + dimensions;
 
-			split.mCamera.mIsOrthographic = true;
-			split.mCamera.mViewMatrix =	light_matrix;
+			mSplitCamera[i].mIsOrthographic = true;
+			mSplitCamera[i].mViewMatrix = light_matrix;
 
 			// TODO: values for near and far planes are off
-			split.mCamera.mProjectionMatrix = Ortho (
+			mSplitCamera[i].mProjectionMatrix = Ortho (
 					bbox_light.mMin[0], bbox_light.mMax[0],
 					bbox_light.mMin[1], bbox_light.mMax[1],
 					//											mLight.mNear, bbox_light.mMax[2]
@@ -365,9 +367,8 @@ void Light::UpdateSplits(const Camera& camera) {
 //					bbox_light.mMin[2], bbox_light.mMax[2]
 					);
 
-			split.mFrustum = 
-				split.mCamera.mViewMatrix
-				* split.mCamera.mProjectionMatrix;
+			mSplitLightFrustum[i] = mSplitCamera[i].mViewMatrix
+				* mSplitCamera[i].mProjectionMatrix;
 		}
 	}
 }
@@ -643,8 +644,8 @@ void Renderer::Initialize(int width, int height) {
 	mLight.mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
 
 	for (int i = 0; i < cNumSplits; ++i) {
-		mLight.mSplits[i].mShadowMapTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
-		mLight.mSplits[i].mShadowMapTarget.mLinearizeDepthProgram.RegisterFileModification();
+		mLight.mSplitTarget[i].mLinearizeDepthProgram = mRenderQuadProgramDepth;
+		mLight.mSplitTarget[i].mLinearizeDepthProgram.RegisterFileModification();
 	}
 
 	// Model
@@ -726,24 +727,24 @@ void Renderer::RenderGl() {
 
 	mCamera.UpdateMatrices();
 	mLight.UpdateMatrices();
-	mLight.UpdateSplits(mDebugCamera);
+	mLight.UpdateSplits(mCamera);
 
 	// Cascaded Shadow Maps
 	for (int i = 0; i < cNumSplits; i++) {
-		ShadowSplitInfo &split = mLight.mSplits[i];
-		split.mShadowMapTarget.Bind();
+
+		mLight.mSplitTarget[i].Bind();
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
 		glUseProgram(mLight.mShadowMapProgram.mProgramId);
 		glViewport(0, 0, mLight.mShadowMapSize, mLight.mShadowMapSize);
 
-		if (mLight.mShadowMapProgram.SetMat44("uViewProjectionMatrix", split.mFrustum) == -1) {
+		if (mLight.mShadowMapProgram.SetMat44("uViewProjectionMatrix", mLight.mSplitLightFrustum[i]) == -1) {
 			gLog ("Warning: Uniform %s not found!", "uViewProjectionMatrix");
 		}
 		
-		RenderScene(mLight.mShadowMapProgram, split.mCamera);
-		split.mShadowMapTarget.RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
+		RenderScene(mLight.mShadowMapProgram, mLight.mSplitCamera[i]);
+		mLight.mSplitTarget[i].RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
 //		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
@@ -766,8 +767,6 @@ void Renderer::RenderGl() {
 
 	glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 
-
-//		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	Matrix44f model_matrix = TranslateMat44(0.0f, 0.0f, 0.0f);
 	Matrix44f model_view_projection = 
 		model_matrix
@@ -901,34 +900,54 @@ void Renderer::RenderGl() {
 		glClear(GL_COLOR_BUFFER_BIT);
 	
 		glUseProgram(mDeferredLighting.mProgramId);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
-		mDeferredLighting.SetInt("uColorTexture", 0);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
-		mDeferredLighting.SetInt("uNormal", 1);
-
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
-		mDeferredLighting.SetInt("uDepth", 2);
-
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
-		mDeferredLighting.SetInt("uShadowMap", 3);
-
-		mDeferredLighting.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix);
-		Matrix44f view_to_light_matrix = mCamera.mViewMatrix.inverse() * mLight.mLightSpaceMatrix;
-		mDeferredLighting.SetMat44("uViewToLightSpaceMatrix", view_to_light_matrix);
 
 		// TODO: remove and reconstruct position from depth
-		glActiveTexture(GL_TEXTURE4);
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mPositionTexture);
-		mDeferredLighting.SetInt("uPosition", 4);
+		mDeferredLighting.SetInt("uPosition", 0);
 
-		glActiveTexture(GL_TEXTURE5);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
+		mDeferredLighting.SetInt("uDepth", 1);
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
+		mDeferredLighting.SetInt("uNormal", 2);
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+		mDeferredLighting.SetInt("uColor", 3);
+
+		glActiveTexture(GL_TEXTURE4);
 		glBindTexture(GL_TEXTURE_2D, mSSAOBlurTarget.mColorTexture);
-		mDeferredLighting.SetInt("uAmbientOcclusion", 5);
+		mDeferredLighting.SetInt("uAmbientOcclusion", 4);
+
+		// Shadow Map Cascades
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[0].mDepthTexture);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[1].mDepthTexture);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[2].mDepthTexture);
+
+		GLint shadow_maps[3];
+		shadow_maps[0] = 5;
+		shadow_maps[1] = 6;
+		shadow_maps[2] = 7;
+		mDeferredLighting.SetIntArray("uShadowMap", 3, shadow_maps);
+
+		Matrix44f light_matrices[3];
+
+		for (int i = 0; i < cNumSplits; ++i) {
+			light_matrices[i] = mCamera.mViewMatrix.inverse() 
+				* mLight.mSplitLightFrustum[i];
+		}
+
+		mDeferredLighting.SetMat44Array("uViewToLightMatrix", 3, light_matrices);
+
+		mDeferredLighting.SetFloat("uNear", mCamera.mNear);
+		mDeferredLighting.SetFloat("uFar", mCamera.mFar);
+		mDeferredLighting.SetVec4("uShadowSplits", mLight.mShadowSplits);
 
 		mDeferredLighting.SetMat44("uViewMatrix", mCamera.mViewMatrix);
 		Matrix33f view_mat_rot = mCamera.mViewMatrix.block<3,3>(0,0);
@@ -963,14 +982,13 @@ void Renderer::DebugDrawShadowCascades() {
 		glUseProgram(mSimpleProgram.mProgramId);
 
 		for (int i = 0; i < cNumSplits; ++i) {
-			const ShadowSplitInfo& split = mLight.mSplits[i];
-			const BBox& bbox_light = split.mBoundsLight;
-			const BBox& bbox_world = split.mBoundsWorld;
+			const BBox& bbox_light = mLight.mSplitBoundsLightSpace[i];
+			const BBox& bbox_world = mLight.mSplitBoundsWorldSpace[i];
 
 			// Draw view split frustum
 			if (mLight.mDebugDrawSplitViewBounds) {
-				Matrix44f model_view_projection = 
-					split.mViewFrustum.inverse()
+				Matrix44f model_view_projection =
+					mLight.mSplitViewFrustum[i].inverse()
 					* mCamera.mViewMatrix
 					* mCamera.mProjectionMatrix;
 
@@ -999,7 +1017,7 @@ void Renderer::DebugDrawShadowCascades() {
 			// Draw bounding boxes in light space
 			if (mLight.mDebugDrawSplitLightBounds) {
 				Matrix44f model_view_projection = 
-					mLight.mSplits[i].mFrustum.inverse()
+					mLight.mSplitLightFrustum[i].inverse()
 					* mCamera.mViewMatrix
 					* mCamera.mProjectionMatrix;
 
@@ -1007,19 +1025,18 @@ void Renderer::DebugDrawShadowCascades() {
 				mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 1.0f, 1.0f));
 				gUnitCubeLines.Draw(GL_LINES);
 			}
-
 		}
 
 //		// Draw bounding box in light space
 //		if (mLight.mDebugDrawSplitLightBounds) {
-			Matrix44f model_view_projection = 
-				mLight.mLightSpaceMatrix.inverse()
-				* mCamera.mViewMatrix
-				* mCamera.mProjectionMatrix;
-
-			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
-			gUnitCubeLines.Draw(GL_LINES);
+//			Matrix44f model_view_projection = 
+//				mLight.mLightSpaceMatrix.inverse()
+//				* mCamera.mViewMatrix
+//				* mCamera.mProjectionMatrix;
+//
+//			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
+//			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
+//			gUnitCubeLines.Draw(GL_LINES);
 //		}
 
 		// Disable wireframe
@@ -1043,7 +1060,6 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetMat33("uNormalMatrix", normal_matrix);
 
   program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
-//	program.SetVec3("uLightDirection", light_dir.normalize());
 	program.SetVec3("uLightDirection", mLight.mDirection);
 	program.SetVec3("uViewPosition", camera.mEye);
 	

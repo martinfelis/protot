@@ -232,6 +232,11 @@ struct RenderProgram : AFileModificationListener {
 		glUniform1i(location, val);
 		return location;
 	}
+	GLint SetIntArray(const char* name, const int count, const int* array) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform1iv(location, count, array);
+		return location;
+	}
 	GLint SetFloat(const char* name, const float& val) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform1f(location, val);
@@ -242,7 +247,7 @@ struct RenderProgram : AFileModificationListener {
 		glUniform3fv(location, 1, vec.data()); 
 		return location;
 	}
-	GLint SetVec3Array(const char* name, int count, const float* array) {
+	GLint SetVec3Array(const char* name, const int count, const float* array) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform3fv(location, count, array); 
 		return location;
@@ -260,6 +265,11 @@ struct RenderProgram : AFileModificationListener {
 	GLint SetMat44 (const char* name, const Matrix44f& mat) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniformMatrix4fv(location, 1, GL_FALSE, mat.data()); 
+		return location;
+	}
+	GLint SetMat44Array (const char* name, int count, const Matrix44f* mat_array) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniformMatrix4fv(location, count, GL_FALSE, mat_array[0].data());
 		return location;
 	}
 	GLint SetMat33 (const char* name, const Matrix33f& mat) {
