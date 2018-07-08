@@ -231,7 +231,11 @@ int main(void)
 
 		ImGui::Render();
 
-		usleep(16000);
+		// Send the application to sleep if we have some time left for this frame 
+		double frame_target_time = 1.0 / module_manager.mTargetFPS;
+		if (frame_delta_time < frame_target_time) {
+			usleep ((frame_target_time - frame_delta_time) * 1000000 * 0.98);
+		}
 
 		if (glfwGetKey(gWindow, GLFW_KEY_F5) == GLFW_PRESS) {
 			gFileModificationObserver->Update();

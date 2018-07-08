@@ -280,7 +280,10 @@ void Light::UpdateSplits(const Camera& camera) {
 	assert(camera.mIsOrthographic == false);
 
 	float near = camera.mNear;
-	float far = camera.mFar;
+	// Clamp the far plane of the camera so that we only 
+	// create shadow maps for things that are relatively near
+	// the camera.
+	float far = fmin(camera.mFar, 10.0f);
 	float length = far - near;
 	float split_near = near;
 	float aspect = camera.mWidth / camera.mHeight;
@@ -296,8 +299,8 @@ void Light::UpdateSplits(const Camera& camera) {
 	Matrix44f light_matrix_inv = light_matrix.inverse();
 
 	mShadowSplits[0] = near;
-	mShadowSplits[1] = near + length * 0.02;
-	mShadowSplits[2] = near + length * 0.2;
+	mShadowSplits[1] = near + length * 0.1;
+	mShadowSplits[2] = near + length * 0.25;
 	mShadowSplits[3] = far;
 
 	for (int i = 0; i < cNumSplits; ++i) {
