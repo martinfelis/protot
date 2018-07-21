@@ -285,7 +285,10 @@ void Light::UpdateSplits(const Camera& camera) {
 	assert(camera.mIsOrthographic == false);
 
 	float near = camera.mNear;
-	float far = camera.mFar;
+	// Clamp the far plane of the camera so that we only 
+	// create shadow maps for things that are relatively near
+	// the camera.
+	float far = fmin(camera.mFar, 10.0f);
 	float length = far - near;
 	float split_near = near;
 	float aspect = camera.mWidth / camera.mHeight;

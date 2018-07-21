@@ -23,6 +23,7 @@ struct RuntimeModule {
 struct RuntimeModuleManager {
 	std::vector<RuntimeModule*> mModules;
 	int mNumUpdatesSinceLastModuleChange = 0;
+	int mTargetFPS = 30;
 
 	void RegisterModule(const char* name);
 	void UnregisterModules();
