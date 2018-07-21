@@ -39,12 +39,13 @@ struct Light {
 
 	Vector4f mShadowSplits = Vector4f (0.0, 0.1, 0.4, 1.0);
 
-	Matrix44f mSplitViewFrustum[3];
-	Matrix44f mSplitLightFrustum[3];
-	RenderTarget mSplitTarget[3];
-	BBox mSplitBoundsLightSpace[3];
-	BBox mSplitBoundsWorldSpace[3];
-	Camera mSplitCamera[3];
+	Matrix44f mSplitViewFrustum[4];
+	Matrix44f mSplitLightFrustum[4];
+	Vector4f mSplitBias = Vector4f (0.001f, 0.001f, 0.001f, 0.001f);
+	RenderTarget mSplitTarget[4];
+	BBox mSplitBoundsLightSpace[4];
+	BBox mSplitBoundsWorldSpace[4];
+	Camera mSplitCamera[4];
 
 	Light() :
 		mPosition (Vector3f(0.f, 3, 0.0f)),

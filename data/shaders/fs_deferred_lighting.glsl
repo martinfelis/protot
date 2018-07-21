@@ -6,7 +6,7 @@ uniform sampler2D uNormal;
 uniform sampler2D uColor;
 uniform sampler2D uAmbientOcclusion;
 
-const int NUM_SPLITS = 3;
+const int NUM_SPLITS = 4;
 
 #define USE_SAMPLER2D_SHADOW 1
 
@@ -21,6 +21,7 @@ uniform mat4 uViewToLightMatrix[NUM_SPLITS];
 uniform float uNear;
 uniform float uFar;
 uniform vec4 uShadowSplits;
+uniform vec4 uShadowSplitBias;
 uniform vec3 uLightDirection;
 uniform float uShadowBias;
 
@@ -29,9 +30,9 @@ in vec2 ioFragTexCoords;
 out vec3 outColor;
 
 #ifdef USE_SAMPLER2D_SHADOW
-float ShadowCalculationPCF(sampler2DShadow shadow_map, vec4 frag_pos_light_space, vec3 frag_normal_light_space) {
+float ShadowCalculationPCF(sampler2DShadow shadow_map, vec4 frag_pos_light_space, vec3 frag_normal_light_space, float shadow_bias) {
 #else
-float ShadowCalculationPCF(sampler2D shadow_map, vec4 frag_pos_light_space, vec3 frag_normal_light_space) {
+float ShadowCalculationPCF(sampler2D shadow_map, vec4 frag_pos_light_space, vec3 frag_normal_light_space, float shadow_bias) {
 #endif
 	vec3 projected_coordinates = frag_pos_light_space.xyz / frag_pos_light_space.w;
 	projected_coordinates = projected_coordinates * 0.5 + 0.5;
@@ -43,7 +44,7 @@ float ShadowCalculationPCF(sampler2D shadow_map, vec4 frag_pos_light_space, vec3
 	float current_depth = projected_coordinates.z;
 
 	float bias = 0.00;
-	bias = max(0.001 * (1.0 - dot(frag_normal_light_space, uLightDirection)), uShadowBias);
+	bias = max(shadow_bias * (1.0 - dot(frag_normal_light_space, uLightDirection)), shadow_bias);
 
 	float shadow = 0.0;
 	vec2 texel_size = 1.0 / textureSize(shadow_map, 0);
@@ -101,19 +102,23 @@ void main() {
 	float shadow = 0;
 	float normalized_depth = (depth - uNear) / (uFar - uNear);
 
-	if (-position.z < uShadowSplits[1]) {
+	if (-position.z < uShadowSplits[0]) {
 		// shadow (need to transform position and normal to light space)
 		vec4 position_light_space = uViewToLightMatrix[0] * vec4(position, 1.0);
 		vec3 normal_light_space = (transpose(inverse(uViewToLightMatrix[0])) * vec4(normal, 1.0)).xyz;
-		shadow = ShadowCalculationPCF(uShadowMap[0], position_light_space, normal);
-	} else if (-position.z< uShadowSplits[2]) {
+		shadow = ShadowCalculationPCF(uShadowMap[0], position_light_space, normal, uShadowSplitBias[0]);
+	} else if (-position.z< uShadowSplits[1]) {
 		vec4 position_light_space = uViewToLightMatrix[1] * vec4(position, 1.0);
 		vec3 normal_light_space = (transpose(inverse(uViewToLightMatrix[1])) * vec4(normal, 1.0)).xyz;
-		shadow = ShadowCalculationPCF(uShadowMap[1], position_light_space, normal);
-	} else {
+		shadow = ShadowCalculationPCF(uShadowMap[1], position_light_space, normal, uShadowSplitBias[1]);
+	} else if (-position.z< uShadowSplits[2]) {
 		vec4 position_light_space = uViewToLightMatrix[2] * vec4(position, 1.0);
 		vec3 normal_light_space = (transpose(inverse(uViewToLightMatrix[2])) * vec4(normal, 1.0)).xyz;
-		shadow = ShadowCalculationPCF(uShadowMap[2], position_light_space, normal);
+		shadow = ShadowCalculationPCF(uShadowMap[2], position_light_space, normal, uShadowSplitBias[2]);
+	} else {
+		vec4 position_light_space = uViewToLightMatrix[3] * vec4(position, 1.0);
+		vec3 normal_light_space = (transpose(inverse(uViewToLightMatrix[3])) * vec4(normal, 1.0)).xyz;
+		shadow = ShadowCalculationPCF(uShadowMap[3], position_light_space, normal, uShadowSplitBias[3]);
 	}
 
 //	vec3 cascade = get_cascade_color(-position.z);

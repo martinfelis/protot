@@ -15,7 +15,7 @@ using namespace SimpleMath::GL;
 struct Renderer;
 
 float moving_factor = 1.0f;
-const int cNumSplits = 3;
+const int cNumSplits = 4;
 
 struct RendererSettings {
 	bool DrawLightDepth = false;
@@ -134,6 +134,9 @@ static void module_serialize (
 	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitViewBounds", gRenderer->mLight.mDebugDrawSplitViewBounds);
 	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitWorldBounds", gRenderer->mLight.mDebugDrawSplitWorldBounds);
 	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitLightBounds", gRenderer->mLight.mDebugDrawSplitLightBounds);
+	SerializeVec4 (*serializer, "protot.RenderModule.mLight.mSplitBias", gRenderer->mLight.mSplitBias);
+	SerializeVec4 (*serializer, "protot.RenderModule.mLight.mShadowSplits", gRenderer->mLight.mShadowSplits);
+
 }
 
 static void module_finalize(struct module_state *state) {
@@ -239,6 +242,7 @@ void Light::DrawGui() {
 	ImGui::SliderFloat("Near", &mNear, -10.0f, 50.0f);
 	ImGui::SliderFloat("Far", &mFar, -10.0f, 50.0f);
 	ImGui::SliderFloat("Shadow Bias", &mShadowBias, 0.0f, 0.01f, "%.5f", 1.0f);
+	ImGui::SliderFloat4("Shadow Splits Bias", mSplitBias.data(), 0.0f, 0.01f, "%.5f", 1.0f);
 	ImGui::SliderFloat4("Shadow Splits", mShadowSplits.data(), 0.01f, 1.0f);
 
 	ImGui::Checkbox("Draw Split View Bounds", &mDebugDrawSplitViewBounds);
@@ -250,11 +254,12 @@ void Light::DrawGui() {
 	ImGui::RadioButton("Split 0", &sRendererSettings.ActiveShadowMapSplit, 0); ImGui::SameLine();
 	ImGui::RadioButton("Split 1", &sRendererSettings.ActiveShadowMapSplit, 1); ImGui::SameLine();
 	ImGui::RadioButton("Split 2", &sRendererSettings.ActiveShadowMapSplit, 2); ImGui::SameLine();
-	ImGui::RadioButton("Default", &sRendererSettings.ActiveShadowMapSplit, 3); 
+	ImGui::RadioButton("Split 3", &sRendererSettings.ActiveShadowMapSplit, 3); ImGui::SameLine();
+	ImGui::RadioButton("Default", &sRendererSettings.ActiveShadowMapSplit, 4); 
 
 	RenderTarget* shadow_split_target = nullptr;
 
-	if (sRendererSettings.ActiveShadowMapSplit == 3) {
+	if (sRendererSettings.ActiveShadowMapSplit == 4) {
 		shadow_split_target = &mShadowMapTarget;
 	} else {
 		shadow_split_target = &mSplitTarget[sRendererSettings.ActiveShadowMapSplit];
@@ -295,14 +300,16 @@ void Light::UpdateSplits(const Camera& camera) {
 	Matrix44f light_matrix = LookAt (mPosition, mPosition + mDirection, Vector3f (0.f, 1.0f, 0.0f));
 	Matrix44f light_matrix_inv = light_matrix.inverse();
 
-	mShadowSplits[0] = near;
-	mShadowSplits[1] = near + length * 0.02;
-	mShadowSplits[2] = near + length * 0.2;
+	mShadowSplits[0] = near + length * 0.02;
+	mShadowSplits[1] = near + length * 0.1;
+	mShadowSplits[2] = near + length * 0.3;
 	mShadowSplits[3] = far;
 
+	float prev_split_far = near;
+
 	for (int i = 0; i < cNumSplits; ++i) {
-		split_near = mShadowSplits[i];
-		float split_far = mShadowSplits[i + 1];
+		split_near = prev_split_far;
+		float split_far = mShadowSplits[i];
 
 		mSplitViewFrustum[i] = look_at * Perspective (camera.mFov, aspect, split_near, split_far);
 
@@ -369,6 +376,8 @@ void Light::UpdateSplits(const Camera& camera) {
 
 			mSplitLightFrustum[i] = mSplitCamera[i].mViewMatrix
 				* mSplitCamera[i].mProjectionMatrix;
+			
+			prev_split_far = split_far;
 		}
 	}
 }
@@ -929,12 +938,15 @@ void Renderer::RenderGl() {
 		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[1].mDepthTexture);
 		glActiveTexture(GL_TEXTURE7);
 		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[2].mDepthTexture);
+		glActiveTexture(GL_TEXTURE8);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[3].mDepthTexture);
 
-		GLint shadow_maps[3];
+		GLint shadow_maps[4];
 		shadow_maps[0] = 5;
 		shadow_maps[1] = 6;
 		shadow_maps[2] = 7;
-		mDeferredLighting.SetIntArray("uShadowMap", 3, shadow_maps);
+		shadow_maps[3] = 8;
+		mDeferredLighting.SetIntArray("uShadowMap", cNumSplits, shadow_maps);
 
 		Matrix44f light_matrices[3];
 
@@ -943,11 +955,12 @@ void Renderer::RenderGl() {
 				* mLight.mSplitLightFrustum[i];
 		}
 
-		mDeferredLighting.SetMat44Array("uViewToLightMatrix", 3, light_matrices);
+		mDeferredLighting.SetMat44Array("uViewToLightMatrix", cNumSplits, light_matrices);
 
 		mDeferredLighting.SetFloat("uNear", mCamera.mNear);
 		mDeferredLighting.SetFloat("uFar", mCamera.mFar);
 		mDeferredLighting.SetVec4("uShadowSplits", mLight.mShadowSplits);
+		mDeferredLighting.SetVec4("uShadowSplitBias", mLight.mSplitBias);
 
 		mDeferredLighting.SetMat44("uViewMatrix", mCamera.mViewMatrix);
 		Matrix33f view_mat_rot = mCamera.mViewMatrix.block<3,3>(0,0);
