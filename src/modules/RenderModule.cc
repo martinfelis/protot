@@ -635,9 +635,6 @@ void Renderer::Initialize(int width, int height) {
 	mSSAOTarget.Initialize(width, height, RenderTarget::EnableColor);
 	mSSAOBlurTarget.Initialize(width, height, RenderTarget::EnableColor);
 
-	// Postprocess Target
-	mPostprocessTarget.Initialize(width, height, RenderTarget::EnableColor);
-
 	mDeferredLightingTarget.Initialize(width, height, RenderTarget::EnableColor);
 
 	// Light
@@ -694,7 +691,6 @@ void Renderer::CheckRenderBuffers() {
 			|| mSceneAreaHeight != mRenderTarget.mHeight
 			|| mRenderTarget.mFlags != required_render_flags ) {
 		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
-		mPostprocessTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 
 		if (mUseDeferred) {
 			mDeferredLightingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
@@ -787,9 +783,6 @@ void Renderer::RenderGl() {
 		glDrawBuffers(3, buffers);
 		glClear(GL_COLOR_BUFFER_BIT);
 	} else {
-		if (program->SetMat44("uViewProjectionMatrix", mLight.mLightSpaceMatrix) == -1) {
-			gLog ("Warning: Uniform %s not found!", "uLightSpaceMatrix");
-		}
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
 		glDrawBuffers (1, buffers);
 	}
@@ -976,8 +969,30 @@ void Renderer::RenderGl() {
 		gScreenQuad.Draw(GL_TRIANGLES);
 	}
 
-	if (mDrawDebugCamera && mUseDeferred) {
+	if (mDrawDebugCamera) {
 		DebugDrawShadowCascades();
+	}
+
+	if (mUseDeferred) {
+		// Blit the deferred result onto the main render target
+//		glBindFramebuffer
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, mDeferredLightingTarget.mFrameBufferId);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
+		glDrawBuffers (1, buffers);
+
+		glBlitFramebuffer(
+				0, mDeferredLightingTarget.mWidth,
+				0, mDeferredLightingTarget.mHeight,
+				0, mRenderTarget.mWidth,
+				0, mRenderTarget.mHeight,
+				GL_COLOR_BUFFER_BIT,
+				GL_NEAREST
+				);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	}
 }
 
@@ -1125,8 +1140,10 @@ void Renderer::DrawGui() {
 
 		switch (sRendererSettings.RenderMode) {
 			case SceneRenderModeDefault:	
-				mRenderTextureRef.mTextureIdPtr =
-					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mPostprocessTarget.mColorTexture;
+				mRenderTextureRef.mTextureIdPtr = 
+					&mRenderTarget.mColorTexture;
+//					&mDeferredLightingTarget.mColorTexture;
+//					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mRenderTarget.mColorTexture;
 				break;
 			case SceneRenderModeColor:	
 				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;

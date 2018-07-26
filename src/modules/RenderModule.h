@@ -100,7 +100,6 @@ struct Renderer {
 	RenderTarget mDeferredLightingTarget;
 	RenderTarget mSSAOTarget;
 	RenderTarget mSSAOBlurTarget;
-	RenderTarget mPostprocessTarget;
 
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
 	GLTextureRef mPositionTextureRef = { (int)0xbadface };
