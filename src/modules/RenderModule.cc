@@ -238,32 +238,24 @@ void Light::UpdateMatrices() {
 void Light::DrawGui() {
 	ImGui::SliderFloat3("Position", mPosition.data(), -10.0f, 10.0f);
 	ImGui::SliderFloat3("Direction", mDirection.data(), -1.0f, 1.0f);
-	ImGui::SliderFloat("Volume Size", &mBBoxSize, 1.0f, 50.0f);
 	ImGui::SliderFloat("Near", &mNear, -10.0f, 50.0f);
 	ImGui::SliderFloat("Far", &mFar, -10.0f, 50.0f);
-	ImGui::SliderFloat("Shadow Bias", &mShadowBias, 0.0f, 0.01f, "%.5f", 1.0f);
 	ImGui::SliderFloat4("Shadow Splits Bias", mSplitBias.data(), 0.0f, 0.01f, "%.5f", 1.0f);
 	ImGui::SliderFloat4("Shadow Splits", mShadowSplits.data(), 0.01f, 1.0f);
 
-	ImGui::Checkbox("Draw Split View Bounds", &mDebugDrawSplitViewBounds);
-	ImGui::Checkbox("Draw Split World Bounds", &mDebugDrawSplitWorldBounds);
-	ImGui::Checkbox("Draw Split Light Bounds", &mDebugDrawSplitLightBounds);
+	bool show_cascades = mShowCascadesAlpha == 0.0f ? false : true;
+	ImGui::Checkbox("ShowCascades", &show_cascades);
+	mShowCascadesAlpha = show_cascades ? 1.0 : 0.0f;
 
 	ImGui::Checkbox("Draw Light Depth", &sRendererSettings.DrawLightDepth);
 
 	ImGui::RadioButton("Split 0", &sRendererSettings.ActiveShadowMapSplit, 0); ImGui::SameLine();
 	ImGui::RadioButton("Split 1", &sRendererSettings.ActiveShadowMapSplit, 1); ImGui::SameLine();
 	ImGui::RadioButton("Split 2", &sRendererSettings.ActiveShadowMapSplit, 2); ImGui::SameLine();
-	ImGui::RadioButton("Split 3", &sRendererSettings.ActiveShadowMapSplit, 3); ImGui::SameLine();
-	ImGui::RadioButton("Default", &sRendererSettings.ActiveShadowMapSplit, 4); 
+	ImGui::RadioButton("Split 3", &sRendererSettings.ActiveShadowMapSplit, 3);
 
 	RenderTarget* shadow_split_target = nullptr;
-
-	if (sRendererSettings.ActiveShadowMapSplit == 4) {
-		shadow_split_target = &mShadowMapTarget;
-	} else {
-		shadow_split_target = &mSplitTarget[sRendererSettings.ActiveShadowMapSplit];
-	}
+	shadow_split_target = &mSplitTarget[sRendererSettings.ActiveShadowMapSplit];
 
 	void* texture;
 	if (sRendererSettings.DrawLightDepth) {
@@ -288,7 +280,7 @@ void Light::UpdateSplits(const Camera& camera) {
 	// Clamp the far plane of the camera so that we only 
 	// create shadow maps for things that are relatively near
 	// the camera.
-	float far = fmin(camera.mFar, 10.0f);
+	float far = camera.mFar;
 	float length = far - near;
 	float split_near = near;
 	float aspect = camera.mWidth / camera.mHeight;
@@ -728,13 +720,8 @@ void Renderer::RenderGl() {
 		mDebugCamera.mHeight = mSceneAreaHeight;
 	}
 
-//	mDebugCamera.mEye = Vector3d(-4.0f, 4.4f, 0.0f);
-//	mDebugCamera.mPoi = Vector3d(-3.2f, 3.8f, 0.2f);
-//	mDebugCamera.mUp = Vector3d(0.0f, 1.0f, 0.0f);
 	mDebugCamera.mWidth = 300.0f;
 	mDebugCamera.mHeight = 300.0f;
-//	mDebugCamera.mNear = 0.8f;
-//	mDebugCamera.mFar = 10.0f;
 	mDebugCamera.UpdateMatrices();
 
 	mCamera.UpdateMatrices();
@@ -757,7 +744,6 @@ void Renderer::RenderGl() {
 		
 		RenderScene(mLight.mShadowMapProgram, mLight.mSplitCamera[i]);
 		mLight.mSplitTarget[i].RenderToLinearizedDepth(mLight.mCamera.mNear, mLight.mCamera.mFar, true);
-//		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	// Shadow Map
@@ -903,12 +889,24 @@ void Renderer::RenderGl() {
 		gScreenQuad.Draw(GL_TRIANGLES);
 	}
 
+	if (!mIsSSAOEnabled) {
+		mSSAOBlurTarget.Bind();
+		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
+		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, draw_attachment_0);
+		glClearColor(255, 255, 255, 255);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+		gScreenQuad.Draw(GL_TRIANGLES);
+	}
+
 	if (mUseDeferred) {
 		// Deferred: Lighting pass
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
 		glDrawBuffers (1, buffers);
 
 		mDeferredLightingTarget.Bind();
+		glClearColor(0, 0, 0, 255);
 		glClear(GL_COLOR_BUFFER_BIT);
 	
 		glUseProgram(mDeferredLighting.mProgramId);
@@ -964,6 +962,7 @@ void Renderer::RenderGl() {
 		mDeferredLighting.SetFloat("uFar", mCamera.mFar);
 		mDeferredLighting.SetVec4("uShadowSplits", mLight.mShadowSplits);
 		mDeferredLighting.SetVec4("uShadowSplitBias", mLight.mSplitBias);
+		mDeferredLighting.SetFloat("uShowCascadesAlpha", mLight.mShowCascadesAlpha);
 
 		mDeferredLighting.SetMat44("uViewMatrix", mCamera.mViewMatrix);
 		Matrix33f view_mat_rot = mCamera.mViewMatrix.block<3,3>(0,0);
@@ -1043,18 +1042,6 @@ void Renderer::DebugDrawShadowCascades() {
 			}
 		}
 
-//		// Draw bounding box in light space
-//		if (mLight.mDebugDrawSplitLightBounds) {
-//			Matrix44f model_view_projection = 
-//				mLight.mLightSpaceMatrix.inverse()
-//				* mCamera.mViewMatrix
-//				* mCamera.mProjectionMatrix;
-//
-//			mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
-//			mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 1.0f, 1.0f, 1.0f));
-//			gUnitCubeLines.Draw(GL_LINES);
-//		}
-
 		// Disable wireframe
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glEnable(GL_CULL_FACE);
@@ -1133,12 +1120,8 @@ void Renderer::DrawGui() {
 		ImGui::RadioButton("Color", &sRendererSettings.RenderMode, 1); ImGui::SameLine();
 		ImGui::RadioButton("Depth", &sRendererSettings.RenderMode, 2); ImGui::SameLine();
 		ImGui::RadioButton("Normals", &sRendererSettings.RenderMode, 3); ImGui::SameLine();
-		ImGui::RadioButton("Positions", &sRendererSettings.RenderMode, 4); 
-		
-		if (mIsSSAOEnabled) {
-			ImGui::SameLine();
-			ImGui::RadioButton("AO", &sRendererSettings.RenderMode, 5);
-		};
+		ImGui::RadioButton("Positions", &sRendererSettings.RenderMode, 4); ImGui::SameLine();
+		ImGui::RadioButton("AO", &sRendererSettings.RenderMode, 5);
 
 		switch (sRendererSettings.RenderMode) {
 			case SceneRenderModeDefault:	
@@ -1185,14 +1168,7 @@ void Renderer::DrawGui() {
 	if (ImGui::BeginDock("Render Settings")) {
 		ImGui::Text("Camera");
 
-		ImGui::RadioButton("Main", &sRendererSettings.ActiveCameraDebugUi, 0); ImGui::SameLine();
-		ImGui::RadioButton("Debug1", &sRendererSettings.ActiveCameraDebugUi, 1); 
-
-		if (sRendererSettings.ActiveCameraDebugUi == 0) {
-			mCamera.DrawGui();
-		} else {
-			mDebugCamera.DrawGui();
-		}
+		mCamera.DrawGui();
 
 		ImGui::Checkbox("Enable Deferred", &mUseDeferred);
 		ImGui::Checkbox("Enable SSAO", &mIsSSAOEnabled);
@@ -1208,26 +1184,6 @@ void Renderer::DrawGui() {
 			if (mSSAOKernelSize != mSSAOKernel.size()) {
 				InitializeSSAOKernelAndNoise();
 			}
-
-			ImGui::Text("Position Texture");
-			mPositionTextureRef.mTextureIdPtr = &mRenderTarget.mPositionTexture;
-			mPositionTextureRef.magic = (GLuint)0xbadface;
-			float aspect = mRenderTarget.mHeight / mRenderTarget.mWidth;
-			ImVec2 content_avail = ImGui::GetContentRegionAvail();
-			ImGui::Image((void*) &mPositionTextureRef,
-					ImVec2(content_avail.x, content_avail.x * aspect),
-					ImVec2(0.0f, 1.0f),
-					ImVec2(1.0f, 0.0f)
-					);
-
-			ImGui::Text("Normal Texture");
-			mNormalTextureRef.mTextureIdPtr = &mRenderTarget.mNormalTexture;
-			mNormalTextureRef.magic = (GLuint)0xbadface;
-			ImGui::Image((void*) &mNormalTextureRef,
-					ImVec2(content_avail.x, content_avail.x * aspect),
-					ImVec2(0.0f, 1.0f),
-					ImVec2(1.0f, 0.0f)
-					);
 		}
 	}
 	ImGui::EndDock();

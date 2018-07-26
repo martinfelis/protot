@@ -20,6 +20,7 @@ uniform mat4 uViewToLightMatrix[NUM_SPLITS];
 
 uniform float uNear;
 uniform float uFar;
+uniform float uShowCascadesAlpha;
 uniform vec4 uShadowSplits;
 uniform vec4 uShadowSplitBias;
 uniform vec3 uLightDirection;
@@ -66,11 +67,13 @@ float ShadowCalculationPCF(sampler2D shadow_map, vec4 frag_pos_light_space, vec3
 }
 
 vec3 get_cascade_color (float depth) {
-	if (depth < uShadowSplits[1]) {
+	if (depth < uShadowSplits[0]) {
 		return vec3 (1.0, 0.0, 0.0);
+	} else if (depth < uShadowSplits[1]) {
+		return vec3 (1.0, 1.0, 0.0);
 	} else if (depth < uShadowSplits[2]) {
 		return vec3 (0.0, 1.0, 0.0);
-	} 
+	}
 
 	return vec3 (0.0, 0.0, 1.0);
 }
@@ -121,9 +124,10 @@ void main() {
 		shadow = ShadowCalculationPCF(uShadowMap[3], position_light_space, normal, uShadowSplitBias[3]);
 	}
 
-//	vec3 cascade = get_cascade_color(-position.z);
-//	ambient = cascade;
+	vec3 cascade = get_cascade_color(-position.z);
+	ambient = (uShowCascadesAlpha * cascade) + (1.0 - uShowCascadesAlpha) * ambient;
 	outColor = (ambient + (1.0 - shadow) * (diffuse + specular)) * ambient_occlusion;
+
 //	outColor = diffuse;
 //	outColor = (ambient + (diffuse + specular)) * ambient_occlusion;
 }

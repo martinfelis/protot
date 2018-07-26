@@ -38,11 +38,8 @@ void Camera::UpdateMatrices() {
 void Camera::DrawGui() {
 	ImGui::Text("Width %3.4f, Height %3.4f", mWidth, mHeight);
 
-	ImGui::InputFloat3("Eye", mEye.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat3("EyeS", mEye.data(), -10.0f, 10.0f);
-
-	ImGui::InputFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat3("PoiS", mPoi.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("Eye", mEye.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat3("Poi", mPoi.data(), -10.0f, 10.0f);
 	ImGui::InputFloat3("Up", mUp.data(), -10.0f, 10.0f);
 	ImGui::Checkbox("Orthographic", &mIsOrthographic);
 	ImGui::SliderFloat("Fov", &mFov, 5, 160);

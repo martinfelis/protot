@@ -179,7 +179,7 @@ struct Camera {
 		mPoi {-3.2f, 3.8f, 0.2f},
 		mUp  {0.f, 1.f, 0.f},
 		mNear (0.1f),
-		mFar (150.f),
+		mFar (30.f),
 		mFov (60.f),
 		mIsOrthographic (false),
 		mWidth (100.0f),

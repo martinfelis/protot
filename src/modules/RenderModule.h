@@ -30,6 +30,7 @@ struct Light {
 	float mFar;
 	float mBBoxSize;
 	float mShadowBias = 0.003;
+	float mShowCascadesAlpha = 0.0f;
 
 	bool mDebugDrawSplitViewBounds = true;
 	bool mDebugDrawSplitWorldBounds = true;
