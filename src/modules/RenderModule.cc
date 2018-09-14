@@ -1141,9 +1141,9 @@ void Renderer::DrawGui() {
 		switch (sRendererSettings.RenderMode) {
 			case SceneRenderModeDefault:	
 				mRenderTextureRef.mTextureIdPtr = 
-					&mRenderTarget.mColorTexture;
+//					&mRenderTarget.mColorTexture;
 //					&mDeferredLightingTarget.mColorTexture;
-//					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mRenderTarget.mColorTexture;
+					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mRenderTarget.mColorTexture;
 				break;
 			case SceneRenderModeColor:	
 				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;

@@ -82,7 +82,7 @@ void main() {
 	// diffuse lighting
 	vec3 normal_dir = normalize(ioFragNormal);
 //	vec3 light_dir = normalize(uLightDirection);
-	vec3 light_dir = transpose(inverse(mat3(uViewMatrix * uModelMatrix))) * uLightDirection;
+	vec3 light_dir = - transpose(inverse(mat3(uViewMatrix * uModelMatrix))) * uLightDirection;
 	float diff = max(dot(normal_dir, light_dir), 0.0);
 	vec4 diffuse = diff * albedo_color;
 
