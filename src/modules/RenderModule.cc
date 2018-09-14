@@ -1005,10 +1005,16 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gXZPlaneMesh.Draw(GL_TRIANGLES);
 
-	DebugDrawSphere(
+//	DebugDrawSphere(
+//			program,
+//			TranslateMat44(0.0f, 2.0f, 2.0f),
+//			Vector3f (0.4f, 0.2f, 0.9f)
+//			);
+//
+
+	DebugDrawBone(
 			program,
-			TranslateMat44(0.0f, 2.0f, 2.0f),
-			Vector3f (0.4f, 0.2f, 0.9f)
+			TranslateMat44(1.0f, 0.0f, 0.0f)
 			);
 
 	gAssetFile.DrawModel(program);

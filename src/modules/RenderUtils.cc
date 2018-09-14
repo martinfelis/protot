@@ -27,6 +27,7 @@ static VertexArrayMesh sCoordinateFrameMesh;
 static VertexArrayMesh sUnitCubeMesh;
 static VertexArrayMesh sUnitCubeLines;
 static VertexArrayMesh sIcoSphere;
+static VertexArrayMesh sBoneBody;
 
 //
 // Camera
@@ -1196,6 +1197,72 @@ void DebugDrawInitialize() {
 		9, 8, 1
 	};
 	sIcoSphere.SetIndexData(icosphere_index_data, 20 * 3);
+
+	// BoneBody
+	sBoneBody.Initialize(sVertexArray, 8 * 3);
+	float bone_width = 0.1;
+	float bone_bump_fraction = 0.25f;
+
+	VertexArray::VertexData bone_data[] = {
+		// lower half
+		//
+		// front: +x
+		{bone_width, bone_bump_fraction, bone_width, 1.0f,				1.0f, 0.0f, 0.0f,			0.0f, 0.0f,	255, 255, 255, 255 },
+		{0.0f, 0.0f, 0.0f, 1.0f,																	1.0f, 0.0f, 0.0f,			0.0f, 0.0f,	255, 255, 255, 255 },
+		{bone_width, bone_bump_fraction, -bone_width, 1.0f,				1.0f, 0.0f, 0.0f,			0.0f, 0.0f,	255, 255, 255, 255 },
+																																										 
+		// back: -x																																			
+		{-bone_width, bone_bump_fraction, -bone_width, 1.0f,			-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{ 0.0f, 0.0f, 0.0f, 1.0f,																	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-bone_width, bone_bump_fraction, bone_width, 1.0f,				-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+																																										 
+		// side: +z                                                                      
+		{-bone_width, bone_bump_fraction, bone_width, 1.0f,				0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{0.0f, 0.0f, 0.0f, 1.0f,																	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{bone_width, bone_bump_fraction, bone_width, 1.0f,				0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+                                                                                     
+		// back side: -z                                                                 
+		{bone_width, bone_bump_fraction, -bone_width, 1.0f,				0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{0.0f, 0.0f, 0.0f, 1.0f,	  															0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-bone_width, bone_width, -bone_width, 1.0f,							0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// upper half
+		//
+		// front: +x
+		{bone_width, bone_bump_fraction, -bone_width, 1.0f,				1.0f, 0.0f, 0.0f,			0.0f, 0.0f,	255, 255, 255, 255 },
+		{0.0f, 1.0f, 0.0f, 1.0f,																	1.0f, 0.0f, 0.0f,			0.0f, 0.0f,	255, 255, 255, 255 },
+		{bone_width, bone_bump_fraction, bone_width, 1.0f,				1.0f, 0.0f, 0.0f,			0.0f, 0.0f,	255, 255, 255, 255 },
+																																										 
+		// back: -x																																			
+		{-bone_width, bone_bump_fraction, bone_width, 1.0f,				-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{ 0.0f, 1.0f, 0.0f, 1.0f,																	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-bone_width, bone_bump_fraction, -bone_width, 1.0f,			-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+																																										 
+		// side: +z																																			
+		{bone_width, bone_bump_fraction, bone_width, 1.0f,				0.0f, 0.0f, 1.0f,			0.0f, 0.0f, 255, 255, 255, 255 },	
+		{0.0f, 1.0f, 0.0f, 1.0f,																	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-bone_width, bone_bump_fraction, bone_width, 1.0f,				0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+                                                                                     
+		// back side: -z                                                                 
+		{-bone_width, bone_bump_fraction, -bone_width, 1.0f,			0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{0.0f, 1.0f, 0.0f, 1.0f,	  															0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{bone_width, bone_bump_fraction, -bone_width, 1.0f,				0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+
+	};
+	sBoneBody.SetData(bone_data, 8 * 3);
+	GLuint bone_index_data[] = {
+		0, 1, 2,
+		3, 4, 5,
+		6, 7, 8,
+		9, 10, 11,
+		12, 13, 14,
+		15, 16, 17,
+		18, 19, 20,
+		21, 22, 23
+//		6, 7, 8,
+//		9, 10, 11
+	};
+	sBoneBody.SetIndexData(bone_index_data, 24);
 }
 
 void DebugDrawCube(RenderProgram &program, const Matrix44f& mat) {
@@ -1227,4 +1294,25 @@ void DebugDrawSphere(RenderProgram &program, const Matrix44f& mat, const Vector3
 }
  
 void DebugDrawBone(RenderProgram &program, const Matrix44f& mat, const Vector3f& color) {
+	sVertexArray.Bind();
+
+	const float sphere_size = 0.035f;
+
+	DebugDrawSphere(
+			program,
+			ScaleMat44(sphere_size, sphere_size, sphere_size)
+			* mat,
+			color
+			);
+
+	program.SetMat44("uModelMatrix", mat);
+	program.SetVec4("uColor", Vector4f (color[0], color[1], color[2], 1.0f));
+	sBoneBody.Draw(GL_TRIANGLES);
+
+	DebugDrawSphere(
+			program,
+			ScaleMat44(sphere_size, sphere_size, sphere_size)
+			* mat * TranslateMat44(0.0f, 1.0f, 0.0f),
+			color
+			);
 };
