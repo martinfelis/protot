@@ -20,6 +20,15 @@ typedef tinygltf::TinyGLTF GLTFLoader;
 static GLTFLoader gLoader;
 
 //
+// Globals
+//
+static VertexArray sVertexArray;
+static VertexArrayMesh sCoordinateFrameMesh;
+static VertexArrayMesh sUnitCubeMesh;
+static VertexArrayMesh sUnitCubeLines;
+static VertexArrayMesh sIcoSphere;
+
+//
 // Camera
 //
 void Camera::UpdateMatrices() {
@@ -977,3 +986,245 @@ void AssetFile::DrawGui() {
 	}
 }
 
+
+
+//
+// Debug Draw Stuff
+//
+
+static void set_icosphere_point(
+		VertexArray::VertexData* data,
+		unsigned int index,
+		const Vector3f &v) {
+	assert (index >= 0 && index < 12);
+
+	data[index].x = v[0];
+	data[index].y = v[1];
+	data[index].z = v[2];
+	data[index].w = 1.0f;
+
+	Vector3f vn = v.normalized();
+	data[index].nx = vn[0];
+	data[index].ny = vn[1];
+	data[index].nz = vn[2];
+
+	data[index].s = 0.0f;
+	data[index].t = 0.0f;
+
+	data[index].r = 255.0f;
+	data[index].g = 255.0f;
+	data[index].b = 255.0f;
+	data[index].a = 255.0f;
+}
+
+
+void DebugDrawInitialize() {
+	// The global VertexArray used for all RenderUtils primitives
+	sVertexArray.Initialize(1000, GL_STATIC_DRAW);
+
+	// CoordinateFrame
+	sCoordinateFrameMesh.Initialize(sVertexArray, 6);
+
+	VertexArray::VertexData vertex_data[] = {
+		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
+		{1.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
+
+		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 255, 0, 255},
+		{0.0f, 1.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 255, 0, 255},
+
+		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255},
+		{0.0f, 0.0f, 1.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255}
+	};
+
+	sCoordinateFrameMesh.SetData(vertex_data, 6);	
+	GLuint coordinate_frame_index_data[] = {
+		0, 1,
+		1, 2,
+		3, 4
+	};
+	sCoordinateFrameMesh.SetIndexData(coordinate_frame_index_data, 6);
+
+	// UnitCubeMesh
+	sUnitCubeMesh.Initialize(sVertexArray, 4 * 6);
+	VertexArray::VertexData unit_cube_data[] = {
+		// front: +x
+		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
+
+		// back: -x
+		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{-1.0f, -1.0f, 1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{-1.0f, -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
+
+		// side: +z
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
+
+		// back side: -z
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
+
+		// top: +y
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
+
+		// bottom: -y
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
+	};
+	sUnitCubeMesh.SetData(unit_cube_data, 4 * 6);
+	GLuint unit_cube_index_data[] = {
+		0, 1, 2, 2, 3, 0,
+		4, 7, 6, 6, 5, 4,
+		8, 9, 10, 10, 11, 8,
+		12, 15, 14, 14, 13, 12,
+		16, 17, 18, 18, 19, 16,
+		20, 23, 22, 22, 21, 20
+	};
+	sUnitCubeMesh.SetIndexData(unit_cube_index_data, 36);
+
+	// Unit Cube (but only lines)
+	sUnitCubeLines.Initialize(sVertexArray, 4 * 6);
+	VertexArray::VertexData unit_cube_lines_data[] = {
+		// front: +x
+		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
+
+		// back: -x
+		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-1.0f, -1.0f, 1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-1.0f, -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
+
+		// side: +z
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// back side: -z
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// top: +y
+		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
+
+		// bottom: -y
+		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+	};
+
+
+	sUnitCubeLines.SetData(unit_cube_lines_data, 4 * 6);
+	// TODO: 
+	GLuint unit_cube_lines_index_data[] = {
+		0,  1,  1,  2,  2,  3,  3,  0,
+		4,  5,  5,  6,  6,  7,  7,  4,
+		8,  9,  9, 10, 10, 11, 11,  8,
+		12, 13, 13, 14, 14, 15, 15, 12,
+		16, 17, 17, 18, 18, 19, 19, 16,
+		20, 21, 21, 22, 22, 23, 23, 20,
+		12, 14, 13, 15
+	};
+	sUnitCubeLines.SetIndexData(unit_cube_lines_index_data, 8 * 6 + 4);
+
+	// Icosphere
+	VertexArray::VertexData icosphere_data[12];
+
+	float t_icosphere = (1.0f + sqrt(5.0f)) * 0.5f;
+	set_icosphere_point(icosphere_data,  0, Vector3f (-1.0f,  t_icosphere, 0.0f));
+	set_icosphere_point(icosphere_data,  1, Vector3f ( 1.0f,  t_icosphere, 0.0f));
+	set_icosphere_point(icosphere_data,  2, Vector3f (-1.0f, -t_icosphere, 0.0f));
+	set_icosphere_point(icosphere_data,  3, Vector3f ( 1.0f, -t_icosphere, 0.0f));
+
+	set_icosphere_point(icosphere_data,  4, Vector3f (0.0f, -1.0f,  t_icosphere));
+	set_icosphere_point(icosphere_data,  5, Vector3f (0.0f,  1.0f,  t_icosphere));
+	set_icosphere_point(icosphere_data,  6, Vector3f (0.0f, -1.0f, -t_icosphere));
+	set_icosphere_point(icosphere_data,  7, Vector3f (0.0f,  1.0f, -t_icosphere));
+
+	set_icosphere_point(icosphere_data,  8, Vector3f ( t_icosphere, 0.0f, -1.0f));
+	set_icosphere_point(icosphere_data,  9, Vector3f ( t_icosphere, 0.0f,  1.0f));
+	set_icosphere_point(icosphere_data, 10, Vector3f (-t_icosphere, 0.0f, -1.0f));
+	set_icosphere_point(icosphere_data, 11, Vector3f (-t_icosphere, 0.0f,  1.0f));
+
+	sIcoSphere.Initialize(sVertexArray, 12);
+	sIcoSphere.SetData(icosphere_data, 12);
+
+	GLuint icosphere_index_data[] = {
+		0, 11, 5,
+		0, 5, 1,
+		0, 1, 7,
+		0, 7, 10,
+		0, 10, 11,
+
+		1, 5, 9,
+		5, 11, 4,
+		11, 10, 2,
+		10, 7, 6,
+		7, 1, 8,
+
+		3, 9, 4,
+		3, 4, 2,
+		3, 2, 6,
+		3, 6, 8,
+		3, 8, 9,
+
+		4, 9, 5,
+		2, 4, 11,
+		6, 2, 10,
+		8, 6, 7,
+		9, 8, 1
+	};
+	sIcoSphere.SetIndexData(icosphere_index_data, 20 * 3);
+}
+
+void DebugDrawCube(RenderProgram &program, const Matrix44f& mat) {
+	sVertexArray.Bind();
+	program.SetMat44("uModelMatrix", mat);
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	sUnitCubeMesh.Draw(GL_TRIANGLES);
+}
+
+void DebugDrawCubeLines(RenderProgram &program, const Matrix44f& mat) {
+	sVertexArray.Bind();
+	program.SetMat44("uModelMatrix", mat);
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	sUnitCubeLines.Draw(GL_TRIANGLES);
+}
+
+void DebugDrawFrame(RenderProgram &program, const Matrix44f& mat) {
+	sVertexArray.Bind();
+	program.SetMat44("uModelMatrix", mat);
+	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	sCoordinateFrameMesh.Draw(GL_LINES);
+}
+
+void DebugDrawSphere(RenderProgram &program, const Matrix44f& mat, const Vector3f& color) {
+	sVertexArray.Bind();
+	program.SetMat44("uModelMatrix", mat);
+	program.SetVec4("uColor", Vector4f (color[0], color[1], color[2], 1.0f));
+	sIcoSphere.Draw(GL_TRIANGLES);
+}
+ 
+void DebugDrawBone(RenderProgram &program, const Matrix44f& mat, const Vector3f& color) {
+};

@@ -60,39 +60,11 @@ static const GLfloat g_textured_quad_vertex_buffer_data[] = {
 	1.0f, 1.0f, 0.0f,		1.0f, 0.0f,
 };
 
-static void set_icosphere_point(
-		VertexArray::VertexData* data,
-		unsigned int index,
-		const Vector3f &v) {
-	assert (index >= 0 && index < 12);
-
-	data[index].x = v[0];
-	data[index].y = v[1];
-	data[index].z = v[2];
-	data[index].w = 1.0f;
-
-	Vector3f vn = v.normalized();
-	data[index].nx = vn[0];
-	data[index].ny = vn[1];
-	data[index].nz = vn[2];
-
-	data[index].s = 0.0f;
-	data[index].t = 0.0f;
-
-	data[index].r = 255.0f;
-	data[index].g = 255.0f;
-	data[index].b = 255.0f;
-	data[index].a = 255.0f;
-}
-
 VertexArray gVertexArray;
-VertexArrayMesh gCoordinateFrameMesh;
 VertexArrayMesh gXZPlaneGrid;
 VertexArrayMesh gXZPlaneMesh;
-VertexArrayMesh gUnitCubeMesh;
 VertexArrayMesh gUnitCubeLines;
 VertexArrayMesh gScreenQuad;
-VertexArrayMesh gIcoSphere;
 
 AssetFile gAssetFile;
 
@@ -399,23 +371,11 @@ void Light::UpdateSplits(const Camera& camera) {
 // Renderer
 //
 void Renderer::Initialize(int width, int height) {
+	DebugDrawInitialize();
+
 	mDefaultTexture.MakeGrid(128, Vector3f (0.8, 0.8f, 0.8f), Vector3f (0.7f, 0.7f, 0.7f));
 
 	gVertexArray.Initialize(1000, GL_STATIC_DRAW);
-	gCoordinateFrameMesh.Initialize(gVertexArray, 6);
-
-	VertexArray::VertexData vertex_data[] = {
-		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
-		{1.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255  },
-
-		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 255, 0, 255},
-		{0.0f, 1.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 255, 0, 255},
-
-		{0.0f, 0.0f, 0.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255},
-		{0.0f, 0.0f, 1.0f, 1.0f,	 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,	  0, 0, 255, 255}
-	};
-
-	gCoordinateFrameMesh.SetData(vertex_data, 6);	
 
 	// Plane Grid
 	const int plane_grid_size = 20;
@@ -464,110 +424,6 @@ void Renderer::Initialize(int width, int height) {
 	};
 	gXZPlaneMesh.SetIndexData(xz_plane_index_data, 6);
 
-	// Unit Cube
-	gUnitCubeMesh.Initialize(gVertexArray, 4 * 6);
-	VertexArray::VertexData unit_cube_data[] = {
-		// front: +x
-		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
-		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
-		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
-		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 0, 0, 255 },
-
-		// back: -x
-		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-		{-1.0f, -1.0f, 1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-		{-1.0f, -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 0, 0, 255 },
-
-		// side: +z
-		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
-		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
-		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
-		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 0, 0, 255, 255 },	
-
-		// back side: -z
-		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 0, 0, 255, 255 },	
-
-		// top: +y
-		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
-		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
-		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
-		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 0, 255, 0, 255 },	
-
-		// bottom: -y
-		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 0, 255, 0, 255 },	
-	};
-	gUnitCubeMesh.SetData(unit_cube_data, 4 * 6);
-	GLuint unit_cube_index_data[] = {
-		0, 1, 2, 2, 3, 0,
-		4, 7, 6, 6, 5, 4,
-		8, 9, 10, 10, 11, 8,
-		12, 15, 14, 14, 13, 12,
-		16, 17, 18, 18, 19, 16,
-		20, 23, 22, 22, 21, 20
-	};
-	gUnitCubeMesh.SetIndexData(unit_cube_index_data, 36);
-
-	// Unit Cube (but only lines)
-	gUnitCubeLines.Initialize(gVertexArray, 4 * 6);
-	VertexArray::VertexData unit_cube_lines_data[] = {
-		// front: +x
-		{1.0f, 1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
-		{1.0f, -1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
-		{1.0f, -1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
-		{1.0f, 1.0f, -1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		  0.0f, 0.0f,	255, 255, 255, 255 },
-
-		// back: -x
-		{-1.0f, 1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
-		{-1.0f, -1.0f, 1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
-		{-1.0f, -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
-		{-1.0f, 1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,	255, 255, 255, 255 },
-
-		// side: +z
-		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-
-		// back side: -z
-		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-
-		// top: +y
-		{1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-		{1.0f, 1.0f, -1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-1.0f, 1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		  0.0f, 0.0f, 255, 255, 255, 255 },	
-
-		// bottom: -y
-		{1.0f, -1.0f, 1.0f, 1.0f,		0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-1.0f, -1.0f, -1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-	};
-
-
-	gUnitCubeLines.SetData(unit_cube_lines_data, 4 * 6);
-	// TODO: 
-	GLuint unit_cube_lines_index_data[] = {
-		0,  1,  1,  2,  2,  3,  3,  0,
-		4,  5,  5,  6,  6,  7,  7,  4,
-		8,  9,  9, 10, 10, 11, 11,  8,
-		12, 13, 13, 14, 14, 15, 15, 12,
-		16, 17, 17, 18, 18, 19, 19, 16,
-		20, 21, 21, 22, 22, 23, 23, 20,
-		12, 14, 13, 15
-	};
-	gUnitCubeLines.SetIndexData(unit_cube_lines_index_data, 8 * 6 + 4);
-
 	// Screen Quad
 	gScreenQuad.Initialize(gVertexArray, 4);
 	VertexArray::VertexData screen_quad_data[] = {
@@ -582,61 +438,6 @@ void Renderer::Initialize(int width, int height) {
 		2, 3, 0
 	};
 	gScreenQuad.SetIndexData(screen_quad_indices, 6);
-
-
-	// Icosphere
-	//
-	//
-
-	// Icosphere
-
-	VertexArray::VertexData icosphere_data[12];
-
-	float t_icosphere = (1.0f + sqrt(5.0f)) * 0.5f;
-	set_icosphere_point(icosphere_data,  0, Vector3f (-1.0f,  t_icosphere, 0.0f));
-	set_icosphere_point(icosphere_data,  1, Vector3f ( 1.0f,  t_icosphere, 0.0f));
-	set_icosphere_point(icosphere_data,  2, Vector3f (-1.0f, -t_icosphere, 0.0f));
-	set_icosphere_point(icosphere_data,  3, Vector3f ( 1.0f, -t_icosphere, 0.0f));
-
-	set_icosphere_point(icosphere_data,  4, Vector3f (0.0f, -1.0f,  t_icosphere));
-	set_icosphere_point(icosphere_data,  5, Vector3f (0.0f,  1.0f,  t_icosphere));
-	set_icosphere_point(icosphere_data,  6, Vector3f (0.0f, -1.0f, -t_icosphere));
-	set_icosphere_point(icosphere_data,  7, Vector3f (0.0f,  1.0f, -t_icosphere));
-
-	set_icosphere_point(icosphere_data,  8, Vector3f ( t_icosphere, 0.0f, -1.0f));
-	set_icosphere_point(icosphere_data,  9, Vector3f ( t_icosphere, 0.0f,  1.0f));
-	set_icosphere_point(icosphere_data, 10, Vector3f (-t_icosphere, 0.0f, -1.0f));
-	set_icosphere_point(icosphere_data, 11, Vector3f (-t_icosphere, 0.0f,  1.0f));
-
-	gIcoSphere.Initialize(gVertexArray, 12);
-	gIcoSphere.SetData(icosphere_data, 12);
-
-	GLuint icosphere_index_data[] = {
-		0, 11, 5,
-		0, 5, 1,
-		0, 1, 7,
-		0, 7, 10,
-		0, 10, 11,
-
-		1, 5, 9,
-		5, 11, 4,
-		11, 10, 2,
-		10, 7, 6,
-		7, 1, 8,
-
-		3, 9, 4,
-		3, 4, 2,
-		3, 2, 6,
-		3, 6, 8,
-		3, 8, 9,
-
-		4, 9, 5,
-		2, 4, 11,
-		6, 2, 10,
-		8, 6, 7,
-		9, 8, 1
-	};
-	gIcoSphere.SetIndexData(icosphere_index_data, 20 * 3);
 
 	// Simple Shader
 	mSimpleProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
@@ -878,8 +679,15 @@ void Renderer::RenderGl() {
 		* mCamera.mProjectionMatrix;
 	mSimpleProgram.SetMat44("uModelViewProj", model_view_projection);
 	mSimpleProgram.SetVec4("uColor", Vector4f (0.0f, 0.0f, 0.0f, 1.0f));
+
+	DebugDrawFrame(
+			mSimpleProgram,
+		TranslateMat44(0.0f, 0.002f, 0.0f)
+		* mCamera.mViewMatrix
+		* mCamera.mProjectionMatrix
+		);
+
 	gVertexArray.Bind();
-	gCoordinateFrameMesh.Draw(GL_LINES);
 
 	// Plane
 	model_view_projection = 
@@ -1164,44 +972,44 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 
 	gVertexArray.Bind();
 
-	program.SetMat44("uModelMatrix", 
-			RotateMat44(sin(0.3 * gTimer->mCurrentTime) * 180.0f,
-				0.0f, 1.0f, 0.0f)
-			* TranslateMat44(5.0, 1.0 + sin(2.0f * gTimer->mCurrentTime), 0.0)) ;
-	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
-	gUnitCubeMesh.Draw(GL_TRIANGLES);
+	DebugDrawCube(
+			program,
+			RotateMat44(sin(0.3 * gTimer->mCurrentTime) * 180.0f, 0.0f, 1.0f, 0.0f)
+			* TranslateMat44(5.0, 1.0 + sin(2.0f * gTimer->mCurrentTime), 0.0)
+			);
 
-	program.SetMat44("uModelMatrix", 
+	DebugDrawCube(
+			program,
 			RotateMat44(60.0f, 0.0f, 1.0f, 0.0f)
 			* TranslateMat44(-4.0f, 1.0f, 4.0f)
-			* ScaleMat44(0.5f, 0.5f, 0.5f));
-	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
-	gUnitCubeMesh.Draw(GL_TRIANGLES);
+			* ScaleMat44(0.5f, 0.5f, 0.5f)
+			);
 
-	program.SetMat44("uModelMatrix", 
+	DebugDrawCube(
+			program,
 			RotateMat44(60.0f, 0.0f, 1.0f, 0.0f)
 			* TranslateMat44(4.0f, 1.0f, 5.0f)
-			* ScaleMat44(0.8f, 0.8f, 0.8f));
-	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
-	gUnitCubeMesh.Draw(GL_TRIANGLES);
-	
-	program.SetMat44("uModelMatrix", 
+			* ScaleMat44(0.8f, 0.8f, 0.8f)
+			);
+
+	DebugDrawCube(
+			program,
 			RotateMat44(200.0f, 0.0f, 1.0f, 0.0f)
 			* TranslateMat44(moving_factor * sin(gTimer->mCurrentTime), 1.0f, -3.0f)
-			* ScaleMat44(0.5f, 0.5f, 0.5f));
-	
-	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
-	gUnitCubeMesh.Draw(GL_TRIANGLES);
+			* ScaleMat44(0.5f, 0.5f, 0.5f)
+			);
+
+	gVertexArray.Bind();
 
 	program.SetMat44("uModelMatrix", Matrix44f::Identity());
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gXZPlaneMesh.Draw(GL_TRIANGLES);
 
-	program.SetMat44("uModelMatrix", 
-			TranslateMat44(0.0f, 2.0f, 0.0f)
+	DebugDrawSphere(
+			program,
+			TranslateMat44(0.0f, 2.0f, 2.0f),
+			Vector3f (0.4f, 0.2f, 0.9f)
 			);
-	program.SetVec4("uColor", Vector4f (1.0f, 0.2f, 0.4f, 1.0f));
-	gIcoSphere.Draw(GL_TRIANGLES);
 
 	gAssetFile.DrawModel(program);
 }

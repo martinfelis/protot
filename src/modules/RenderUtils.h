@@ -496,4 +496,12 @@ struct RenderCommand {
 	VertexArrayMesh *mMesh;
 };
 
+// Debug Draw Stuff
+void DebugDrawInitialize();
+void DebugDrawShutdown();
+void DebugDrawCube(RenderProgram &program, const Matrix44f& mat);
+void DebugDrawFrame(RenderProgram &program, const Matrix44f& mat);
+void DebugDrawSphere(RenderProgram &program, const Matrix44f& mat, const Vector3f& color = Vector3f (1.0f, 1.0f, 1.0f));
+void DebugDrawBone(RenderProgram &program, const Matrix44f& mat, const Vector3f& color = Vector3f (0.1f, 0.8f, 0.4f));
+ 
 #endif
