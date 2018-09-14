@@ -60,14 +60,30 @@ static const GLfloat g_textured_quad_vertex_buffer_data[] = {
 	1.0f, 1.0f, 0.0f,		1.0f, 0.0f,
 };
 
-static const GLfloat g_coordinate_system_vertex_buffer_data[] = {
-	0.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,		1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f,		0.0f, 1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,		0.0f, 1.0f, 0.0f,
-	0.0f, 0.0f, 0.0f,		0.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,		0.0f, 0.0f, 1.0f
-};
+static void set_icosphere_point(
+		VertexArray::VertexData* data,
+		unsigned int index,
+		const Vector3f &v) {
+	assert (index >= 0 && index < 12);
+
+	data[index].x = v[0];
+	data[index].y = v[1];
+	data[index].z = v[2];
+	data[index].w = 1.0f;
+
+	Vector3f vn = v.normalized();
+	data[index].nx = vn[0];
+	data[index].ny = vn[1];
+	data[index].nz = vn[2];
+
+	data[index].s = 0.0f;
+	data[index].t = 0.0f;
+
+	data[index].r = 255.0f;
+	data[index].g = 255.0f;
+	data[index].b = 255.0f;
+	data[index].a = 255.0f;
+}
 
 VertexArray gVertexArray;
 VertexArrayMesh gCoordinateFrameMesh;
@@ -76,6 +92,7 @@ VertexArrayMesh gXZPlaneMesh;
 VertexArrayMesh gUnitCubeMesh;
 VertexArrayMesh gUnitCubeLines;
 VertexArrayMesh gScreenQuad;
+VertexArrayMesh gIcoSphere;
 
 AssetFile gAssetFile;
 
@@ -566,6 +583,61 @@ void Renderer::Initialize(int width, int height) {
 	};
 	gScreenQuad.SetIndexData(screen_quad_indices, 6);
 
+
+	// Icosphere
+	//
+	//
+
+	// Icosphere
+
+	VertexArray::VertexData icosphere_data[12];
+
+	float t_icosphere = (1.0f + sqrt(5.0f)) * 0.5f;
+	set_icosphere_point(icosphere_data,  0, Vector3f (-1.0f,  t_icosphere, 0.0f));
+	set_icosphere_point(icosphere_data,  1, Vector3f ( 1.0f,  t_icosphere, 0.0f));
+	set_icosphere_point(icosphere_data,  2, Vector3f (-1.0f, -t_icosphere, 0.0f));
+	set_icosphere_point(icosphere_data,  3, Vector3f ( 1.0f, -t_icosphere, 0.0f));
+
+	set_icosphere_point(icosphere_data,  4, Vector3f (0.0f, -1.0f,  t_icosphere));
+	set_icosphere_point(icosphere_data,  5, Vector3f (0.0f,  1.0f,  t_icosphere));
+	set_icosphere_point(icosphere_data,  6, Vector3f (0.0f, -1.0f, -t_icosphere));
+	set_icosphere_point(icosphere_data,  7, Vector3f (0.0f,  1.0f, -t_icosphere));
+
+	set_icosphere_point(icosphere_data,  8, Vector3f ( t_icosphere, 0.0f, -1.0f));
+	set_icosphere_point(icosphere_data,  9, Vector3f ( t_icosphere, 0.0f,  1.0f));
+	set_icosphere_point(icosphere_data, 10, Vector3f (-t_icosphere, 0.0f, -1.0f));
+	set_icosphere_point(icosphere_data, 11, Vector3f (-t_icosphere, 0.0f,  1.0f));
+
+	gIcoSphere.Initialize(gVertexArray, 12);
+	gIcoSphere.SetData(icosphere_data, 12);
+
+	GLuint icosphere_index_data[] = {
+		0, 11, 5,
+		0, 5, 1,
+		0, 1, 7,
+		0, 7, 10,
+		0, 10, 11,
+
+		1, 5, 9,
+		5, 11, 4,
+		11, 10, 2,
+		10, 7, 6,
+		7, 1, 8,
+
+		3, 9, 4,
+		3, 4, 2,
+		3, 2, 6,
+		3, 6, 8,
+		3, 8, 9,
+
+		4, 9, 5,
+		2, 4, 11,
+		6, 2, 10,
+		8, 6, 7,
+		9, 8, 1
+	};
+	gIcoSphere.SetIndexData(icosphere_index_data, 20 * 3);
+
 	// Simple Shader
 	mSimpleProgram = RenderProgram("data/shaders/vs_simple.glsl", "data/shaders/fs_simple.glsl");
 	bool load_result = mSimpleProgram.Load();
@@ -1027,7 +1099,6 @@ void Renderer::DebugDrawShadowCascades() {
 				gUnitCubeLines.Draw(GL_LINES);
 			}
 
-
 			// Draw bounding boxes in world space 
 			if (mLight.mDebugDrawSplitWorldBounds) {
 				Vector3f dimensions = (bbox_world.mMax - bbox_world.mMin) * 0.5f;
@@ -1126,6 +1197,12 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	gXZPlaneMesh.Draw(GL_TRIANGLES);
 
+	program.SetMat44("uModelMatrix", 
+			TranslateMat44(0.0f, 2.0f, 0.0f)
+			);
+	program.SetVec4("uColor", Vector4f (1.0f, 0.2f, 0.4f, 1.0f));
+	gIcoSphere.Draw(GL_TRIANGLES);
+
 	gAssetFile.DrawModel(program);
 }
 
@@ -1141,8 +1218,6 @@ void Renderer::DrawGui() {
 		switch (sRendererSettings.RenderMode) {
 			case SceneRenderModeDefault:	
 				mRenderTextureRef.mTextureIdPtr = 
-//					&mRenderTarget.mColorTexture;
-//					&mDeferredLightingTarget.mColorTexture;
 					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mRenderTarget.mColorTexture;
 				break;
 			case SceneRenderModeColor:	
