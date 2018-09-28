@@ -10,7 +10,7 @@
 #include "imgui/imgui.h"
 #include "imgui_dock.h"
 
-using namespace SimpleMath::GL;
+using namespace SimpleMath;
 
 struct Renderer;
 
@@ -180,10 +180,10 @@ extern "C" {
 
 const struct module_api MODULE_API = {
 	.init = module_init,
+	.finalize = module_finalize,
 	.reload = module_reload,
-	.step = module_step,
 	.unload = module_unload,
-	.finalize = module_finalize
+	.step = module_step
 };
 }
 

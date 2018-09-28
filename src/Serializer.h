@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SimpleMath/SimpleMath.h"
+#include "math_types.h"
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
@@ -134,11 +134,11 @@ bool SerializedUint16 (Serializer &serializer, const std::string &key, uint16_t&
 }
 
 template <typename Serializer>
-bool SerializeVec3 (Serializer &serializer, const std::string &key, SimpleMath::Vector3f& value) {
-	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(SimpleMath::Vector3f));
+bool SerializeVec3 (Serializer &serializer, const std::string &key, Vector3f& value) {
+	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(Vector3f));
 }
 
 template <typename Serializer>
-bool SerializeVec4 (Serializer &serializer, const std::string &key, SimpleMath::Vector4f& value) {
-	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(SimpleMath::Vector4f));
+bool SerializeVec4 (Serializer &serializer, const std::string &key, Vector4f& value) {
+	return serializer.SerializeData(key, reinterpret_cast<char*>(&value), sizeof(Vector4f));
 }
