@@ -46,10 +46,10 @@ void handle_mouse (struct module_state *state) {
 		view_dir = (poi - eye).normalized();
 		Vector3f right = camera_rot_inv.block<1,3>(0,0).transpose();
 		right = view_dir.cross (Vector3f (0.f, 1.f, 0.f));
-		Matrix33f rot_matrix_y = SimpleMath::RotateMat33(
+		Matrix33f rot_matrix_y = SimpleMath::GL::RotateMat33(
 				gGuiInputState->mousedY * 0.4f,
 				right[0], right[1], right[2]);
-		Matrix33f rot_matrix_x = SimpleMath::RotateMat33(
+		Matrix33f rot_matrix_x = SimpleMath::GL::RotateMat33(
 				gGuiInputState->mousedX * 0.4f,
 				0.f, 1.f, 0.f);
 		poi = eye + rot_matrix_x * rot_matrix_y * view_dir;

@@ -12,7 +12,7 @@
 #include "imgui/imgui.h"
 #include "imgui_dock.h"
 
-using namespace SimpleMath;
+using namespace SimpleMath::GL;
 
 typedef tinygltf::TinyGLTF GLTFLoader;
 
