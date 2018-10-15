@@ -1,6 +1,8 @@
 #ifndef MESHUP_CONFIG_H
 #define MESHUP_CONFIG_H
 
+#define NEW_SIMPLE_MATH
+
 #ifdef NEW_SIMPLE_MATH
 
 #include "SimpleMath/SimpleMath.h"

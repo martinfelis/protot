@@ -302,6 +302,10 @@ void RenderTarget::Bind() {
 		buffers[num_buffers++] = GL_COLOR_ATTACHMENT0;
 	}
 
+	if (mFlags & EnableNormalTexture) {
+		buffers[num_buffers++] = GL_COLOR_ATTACHMENT1;
+	}
+
 	if (mFlags & EnablePositionTexture ) {
 		buffers[num_buffers++] = GL_COLOR_ATTACHMENT2;
 	}
@@ -490,7 +494,7 @@ void RenderTarget::RenderToLinearizedDepth(const float& near, const float& far, 
 	mQuadMesh->Draw(GL_TRIANGLES);
 
 	if (mFlags & EnableColor) {
-		GLenum draw_attachment_0[] = { GL_COLOR_ATTACHMENT1 };
+		GLenum draw_attachment_0[] = { GL_COLOR_ATTACHMENT0 };
 		glDrawBuffers(1, draw_attachment_0);
 		glEnable(GL_DEPTH_TEST);
 	}

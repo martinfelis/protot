@@ -699,6 +699,19 @@ void Renderer::RenderGl() {
 	gVertexArray.Bind();
 	gXZPlaneGrid.Draw(GL_LINES);
 
+	if (!mIsSSAOEnabled) {
+		// Clear the SSAO Blur target
+		mSSAOBlurTarget.Bind();
+		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
+		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
+		glDrawBuffers(1, draw_attachment_0);
+		glClearColor(255, 255, 255, 255);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+		gVertexArray.Bind();
+		gScreenQuad.Draw(GL_TRIANGLES);
+	}
+
 	// Scene
 	glUseProgram(program->mProgramId);
 
@@ -759,17 +772,7 @@ void Renderer::RenderGl() {
 		mBlurSSAOProgram.SetInt("uAmbientOcclusion", 0);
 		mBlurSSAOProgram.SetInt("uBlurSize", mSSAOBlurSize);
 
-		gScreenQuad.Draw(GL_TRIANGLES);
-	}
-
-	if (!mIsSSAOEnabled) {
-		mSSAOBlurTarget.Bind();
-		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
-		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
-		glDrawBuffers(1, draw_attachment_0);
-		glClearColor(255, 255, 255, 255);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glDisable(GL_DEPTH_TEST);
+		gVertexArray.Bind();
 		gScreenQuad.Draw(GL_TRIANGLES);
 	}
 
