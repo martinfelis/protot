@@ -284,9 +284,9 @@ void Light::UpdateSplits(const Camera& camera) {
 	Matrix44f light_matrix = LookAt (mPosition, mPosition + mDirection, Vector3f (0.f, 1.0f, 0.0f));
 	Matrix44f light_matrix_inv = light_matrix.inverse();
 
-	mShadowSplits[0] = near + length * 0.02;
-	mShadowSplits[1] = near + length * 0.1;
-	mShadowSplits[2] = near + length * 0.3;
+	mShadowSplits[0] = near + length * 0.05;
+	mShadowSplits[1] = near + length * 0.15;
+	mShadowSplits[2] = near + length * 0.4;
 	mShadowSplits[3] = far;
 
 	float prev_split_far = near;
