@@ -30,6 +30,16 @@
 #define IMGUI_IMPL_OPENGL_LOADER_GL3W
 #endif
 
+// MOD START (martin), 2018-03-09: support texture references that point to an address of a texture id
+union GLTextureRef {
+		int mTextureId;
+		struct {
+			int magic;
+			unsigned int* mTextureIdPtr;
+		};
+};
+// MOD END (martin), 2018-03-09: support texture references that point to an address of a texture id
+
 IMGUI_IMPL_API bool     ImGui_ImplOpenGL3_Init(const char* glsl_version = NULL);
 IMGUI_IMPL_API void     ImGui_ImplOpenGL3_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplOpenGL3_NewFrame();

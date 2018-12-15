@@ -244,6 +244,36 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_ElementsHandle);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr)cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx), (const GLvoid*)cmd_list->IdxBuffer.Data, GL_STREAM_DRAW);
 
+
+
+        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+        {
+            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+            if (pcmd->UserCallback)
+            {
+                pcmd->UserCallback(cmd_list, pcmd);
+            }
+            else
+            {
+                intptr_t ptr = (intptr_t)pcmd->TextureId;
+
+                // MOD START (martin), 2018-03-09: support texture references that point to an address of a texture id
+                if (ptr > 1024 * 1024)
+                {
+                    GLTextureRef* texture_ref = (GLTextureRef*)pcmd->TextureId;
+                    GLuint* texture_ptr = (GLuint*) texture_ref->mTextureIdPtr;
+                    glBindTexture(GL_TEXTURE_2D, *texture_ptr);
+                } else {
+                    glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
+                }
+                // MOD END (martin), 2018-03-09: support texture references that point to an address of a texture id
+                glScissor((int)pcmd->ClipRect.x, (int)(fb_height - pcmd->ClipRect.w), (int)(pcmd->ClipRect.z - pcmd->ClipRect.x), (int)(pcmd->ClipRect.w - pcmd->ClipRect.y));
+                glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
+            }
+            idx_buffer_offset += pcmd->ElemCount;
+        }
+
+
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
             const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
@@ -262,10 +292,19 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
                         glScissor((int)clip_rect.x, (int)(fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
                     else
                         glScissor((int)clip_rect.x, (int)clip_rect.y, (int)clip_rect.z, (int)clip_rect.w); // Support for GL 4.5's glClipControl(GL_UPPER_LEFT)
-
-                    // Bind texture, Draw
-                    glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
-                    glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
+  
+                    // MOD START (martin), 2018-03-09: support texture references that point to an address of a texture id
+                    intptr_t ptr = (intptr_t)pcmd->TextureId;
+                    if (ptr > 1024 * 1024)
+                    {
+                        GLTextureRef* texture_ref = (GLTextureRef*)pcmd->TextureId;
+                        GLuint* texture_ptr = (GLuint*) texture_ref->mTextureIdPtr;
+                        glBindTexture(GL_TEXTURE_2D, *texture_ptr);
+                    } else {
+                        glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
+                    }
+                    // MOD END (martin), 2018-03-09: support texture references that point to an address of a texture id
+                  glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
                 }
             }
             idx_buffer_offset += pcmd->ElemCount;
