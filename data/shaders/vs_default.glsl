@@ -20,9 +20,9 @@ smooth out vec4 ioFragColor;
 out vec4 ioFragPosLightSpace;
 
 void main() {
-	ioFragPosition = (uViewMatrix * uModelMatrix * inCoord).xyz;
-
 	mat4 model_view_matrix = uViewMatrix * uModelMatrix;
+
+	ioFragPosition = (model_view_matrix* inCoord).xyz;
 	ioFragNormal = transpose(inverse(mat3(model_view_matrix))) * inNormal;
 	ioFragTexCoords = inUV;
 	ioFragColor = inColor;

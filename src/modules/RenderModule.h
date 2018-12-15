@@ -96,10 +96,11 @@ struct Renderer {
 	RenderProgram mSSAOProgram;
 	RenderProgram mBlurSSAOProgram;
 
-	RenderTarget mRenderTarget;
+	RenderTarget mForwardRenderingTarget;
 	RenderTarget mDeferredLightingTarget;
 	RenderTarget mSSAOTarget;
 	RenderTarget mSSAOBlurTarget;
+	RenderTarget mRenderOutput;
 
 	GLTextureRef mRenderTextureRef = { (int)0xbadface };
 	GLTextureRef mPositionTextureRef = { (int)0xbadface };
@@ -123,6 +124,7 @@ struct Renderer {
 	void Initialize(int width, int height);
 	void Shutdown();
 	void CheckRenderBuffers();
+	void ResizeTargets(int width, int height);
 	void RenderGl();
 	void RenderScene(RenderProgram &program, const Camera& camera);
 	void DebugDrawShadowCascades();

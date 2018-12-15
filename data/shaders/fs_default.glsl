@@ -81,8 +81,7 @@ void main() {
 
 	// diffuse lighting
 	vec3 normal_dir = normalize(ioFragNormal);
-//	vec3 light_dir = normalize(uLightDirection);
-	vec3 light_dir = - transpose(inverse(mat3(uViewMatrix * uModelMatrix))) * uLightDirection;
+	vec3 light_dir = -(mat3(uViewMatrix)) * uLightDirection;
 	float diff = max(dot(normal_dir, light_dir), 0.0);
 	vec4 diffuse = diff * albedo_color;
 
@@ -90,7 +89,7 @@ void main() {
 	vec3 view_dir = normalize(-ioFragPosition);
 	vec3 halfway_dir = normalize(light_dir + view_dir);
 
-	float spec = pow(max(dot(normal_dir, halfway_dir), 0.0), 64);
+	float spec = pow(max(dot(normal_dir, halfway_dir), 0.0), 32);
 	vec4 specular = spec * vec4(0.5);
 
 	// shadow

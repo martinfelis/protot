@@ -496,18 +496,20 @@ void Renderer::Initialize(int width, int height) {
 			| RenderTarget::EnablePositionTexture
 			| RenderTarget::EnableNormalTexture;
 	}
-	mRenderTarget.Initialize(width, height, render_target_flags);
+	mForwardRenderingTarget.Initialize(width, height, render_target_flags);
 
-	mRenderTarget.mVertexArray = &gVertexArray;
-	mRenderTarget.mQuadMesh = &gScreenQuad;
-	mRenderTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
-	mRenderTarget.mLinearizeDepthProgram.RegisterFileModification();
+	mForwardRenderingTarget.mVertexArray = &gVertexArray;
+	mForwardRenderingTarget.mQuadMesh = &gScreenQuad;
+	mForwardRenderingTarget.mLinearizeDepthProgram = mRenderQuadProgramDepth;
+	mForwardRenderingTarget.mLinearizeDepthProgram.RegisterFileModification();
 
 	// SSAO Target
 	mSSAOTarget.Initialize(width, height, RenderTarget::EnableColor);
 	mSSAOBlurTarget.Initialize(width, height, RenderTarget::EnableColor);
 
 	mDeferredLightingTarget.Initialize(width, height, RenderTarget::EnableColor);
+
+	mRenderOutput.Initialize(width, height, RenderTarget::EnableColor | RenderTarget::EnableDepth);
 
 	// Light
 	mLight.Initialize();
@@ -559,22 +561,33 @@ void Renderer::CheckRenderBuffers() {
 			;
 	}
 
-	if (mSceneAreaWidth != mRenderTarget.mWidth 
-			|| mSceneAreaHeight != mRenderTarget.mHeight
-			|| mRenderTarget.mFlags != required_render_flags ) {
-		mRenderTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
+	if (mSceneAreaWidth != mRenderOutput.mWidth
+			|| mSceneAreaHeight != mRenderOutput.mHeight
+			|| mForwardRenderingTarget.mFlags != required_render_flags ) {
+		mRenderOutput.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
+		mForwardRenderingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
+		mDeferredLightingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight,
+                                       RenderTarget::EnableColor
+                                       | RenderTarget::EnableDepthTexture
+                                       | RenderTarget::EnableNormalTexture
 
-		if (mUseDeferred) {
-			mDeferredLightingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
-		}
+                                       // TODO: remove these
+                                       | RenderTarget::EnablePositionTexture
+                                       | RenderTarget::EnableLinearizedDepthTexture);
 	}
 
-	if (mIsSSAOEnabled 
-			&& (mSSAOTarget.mWidth != mSceneAreaWidth 
+	if (mIsSSAOEnabled
+			&& (mSSAOTarget.mWidth != mSceneAreaWidth
 				|| mSSAOTarget.mHeight != mSceneAreaHeight)) {
 		mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 		mSSAOBlurTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 	}
+}
+
+void Renderer::ResizeTargets(int width, int height) {
+    mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+    mSSAOBlurTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
+
 }
 
 void Renderer::RenderGl() {
@@ -640,7 +653,7 @@ void Renderer::RenderGl() {
 		* mCamera.mProjectionMatrix;
 
 	// enable the render target
-	mRenderTarget.Bind();
+	mForwardRenderingTarget.Bind();
 
 	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		gLog ("Cannot render: frame buffer invalid!");
@@ -717,7 +730,7 @@ void Renderer::RenderGl() {
 	RenderScene(*program, mCamera);
 
 	if (mSettings->RenderMode == SceneRenderModeDepth) {
-		mRenderTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
+		mForwardRenderingTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
 	}
 
 	if (mUseDeferred && mIsSSAOEnabled) {
@@ -730,11 +743,11 @@ void Renderer::RenderGl() {
 	
 		// Positions
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mPositionTexture);
+		glBindTexture(GL_TEXTURE_2D, mForwardRenderingTarget.mPositionTexture);
 
 		// Normals
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
+		glBindTexture(GL_TEXTURE_2D, mForwardRenderingTarget.mNormalTexture);
 
 		// Noise
 		glActiveTexture(GL_TEXTURE2);
@@ -788,19 +801,19 @@ void Renderer::RenderGl() {
 
 		// TODO: remove and reconstruct position from depth
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mPositionTexture);
+		glBindTexture(GL_TEXTURE_2D, mForwardRenderingTarget.mPositionTexture);
 		mDeferredLighting.SetInt("uPosition", 0);
 
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mDepthTexture);
+		glBindTexture(GL_TEXTURE_2D, mForwardRenderingTarget.mDepthTexture);
 		mDeferredLighting.SetInt("uDepth", 1);
 
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mNormalTexture);
+		glBindTexture(GL_TEXTURE_2D, mForwardRenderingTarget.mNormalTexture);
 		mDeferredLighting.SetInt("uNormal", 2);
 
 		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, mRenderTarget.mColorTexture);
+		glBindTexture(GL_TEXTURE_2D, mForwardRenderingTarget.mColorTexture);
 		mDeferredLighting.SetInt("uColor", 3);
 
 		glActiveTexture(GL_TEXTURE4);
@@ -860,15 +873,15 @@ void Renderer::RenderGl() {
 //		glBindFramebuffer
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, mDeferredLightingTarget.mFrameBufferId);
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mRenderTarget.mFrameBufferId);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mForwardRenderingTarget.mFrameBufferId);
 		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
 		glDrawBuffers (1, buffers);
 
 		glBlitFramebuffer(
 				0, mDeferredLightingTarget.mWidth,
 				0, mDeferredLightingTarget.mHeight,
-				0, mRenderTarget.mWidth,
-				0, mRenderTarget.mHeight,
+				0, mForwardRenderingTarget.mWidth,
+				0, mForwardRenderingTarget.mHeight,
 				GL_COLOR_BUFFER_BIT,
 				GL_NEAREST
 				);
@@ -958,7 +971,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 	program.SetMat44("uProjectionMatrix", camera.mProjectionMatrix);
 	program.SetMat33("uNormalMatrix", normal_matrix);
 
-  program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+ 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
 	program.SetVec3("uLightDirection", mLight.mDirection);
 	program.SetVec3("uViewPosition", camera.mEye);
 	
@@ -1031,22 +1044,36 @@ void Renderer::DrawGui() {
 		ImGui::RadioButton("Positions", &sRendererSettings.RenderMode, 4); ImGui::SameLine();
 		ImGui::RadioButton("AO", &sRendererSettings.RenderMode, 5);
 
+        if (mUseDeferred) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, mDeferredLightingTarget.mFrameBufferId);
+        } else {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, mForwardRenderingTarget.mFrameBufferId);
+        }
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mRenderOutput.mFrameBufferId);
+
+        glBlitFramebuffer(0, 0, mSceneAreaWidth, mSceneAreaHeight,
+                          0, 0, mSceneAreaWidth, mSceneAreaHeight,
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
 		switch (sRendererSettings.RenderMode) {
-			case SceneRenderModeDefault:	
-				mRenderTextureRef.mTextureIdPtr = 
-					mUseDeferred ? &mDeferredLightingTarget.mColorTexture : &mRenderTarget.mColorTexture;
+			case SceneRenderModeDefault:
+                mRenderTextureRef.mTextureIdPtr = &mRenderOutput.mColorTexture;
 				break;
 			case SceneRenderModeColor:	
-				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mColorTexture;
+				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mColorTexture;
 				break;
 			case SceneRenderModeDepth:	
-				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mLinearizedDepthTexture;
+				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mLinearizedDepthTexture;
 				break;
 			case SceneRenderModeNormals:	
-				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mNormalTexture;
+				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mNormalTexture;
 				break;
 			case SceneRenderModePositions:	
-				mRenderTextureRef.mTextureIdPtr = &mRenderTarget.mPositionTexture;
+				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mPositionTexture;
 				break;
 			case SceneRenderModeAmbientOcclusion:	
 				mRenderTextureRef.mTextureIdPtr = &mSSAOBlurTarget.mColorTexture;
