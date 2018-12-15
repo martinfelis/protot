@@ -8,7 +8,6 @@
 #include "Serializer.h"
 
 #include "imgui/imgui.h"
-#include "imgui_dock.h"
 
 using namespace SimpleMath::GL;
 
@@ -284,8 +283,8 @@ void Light::UpdateSplits(const Camera& camera) {
 	Matrix44f light_matrix = LookAt (mPosition, mPosition + mDirection, Vector3f (0.f, 1.0f, 0.0f));
 	Matrix44f light_matrix_inv = light_matrix.inverse();
 
-	mShadowSplits[0] = near + length * 0.05;
-	mShadowSplits[1] = near + length * 0.15;
+	mShadowSplits[0] = near + length * 0.03;
+	mShadowSplits[1] = near + length * 0.10;
 	mShadowSplits[2] = near + length * 0.4;
 	mShadowSplits[3] = far;
 
@@ -1013,7 +1012,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 //			TranslateMat44(0.0f, 2.0f, 2.0f),
 //			Vector3f (0.4f, 0.2f, 0.9f)
 //			);
-//
+
 
 	DebugDrawBone(
 			program,
@@ -1024,7 +1023,7 @@ void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
 }
 
 void Renderer::DrawGui() {
-	if (ImGui::BeginDock("Scene")) {
+	if (ImGui::Begin("Scene")) {
 		ImGui::RadioButton("Default", &sRendererSettings.RenderMode, 0); ImGui::SameLine();
 		ImGui::RadioButton("Color", &sRendererSettings.RenderMode, 1); ImGui::SameLine();
 		ImGui::RadioButton("Depth", &sRendererSettings.RenderMode, 2); ImGui::SameLine();
@@ -1067,14 +1066,14 @@ void Renderer::DrawGui() {
 				);
 	}
 	
-	ImGui::EndDock();
+	ImGui::End();
 
-	if (ImGui::BeginDock("Light Settings")) {
+	if (ImGui::Begin("Light Settings")) {
 		mLight.DrawGui();
 	}
-	ImGui::EndDock();
+	ImGui::End();
 
-	if (ImGui::BeginDock("Render Settings")) {
+	if (ImGui::Begin("Render Settings")) {
 		ImGui::Text("Camera");
 
 		mCamera.DrawGui();
@@ -1095,12 +1094,12 @@ void Renderer::DrawGui() {
 			}
 		}
 	}
-	ImGui::EndDock();
+	ImGui::End();
 
-	if (ImGui::BeginDock("Asset")) {
+	if (ImGui::Begin("Asset")) {
 		gAssetFile.DrawGui();
 	}
-	ImGui::EndDock();
+	ImGui::End();
 }
 
 void Renderer::InitializeSSAOKernelAndNoise() {

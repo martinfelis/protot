@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <glad/glad.h>
 
 #include <map>
 #include <vector>
@@ -31,13 +32,13 @@ struct Light {
 	float mShadowBias = 0.003;
 	float mShowCascadesAlpha = 0.0f;
 
-	bool mDebugDrawSplitViewBounds = true;
-	bool mDebugDrawSplitWorldBounds = true;
-	bool mDebugDrawSplitLightBounds = true;
+	bool mDebugDrawSplitViewBounds = false;
+	bool mDebugDrawSplitWorldBounds = false;
+	bool mDebugDrawSplitLightBounds = false;
 
 	Matrix44f mLightSpaceMatrix;
 
-	Vector4f mShadowSplits = Vector4f (0.0, 0.1, 0.4, 1.0);
+	Vector4f mShadowSplits = Vector4f (0.0, 0.05, 0.3, 1.0);
 
 	Matrix44f mSplitViewFrustum[4];
 	Matrix44f mSplitLightFrustum[4];
@@ -51,7 +52,7 @@ struct Light {
 		mPosition (Vector3f(0.f, 3, 0.0f)),
 		mDirection (Vector3f(1.f, 1.f, 1.f)),
 		mShadowMapBias (0.004f),
-		mShadowMapSize (512),
+		mShadowMapSize (2048),
 		mNear (-10.0f),
 		mFar (15.f),
 		mBBoxSize (35.f),
@@ -73,7 +74,7 @@ struct Renderer {
 	bool mInitialized = false;
 	bool mIsSSAOEnabled = false;
 	bool mUseDeferred = false;
-	bool mDrawDebugCamera = true;
+	bool mDrawDebugCamera = false;
 
 	uint32_t mWidth = 1;
 	uint32_t mHeight = 1;

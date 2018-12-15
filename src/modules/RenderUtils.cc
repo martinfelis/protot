@@ -761,6 +761,7 @@ void VertexArrayMesh::SetIndexData(const GLuint* indices, const int& count) {
 }
 
 void VertexArrayMesh::Draw(GLenum mode) {
+	this->mVertexArray->Bind();
 	assert(mVertexArray->IsBound());
 
 	if (mIndexBuffer == -1) {

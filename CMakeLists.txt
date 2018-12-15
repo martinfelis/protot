@@ -19,9 +19,9 @@ include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 if(COMPILER_SUPPORTS_CXX11)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 elseif(COMPILER_SUPPORTS_CXX0X)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fPIC")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 else()
 	message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
@@ -31,6 +31,7 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_DEBUG")
 
 message(STATUS "Using compiler flags ${CMAKE_CXX_FLAGS}")
 
+add_definitions("-DIMGUI_IMPL_OPENGL_LOADER_GLAD")
 
 INCLUDE_DIRECTORIES (
 	${CMAKE_CURRENT_BINARY_DIR}
@@ -53,7 +54,6 @@ INCLUDE_DIRECTORIES (
 
 	3rdparty/imgui
 	3rdparty/imgui/examples/
-	3rdparty/imgui/examples/libs/gl3w
 	)
 
 SUBDIRS ( 
@@ -72,15 +72,15 @@ SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
 	src/Utils.cc
 
+	3rdparty/glfw/deps/glad.c
 	3rdparty/imgui/imgui.cpp
 	3rdparty/imgui/imgui_draw.cpp
 	3rdparty/imgui/imgui_widgets.cpp
 	3rdparty/imgui/imgui_demo.cpp
-	3rdparty/imgui/examples/libs/gl3w/GL/gl3w.c
 	3rdparty/imgui/examples/imgui_impl_glfw.cpp
 	3rdparty/imgui/examples/imgui_impl_opengl3.cpp
 
-	3rdparty/imgui_dock_lumix/imgui_dock.cpp
+#	3rdparty/imgui_dock_lumix/imgui_dock.cpp
 	)
 
 SET (PROTOT_SOURCE_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
