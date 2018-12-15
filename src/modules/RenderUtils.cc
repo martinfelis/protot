@@ -1228,7 +1228,7 @@ void DebugDrawInitialize() {
 		// back side: -z                                                                 
 		{bone_width, bone_bump_fraction, -bone_width, 1.0f,				0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
 		{0.0f, 0.0f, 0.0f, 1.0f,	  															0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
-		{-bone_width, bone_width, -bone_width, 1.0f,							0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
+		{-bone_width, bone_bump_fraction, -bone_width, 1.0f,							0.0f, 0.0f, -1.0f,		0.0f, 0.0f, 255, 255, 255, 255 },
 
 		// upper half
 		//
