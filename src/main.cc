@@ -76,19 +76,25 @@ void handle_mouse () {
 		return;
 	}
 
-	if (glfwGetMouseButton(gWindow, 1)) {
-		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	} else {
-		glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-	}
-
 	double mouse_x, mouse_y;
 	glfwGetCursorPos(gWindow, &mouse_x, &mouse_y);
-	gGuiInputState->mousedX = mouse_x - gGuiInputState->mouseX;
-	gGuiInputState->mousedY = mouse_y - gGuiInputState->mouseY;
+
+	if (gGuiInputState->mouseButton) {
+		gGuiInputState->mousedX = mouse_x - gGuiInputState->mouseX;
+		gGuiInputState->mousedY = mouse_y - gGuiInputState->mouseY;
+	} else {
+		gGuiInputState->mousedX = 0;
+		gGuiInputState->mousedY = 0;
+	}
 	gGuiInputState->mouseX = mouse_x;
 	gGuiInputState->mouseY = mouse_y;
 	gGuiInputState->mouseScroll = mouse_scroll_y;
+
+//    if (glfwGetMouseButton(gWindow, 1)) {
+//        glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+//    } else {
+//        glfwSetInputMode(gWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+//    }
 
 	gGuiInputState->mouseButton =
 		glfwGetMouseButton(gWindow, 0)

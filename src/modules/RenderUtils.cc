@@ -996,7 +996,6 @@ void AssetFile::DrawGui() {
 //
 // Debug Draw Stuff
 //
-
 static void set_icosphere_point(
 		VertexArray::VertexData* data,
 		unsigned int index,
@@ -1139,9 +1138,8 @@ void DebugDrawInitialize() {
 		{-1.0f, -1.0f, 1.0f, 1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f, 255, 255, 255, 255 },	
 	};
 
-
 	sUnitCubeLines.SetData(unit_cube_lines_data, 4 * 6);
-	// TODO: 
+
 	GLuint unit_cube_lines_index_data[] = {
 		0,  1,  1,  2,  2,  3,  3,  0,
 		4,  5,  5,  6,  6,  7,  7,  4,
@@ -1263,8 +1261,6 @@ void DebugDrawInitialize() {
 		15, 16, 17,
 		18, 19, 20,
 		21, 22, 23
-//		6, 7, 8,
-//		9, 10, 11
 	};
 	sBoneBody.SetIndexData(bone_index_data, 24);
 }
