@@ -16,7 +16,8 @@
 #include "RuntimeModuleManager.h"
 #include "imgui/imgui.h"
 #include "imgui_dock.h"
-#include "imgui_impl_glfw_gl3.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 #include "FileModificationObserver.h"
 #include "Serializer.h"
@@ -109,6 +110,7 @@ int main(void)
 	glfwSetErrorCallback(error_callback);
 	glfwInit();
 
+	const char* glsl_version = "#version 150";
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -142,8 +144,8 @@ int main(void)
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	GuiInputState gui_input_state;
 	gGuiInputState = &gui_input_state;
-	ImGui_ImplGlfwGL3_Init(gWindow, true);
-	ImGui::LoadDock();
+	ImGui_ImplGlfw_InitForOpenGL(gWindow, true);
+	ImGui_ImplOpenGL3_Init(glsl_version);
 
 	// FileModificationObserver
 	FileModificationObserver file_modification_observer;
@@ -185,7 +187,8 @@ int main(void)
 		glViewport(0, 0, width, height);
 
 		glfwPollEvents();
-		ImGui_ImplGlfwGL3_NewFrame();
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
 
 		if (module_manager.CheckModulesChanged()) {
 			gLog("Detected module update at frame %d. Unloading all modules.", frame_counter);
@@ -229,7 +232,7 @@ int main(void)
 
 		module_manager.Update(gTimer->mDeltaTime);
 
-		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		// Send the application to sleep if we have some time left for this frame 
 		double frame_target_time = 1.0 / module_manager.mTargetFPS;
@@ -251,7 +254,8 @@ int main(void)
 
 	ImGui::ShutdownDock();
 
-	ImGui_ImplGlfwGL3_Shutdown();
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 	glfwTerminate();
 }
