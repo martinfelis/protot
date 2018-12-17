@@ -867,28 +867,6 @@ void Renderer::RenderGl() {
 	if (mDrawDebugCamera) {
 		DebugDrawShadowCascades();
 	}
-
-	if (mUseDeferred) {
-		// Blit the deferred result onto the main render target
-//		glBindFramebuffer
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, mDeferredLightingTarget.mFrameBufferId);
-		glReadBuffer(GL_COLOR_ATTACHMENT0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mForwardRenderingTarget.mFrameBufferId);
-		GLenum buffers[] = { GL_COLOR_ATTACHMENT0};
-		glDrawBuffers (1, buffers);
-
-		glBlitFramebuffer(
-				0, mDeferredLightingTarget.mWidth,
-				0, mDeferredLightingTarget.mHeight,
-				0, mForwardRenderingTarget.mWidth,
-				0, mForwardRenderingTarget.mHeight,
-				GL_COLOR_BUFFER_BIT,
-				GL_NEAREST
-				);
-
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	}
 }
 
 void Renderer::DebugDrawShadowCascades() {
