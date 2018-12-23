@@ -76,10 +76,10 @@ struct Renderer {
 	bool mUseDeferred = false;
 	bool mDrawDebugCamera = false;
 
-	uint32_t mWidth = 1;
-	uint32_t mHeight = 1;
-	uint32_t mSceneAreaWidth = 1;
-	uint32_t mSceneAreaHeight = 1;
+	int mWidth = 1;
+	int mHeight = 1;
+	int mSceneAreaWidth = 1;
+	int mSceneAreaHeight = 1;
 
 	Light mLight;
 	Camera mCamera;

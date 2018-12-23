@@ -668,6 +668,9 @@ bool VertexArray::IsBound() {
 }
 
 void VertexArrayMesh::Initialize(VertexArray &array, const int& size) {
+	mIndexBuffer = -1;
+	mIndexCount = -1;
+	
 	mVertexArray = &array;
 	mIndexOffset = mVertexArray->AllocateMesh(size);
 	mOffsetPtr = (void*) (sizeof(VertexArray::VertexData) * mIndexOffset);
