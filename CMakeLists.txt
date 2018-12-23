@@ -33,6 +33,11 @@ message(STATUS "Using compiler flags ${CMAKE_CXX_FLAGS}")
 
 add_definitions("-DIMGUI_IMPL_OPENGL_LOADER_GLAD")
 
+# setup of libccd variables so that FCL can find it
+SET (CCD_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libccd/src)
+SET (CCD_LIBRARY ccd)
+SET (BUILD_SHARED_LIBS TRUE)
+
 INCLUDE_DIRECTORIES (
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -62,6 +67,8 @@ SUBDIRS (
 
 	3rdparty/glfw
 	3rdparty/googletest
+	3rdparty/fcl
+	3rdparty/libccd
 	)
 
 SET (GLFW_BUILD_DOCS OFF)
@@ -112,6 +119,7 @@ SET (glfw_dependencies
 
 TARGET_LINK_LIBRARIES ( protot
 	glfw
+	fcl
 	${glfw_dependencies}
 	${OPENGL_LIBRARIES}
 )
