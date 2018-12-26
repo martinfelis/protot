@@ -841,6 +841,10 @@ VertexAttributeType AssetFile::GetVertexAttributeType(const std::string &attribu
 		attribute_type = VertexAttributeNormal;
 	} else if (attribute_string.compare("TEXCOORD_0") == 0) {
 		attribute_type = VertexAttributeTexCoord0;
+	} else if (attribute_string.compare("JOINTS_0") == 0) {
+		attribute_type = VertexAttributeBoneIndex0;
+	} else if (attribute_string.compare("WEIGHTS_0") == 0) {
+		attribute_type = VertexAttributeBoneWeights0;
 	} else {
 		attribute_type = VertexAttributeTypeCount;
 	}
@@ -973,6 +977,21 @@ void AssetFile::DrawGui() {
 			const tinygltf::Mesh& mesh = mGLTFModel.meshes[i];
 			ImGui::PushID("mesh");
 			if (ImGui::TreeNode((void*)(intptr_t)i, "[%d] %s", i, mesh.name.c_str())) {
+				for (int j = 0, m = mesh.primitives.size(); j < m; ++j) {
+					const tinygltf::Primitive& primitive
+						= mesh.primitives[j];
+					if (ImGui::TreeNode("Attributes")) {
+						std::map<std::string, int>::const_iterator iter = primitive.attributes.begin();
+						while (iter != primitive.attributes.end()) {
+							ImGui::Text("%s", iter->first.c_str());
+							iter ++;
+						}
+						ImGui::TreePop();
+					}
+					ImGui::Text("Indices %d", primitive.indices);
+					ImGui::Text("Material %d", primitive.material);
+					ImGui::Text("Mode %d", primitive.mode);
+				}
 				ImGui::TreePop();
 			}
 			ImGui::PopID();
@@ -985,16 +1004,59 @@ void AssetFile::DrawGui() {
 			const tinygltf::Node& node = mGLTFModel.nodes[i];
 			ImGui::PushID("node");
 			if (ImGui::TreeNode((void*)(intptr_t)i, "[%d] %s", i, node.name.c_str())) {
+				if (node.camera >= 0) {
+					ImGui::Text("Camera %d", node.camera);
+				}
+
+				if (node.mesh >= 0) {
+					ImGui::Text("Mesh %d", node.mesh);
+				}
+
+				if (node.skin >= 0) {
+					ImGui::Text("Skin %d", node.skin);
+				}
+
 				DrawNodeGui(node);
 				ImGui::TreePop();
 			}
+
 			ImGui::PopID();	
+		}
+		ImGui::TreePop();
+	}
+
+	if (ImGui::TreeNode("Skins")) {
+		for (int i = 0, n = mGLTFModel.skins.size(); i < n; ++i) {
+			const tinygltf::Skin& skin = mGLTFModel.skins[i];
+			ImGui::PushID("skin");
+			if (ImGui::TreeNode((void*)(intptr_t)i, "[%d] %s", i, skin.name.c_str())) {
+				ImGui::Text("Skeleton: %d", skin.skeleton);
+
+				if (ImGui::TreeNode("Joints")) {
+					for (int j = 0, m = skin.joints.size(); j < m; j++) {
+						ImGui::Text("%d", skin.joints[j]);
+					}
+					ImGui::TreePop();
+				}
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
 		}
 		ImGui::TreePop();
 	}
 }
 
-
+//
+// Skeleton
+//
+void Skeleton::UpdateMatrices() {
+	int n = mParentIndex.size();
+	mMatrices[0] = mLocalTransforms[0].toMatrix();
+	for (int i = 1; i < n; i++) {
+		int parent_index = mParentIndex[i];
+		mMatrices[i] = mMatrices[parent_index] * mLocalTransforms[i].toMatrix();
+	}
+}
 
 //
 // Debug Draw Stuff

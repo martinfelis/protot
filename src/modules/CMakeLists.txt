@@ -12,15 +12,6 @@ ADD_LIBRARY (TestModule SHARED
 	TestModule.cc
 	)
 
-# ADD_LIBRARY (CharacterModule SHARED
-# 	CharacterModule.cc
-# 	)
-# 
-# TARGET_LINK_LIBRARIES ( CharacterModule
-# 	RenderModule
-# 	)
-#
-# TARGET_LINK_LIBRARIES ( TestModule
-# 	CharacterModule
-# 	RenderModule
-# 	)
+TARGET_LINK_LIBRARIES ( TestModule
+	RenderModule
+	)

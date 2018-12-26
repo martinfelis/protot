@@ -337,6 +337,8 @@ enum VertexAttributeType {
 	VertexAttributeNormal = 1,
 	VertexAttributeTexCoord0 = 2,
 	VertexAttributeColor = 3,
+	VertexAttributeBoneIndex0 = 4,
+	VertexAttributeBoneWeights0 = 5,
 	VertexAttributeTypeCount
 };
 
@@ -464,6 +466,125 @@ struct VertexArrayMesh {
 	void SetIndexData(const GLuint* indices, const int& count);
 
 	void Draw(GLenum mode);
+};
+
+struct Skeleton {
+	std::vector<int> mParentIndex;
+	std::vector<Matrix44f> mMatrices;
+	std::vector<Transform> mLocalTransforms;
+
+	void UpdateMatrices();
+};
+
+struct SkinnedModel {
+	Skeleton mSkeleton;
+	std::vector<VertexArrayMesh> mMesh;	
+};
+
+struct SkinnedMesh {
+	struct VertexData {
+		union {
+			struct {
+				float x;
+				float y;
+				float z;
+				float w;
+				float nx;
+				float ny;
+				float nz;
+				float s;
+				float t;
+				GLubyte bone_idx0;
+				GLubyte bone_idx1;
+				GLubyte bone_idx2;
+				GLubyte bone_idx3;
+				float   bone_w0;
+				float   bone_w1;
+				float   bone_w2;
+				float   bone_w3;
+			};
+			struct {
+				float mCoords[4];
+				float mNormals[3];
+				float mTexCoords[2];
+				GLubyte mBoneIndices[4];
+				float mBoneWeights[4];
+			};
+		};
+
+		VertexData() :
+			x(0.0f),
+			y(0.0f),
+			z(0.0f),
+			w(0.0f),
+			nx(0.0f),
+			ny(0.0f),
+			nz(0.0f),
+			s(0.0f),
+			t(0.0f),
+			bone_idx0(0),
+			bone_idx1(0),
+			bone_idx2(0),
+			bone_idx3(0),
+			bone_w0(0),
+			bone_w1(0),
+			bone_w2(0),
+			bone_w3(0)
+			 {}
+
+		VertexData(
+				float x,
+				float y,
+				float z,
+				float w,
+				float nx,
+				float ny,
+				float nz,
+				float s,
+				float t,
+				GLubyte b0,
+				GLubyte b1,
+				GLubyte b2,
+				GLubyte b3,
+				float w0,
+				float w1,
+				float w2,
+				float w3
+				) :
+			x(x), y(y), z(z), w(w),
+			nx(nx), ny(ny), nz(nz),
+			s(s), t(t),
+			bone_idx0(b0), bone_idx1(b1), bone_idx2(b2), bone_idx3(b3),
+			bone_w0(w0), bone_w1(w1), bone_w2(w2), bone_w3(w3) {}
+
+		VertexData& operator= (const VertexData& data) {
+			x = data.x;
+			y = data.y;
+			z = data.z;
+			w = data.w;
+			nx = data.nx;
+			ny = data.ny;
+			nz = data.nz;
+			s = data.s;
+			t = data.t;
+			bone_idx0 = data.bone_idx0;
+			bone_idx1 = data.bone_idx1;
+			bone_idx2 = data.bone_idx2;
+			bone_idx3 = data.bone_idx3,
+			bone_w0 = data.bone_w0;
+			bone_w1 = data.bone_w1;
+			bone_w2 = data.bone_w2;
+			bone_w3 = data.bone_w3;
+			
+			return *this;
+		}
+	};
+
+	void Initialize(const int& size, GLenum usage);
+	void Cleanup();
+	GLuint AllocateMesh(const int& size);
+	void Bind();
+	bool IsBound();
 };
 
 struct AssetFile {

@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <sstream>
+#include <signal.h>
 
 #include "Timer.h"
 #include "RuntimeModuleManager.h"
@@ -66,6 +67,15 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
+void signal_handler(int signo) {
+	gLog ("Received signal %d", signo);
+
+	if (gModuleManager->CheckModulesChanged()) {
+		gModuleManager->UnloadModules();
+		gModuleManager->LoadModules();
+	}
+}
+
 void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	mouse_scroll_x += xoffset;
 	mouse_scroll_y += yoffset;
@@ -108,6 +118,10 @@ int main(void)
 	std::cout << "Time at start: " << gTimeAtStart << std::endl;
 
 	LoggingInit();
+
+	if (signal(SIGUSR1, signal_handler) == SIG_ERR) {
+		gLog ("Error registering signal handler!");
+	}
 
 	WriteSerializer out_serializer;
 	ReadSerializer in_serializer;
@@ -213,13 +227,6 @@ int main(void)
 
 		if (show_demo_window)
 			ImGui::ShowDemoWindow(&show_demo_window);
-
-		if (module_manager.CheckModulesChanged()) {
-			gLog("Detected module update at frame %d. Unloading all modules.", frame_counter);
-			module_manager.UnloadModules();
-			// We need to sleep to make sure we load the new files
-			module_manager.LoadModules();
-		}
 
 		frame_time_last = frame_time_current;
 		frame_time_current = glfwGetTime();

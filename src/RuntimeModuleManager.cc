@@ -93,7 +93,6 @@ bool RuntimeModuleManager::CheckModulesChanged() {
 	struct stat attr;
 
 	double current_time = gGetTimeSinceStart();
-	mNumUpdatesSinceLastModuleChange++;
 
 	for (int i = 0; i < mModules.size(); i++) {
 		RuntimeModule* module = mModules[i];
@@ -113,21 +112,14 @@ bool RuntimeModuleManager::CheckModulesChanged() {
 			module->mtime = attr.st_mtime;
 			module->mtimensec = attr.st_mtim.tv_nsec;
 			module->fsize = attr.st_size;
-			mNumUpdatesSinceLastModuleChange = 0;
 
 			gLog ("Detected file change of %s: new size %d",
 					module->name.c_str(), attr.st_size);
+			gLog ("Triggering reload");
+
+			return true;
 		}
 	}
-
-	// We have to delay the actual reload trigger to make
-	// sure all writes to the dynamic libraries are complete.
-	if (mNumUpdatesSinceLastModuleChange == 5) {
-		gLog ("Triggering reload");
-
-		return true;
-	}
-
 
 	return false;
 }

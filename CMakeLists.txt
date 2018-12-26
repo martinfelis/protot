@@ -14,6 +14,13 @@ SET (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # For YouCompleteMe
 SET (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Enable CCache
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    SET_PROPERTY(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    SET_PROPERTY(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif(CCACHE_FOUND)
+
 # Enable proper C++11 flags
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
@@ -37,6 +44,10 @@ add_definitions("-DIMGUI_IMPL_OPENGL_LOADER_GLAD")
 SET (CCD_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libccd/src)
 SET (CCD_LIBRARY ccd)
 SET (BUILD_SHARED_LIBS TRUE)
+SET (FCL_BUILD_TESTS FALSE)
+SET (BUILD_TESTING OFF)
+SET (GLFW_BUILD_DOCS OFF)
+SET (GLFW_BUILD_EXAMPLES OFF)
 
 INCLUDE_DIRECTORIES (
 	${CMAKE_CURRENT_BINARY_DIR}
@@ -79,7 +90,7 @@ SET ( protot_SRCS
 	src/RuntimeModuleManager.cc
 	src/Utils.cc
 
-	3rdparty/glfw/deps/glad.c
+	3rdparty/glfw/deps/glad.cc
 	3rdparty/imgui/imgui.cpp
 	3rdparty/imgui/imgui_draw.cpp
 	3rdparty/imgui/imgui_widgets.cpp
