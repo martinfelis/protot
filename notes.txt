@@ -1,0 +1,27 @@
+gltf model rendering:
+
+AssetFile::DrawModel (program):
+
+* loop over all scene nodes
+  * call DrawNode()
+		* assembles matrix for the node
+			- either via mat44
+			- or assemble mat44 from SRT
+		* if have mesh
+			call DrawMesh()
+			* loop over all primitives
+				* gather primitive attributes
+					- get dimension
+					- get attribute type (position, normal, texcoord)	
+					- get stride
+					- set attribute pointer
+					- enable attribute
+				* get accessor
+				* bind buffer using accessor
+				* get primitive mode
+				* draw array using primitive mode and accessor
+				* disable attributes
+			
+		* if children
+			recurse DrawNode()
+	
