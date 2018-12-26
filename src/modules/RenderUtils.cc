@@ -10,7 +10,6 @@
 #include "FileModificationObserver.h"
 
 #include "imgui/imgui.h"
-#include "imgui_dock.h"
 
 using namespace SimpleMath::GL;
 
