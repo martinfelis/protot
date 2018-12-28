@@ -194,6 +194,7 @@ int main(void)
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
 	module_manager.RegisterModule("src/modules/libTestModule.so");
+	module_manager.RegisterModule("src/modules/libSceneModule.so");
 //	module_manager.RegisterModule("src/modules/libCharacterModule.so");
 
 	// Setup global variables

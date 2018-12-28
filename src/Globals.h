@@ -21,7 +21,6 @@ extern WriteSerializer* gWriteSerializer;
 struct ReadSerializer;
 extern ReadSerializer* gReadSerializer;
 
-struct GuiInputState;
 extern GuiInputState* gGuiInputState;
 
 struct FileModificationObserver;

@@ -1,16 +1,21 @@
 #pragma once
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstdint>
-#include <cassert>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <assert.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <cstdarg>
+#include <stdarg.h>
+#include <stdbool.h>
 
-struct GuiInputState {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
 	int32_t mousedX;
 	int32_t mousedY;
 	int32_t mouseX;
@@ -18,15 +23,9 @@ struct GuiInputState {
 	uint8_t mouseButton;
 	int32_t mouseScroll;
 	char key;
+} GuiInputState;
 
-	GuiInputState() :
-		mouseX(0),
-		mouseY(0),
-		mouseButton(0),
-		mouseScroll(0),
-		key(0) {
-		}
-};
+void GuiInputState_Init (GuiInputState* input_state);
 
 inline void gGetFileModTime (const char* filename, int *sec, int *nsec) {
 	struct stat attr;
@@ -45,7 +44,7 @@ inline double gGetCurrentTime () {
 	struct timespec spec;
 	clock_gettime(CLOCK_REALTIME, &spec);
 
-	return static_cast<double>(spec.tv_sec) + spec.tv_nsec * 1.0e-9;
+	return (double)(spec.tv_sec) + spec.tv_nsec * 1.0e-9;
 }
 
 extern double gTimeAtStart;
@@ -81,5 +80,9 @@ inline void gLog (const char* format, ...) {
 }
 
 inline float gRandomFloat() {
-	return (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+	return ((float)(rand()) / (float)(RAND_MAX));
 }
+
+#ifdef __cplusplus
+}
+#endif

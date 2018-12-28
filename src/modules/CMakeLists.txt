@@ -5,13 +5,12 @@ INCLUDE_DIRECTORIES (
 ADD_LIBRARY (RenderModule SHARED 
 	RenderModule.cc
 	RenderUtils.cc
+	RenderCommands.cc
 	gltf_implementation.cc
 	)
 
-ADD_LIBRARY (TestModule SHARED
-	TestModule.cc
-	)
+ADD_LIBRARY (TestModule SHARED TestModule.cc)
+TARGET_LINK_LIBRARIES ( TestModule RenderModule)
 
-TARGET_LINK_LIBRARIES ( TestModule
-	RenderModule
-	)
+ADD_LIBRARY (SceneModule SHARED SceneModule.c)
+TARGET_LINK_LIBRARIES ( SceneModule RenderModule)

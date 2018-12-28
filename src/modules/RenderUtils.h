@@ -242,6 +242,11 @@ struct RenderProgram : AFileModificationListener {
 		glUniform1f(location, val);
 		return location;
 	}
+	GLint SetFloatArray(const char* name, const int count, const float* array) {
+		GLint location = glGetUniformLocation(mProgramId, name);
+		glUniform1fv(location, count, array);
+		return location;
+	}
 	GLint SetVec3(const char* name, const Vector3f& vec) {
 		GLint location = glGetUniformLocation(mProgramId, name);
 		glUniform3fv(location, 1, vec.data()); 
@@ -602,19 +607,6 @@ struct AssetFile {
 	// Debug UI
 	void DrawNodeGui(const tinygltf::Node& node);
 	void DrawGui();
-};
-
-struct RenderCommand {
-	typedef enum {
-		EnableShadowPass = 1
-	} Flags;
-
-	int mFlags;
-	GLenum mDrawMode;
-	Vector4f mColor = Vector4f (1.0f, 1.0f, 1.0f, 1.0f);
-
-	Matrix44f mTransform;
-	VertexArrayMesh *mMesh;
 };
 
 // Debug Draw Stuff

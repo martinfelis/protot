@@ -13,6 +13,7 @@
 
 #include "Globals.h"
 #include "RenderUtils.h"
+#include "RenderCommands_p.h"
 
 struct Light {
 	Vector3f mPosition;
@@ -115,6 +116,8 @@ struct Renderer {
 	int mSSAOBlurSize = 1;
 	bool mSSAODisableColor = false;
 
+	std::vector<RenderCommand> mRenderCommands;
+
 	Renderer() :
 		mInitialized(false),
 		mWidth (0),
@@ -126,6 +129,7 @@ struct Renderer {
 	void CheckRenderBuffers();
 	void ResizeTargets(int width, int height);
 	void RenderGl();
+	void SubmitRenderCommands (RenderProgram &program, const Camera &camera);
 	void RenderScene(RenderProgram &program, const Camera& camera);
 	void DebugDrawShadowCascades();
 	void DrawGui();

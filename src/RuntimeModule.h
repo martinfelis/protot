@@ -32,6 +32,10 @@ struct module_api {
     bool (*step)(struct module_state *state, float dt);
 };
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 extern const struct module_api MODULE_API;
+#ifdef __cplusplus
 }
+#endif

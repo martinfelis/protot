@@ -935,7 +935,66 @@ void Renderer::DebugDrawShadowCascades() {
 		glEnable(GL_DEPTH_TEST);
 }
 
+void Renderer::SubmitRenderCommands (RenderProgram &program, const Camera &camera) {
+	glUseProgram(program.mProgramId);
+
+	program.SetMat44("uViewMatrix", camera.mViewMatrix);
+	program.SetMat44("uProjectionMatrix", camera.mProjectionMatrix);
+
+ 	program.SetVec4("uColor", Vector4f (1.0f, 1.0f, 1.0f, 1.0f));
+	program.SetVec3("uLightDirection", mLight.mDirection);
+	program.SetVec3("uViewPosition", camera.mEye);
+	
+	program.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix); 
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
+	program.SetInt("uShadowMap",  0);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, mDefaultTexture.mTextureId);
+	program.SetInt("uAlbedoTexture",  1);
+
+	for (int i = 0, n = mRenderCommands.size(); i < n; ++i) {
+		const RenderCommand& command = mRenderCommands[i];
+
+		Matrix44f transform;
+		memcpy (transform.data(), command.mTransform, sizeof(float) * 16);
+		Vector4f color;
+		memcpy (color.data(), command.mColor, sizeof(float) * 4);
+	 	program.SetVec4("uColor", color);
+
+		program.SetMat44("uModelMatrix", transform);
+		Matrix33f normal_matrix = transform.block<3,3>(0,0).transpose();
+		normal_matrix = normal_matrix.inverse();
+		program.SetMat33("uNormalMatrix", normal_matrix);
+
+		if (command.mObject == DebugCube) {
+			DebugDrawCube(program,
+				transform
+				);
+		} else if (command.mObject == DebugSphere) {
+			DebugDrawSphere(program,
+				transform,
+				color
+				);
+		} else if (command.mObject == DebugFrame) {
+			DebugDrawFrame(program,
+				transform
+				);
+		} else if (command.mObject == DebugBone) {
+			DebugDrawBone(program,
+				transform,
+				color
+				);
+		}
+	}
+}
+
+
 void Renderer::RenderScene(RenderProgram &program, const Camera& camera) {
+	SubmitRenderCommands(program, camera);
+
 	glUseProgram(program.mProgramId);
 
 	Matrix44f model_matrix = TranslateMat44(3.0f, 0.0f, 1.0f);
