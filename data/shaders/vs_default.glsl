@@ -22,7 +22,7 @@ out vec4 ioFragPosLightSpace;
 void main() {
 	mat4 model_view_matrix = uViewMatrix * uModelMatrix;
 
-	ioFragPosition = (model_view_matrix* inCoord).xyz;
+	ioFragPosition = (model_view_matrix * inCoord).xyz;
 	ioFragNormal = transpose(inverse(mat3(model_view_matrix))) * inNormal;
 	ioFragTexCoords = inUV;
 	ioFragColor = inColor;

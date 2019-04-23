@@ -126,7 +126,7 @@ void main() {
 
 	vec3 cascade = get_cascade_color(-position.z);
 	ambient = (uShowCascadesAlpha * cascade) + (1.0 - uShowCascadesAlpha) * ambient;
-	outColor = (ambient + (1.0 - shadow) * (diffuse + specular)) * ambient_occlusion;
+  outColor = (ambient + (1.0 - shadow) * (diffuse + specular)) * ambient_occlusion;
 
 //	outColor = diffuse;
 //	outColor = (ambient + (diffuse + specular)) * ambient_occlusion;

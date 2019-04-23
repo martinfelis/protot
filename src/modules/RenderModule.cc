@@ -124,7 +124,6 @@ static void module_serialize (
 	SerializeBool(*serializer, "protot.RenderModule.mLight.mDebugDrawSplitLightBounds", gRenderer->mLight.mDebugDrawSplitLightBounds);
 	SerializeVec4 (*serializer, "protot.RenderModule.mLight.mSplitBias", gRenderer->mLight.mSplitBias);
 	SerializeVec4 (*serializer, "protot.RenderModule.mLight.mShadowSplits", gRenderer->mLight.mShadowSplits);
-
 }
 
 static void module_finalize(struct module_state *state) {
@@ -584,12 +583,6 @@ void Renderer::CheckRenderBuffers() {
 	}
 }
 
-void Renderer::ResizeTargets(int width, int height) {
-    mSSAOTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
-    mSSAOBlurTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
-
-}
-
 void Renderer::RenderGl() {
 	CheckRenderBuffers();
 
@@ -652,12 +645,21 @@ void Renderer::RenderGl() {
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix;
 
-	// enable the render target
-	mForwardRenderingTarget.Bind();
+  // Clear the SSAO Blur target
+  if (!mIsSSAOEnabled) {
+    mSSAOBlurTarget.Bind();
+    GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, draw_attachment_0);
+    glClearColor(1.f, 1.f, 1.f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+ }
 
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		gLog ("Cannot render: frame buffer invalid!");
-	}
+  // enable the render target
+	mForwardRenderingTarget.Bind();
+  GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
+  glDrawBuffers(1, draw_attachment_0);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable(GL_DEPTH_TEST);
 	RenderProgram *program = &mDefaultProgram;
@@ -711,21 +713,46 @@ void Renderer::RenderGl() {
 	gVertexArray.Bind();
 	gXZPlaneGrid.Draw(GL_LINES);
 
-	if (!mIsSSAOEnabled) {
-		// Clear the SSAO Blur target
-		mSSAOBlurTarget.Bind();
-		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
-		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
-		glDrawBuffers(1, draw_attachment_0);
-		glClearColor(255, 255, 255, 255);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glDisable(GL_DEPTH_TEST);
-		gVertexArray.Bind();
-		gScreenQuad.Draw(GL_TRIANGLES);
-	}
-
 	// Scene
 	glUseProgram(program->mProgramId);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
+	program->SetInt("uShadowMap",  0);
+
+	if (!mUseDeferred) {
+		// Shadow Map Cascades
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[0].mDepthTexture);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[1].mDepthTexture);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[2].mDepthTexture);
+		glActiveTexture(GL_TEXTURE8);
+		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[3].mDepthTexture);
+
+		GLint shadow_maps[cNumSplits];
+		shadow_maps[0] = 5;
+		shadow_maps[1] = 6;
+		shadow_maps[2] = 7;
+		shadow_maps[3] = 8;
+		program->SetIntArray("uShadowMaps", cNumSplits, shadow_maps);
+
+		Matrix44f light_matrices[cNumSplits];
+
+		for (int i = 0; i < cNumSplits; ++i) {
+			light_matrices[i] = mCamera.mViewMatrix.inverse() 
+				* mLight.mSplitLightFrustum[i];
+		}
+		program->SetFloat("uNear", mCamera.mNear);
+		program->SetFloat("uFar", mCamera.mFar);
+		program->SetVec4("uShadowSplits", mLight.mShadowSplits);
+		program->SetVec4("uShadowSplitBias", mLight.mSplitBias);
+		program->SetFloat("uShowCascadesAlpha", mLight.mShowCascadesAlpha);
+
+    program->SetMat44Array("uViewToLightMatrix", cNumSplits, light_matrices);
+		program->SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix); 
+	}
 
 	RenderScene(*program, mCamera);
 
@@ -733,7 +760,7 @@ void Renderer::RenderGl() {
 		mForwardRenderingTarget.RenderToLinearizedDepth(mCamera.mNear, mCamera.mFar, mCamera.mIsOrthographic);
 	}
 
-	if (mUseDeferred && mIsSSAOEnabled) {
+	if (mIsSSAOEnabled) {
 		mSSAOTarget.Bind();
 		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 		GLenum draw_attachment_0[] = {GL_COLOR_ATTACHMENT0 };
@@ -774,6 +801,7 @@ void Renderer::RenderGl() {
 		mSSAOBlurTarget.Bind();
 		glViewport(0, 0, mCamera.mWidth, mCamera.mHeight);
 		glDrawBuffers(1, draw_attachment_0);
+		glClearColor(1.f, 1.f, 1.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_DEPTH_TEST);
 		
@@ -830,14 +858,14 @@ void Renderer::RenderGl() {
 		glActiveTexture(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, mLight.mSplitTarget[3].mDepthTexture);
 
-		GLint shadow_maps[4];
+		GLint shadow_maps[cNumSplits];
 		shadow_maps[0] = 5;
 		shadow_maps[1] = 6;
 		shadow_maps[2] = 7;
 		shadow_maps[3] = 8;
 		mDeferredLighting.SetIntArray("uShadowMap", cNumSplits, shadow_maps);
 
-		Matrix44f light_matrices[3];
+		Matrix44f light_matrices[cNumSplits];
 
 		for (int i = 0; i < cNumSplits; ++i) {
 			light_matrices[i] = mCamera.mViewMatrix.inverse() 
@@ -860,6 +888,7 @@ void Renderer::RenderGl() {
 		mDeferredLighting.SetVec3("uLightDirection", light_direction.normalized());
 		mDeferredLighting.SetFloat("uShadowBias", mLight.mShadowBias);
 
+		glDisable(GL_DEPTH_TEST);
 		gVertexArray.Bind();
 		gScreenQuad.Draw(GL_TRIANGLES);
 	}
@@ -945,12 +974,6 @@ void Renderer::SubmitRenderCommands (RenderProgram &program, const Camera &camer
 	program.SetVec3("uLightDirection", mLight.mDirection);
 	program.SetVec3("uViewPosition", camera.mEye);
 	
-	program.SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix); 
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, mLight.mShadowMapTarget.mDepthTexture);
-	program.SetInt("uShadowMap",  0);
-
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, mDefaultTexture.mTextureId);
 	program.SetInt("uAlbedoTexture",  1);
@@ -1081,38 +1104,38 @@ void Renderer::DrawGui() {
 		ImGui::RadioButton("Positions", &sRendererSettings.RenderMode, 4); ImGui::SameLine();
 		ImGui::RadioButton("AO", &sRendererSettings.RenderMode, 5);
 
-        if (mUseDeferred) {
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, mDeferredLightingTarget.mFrameBufferId);
-        } else {
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, mForwardRenderingTarget.mFrameBufferId);
-        }
+    if (mUseDeferred) {
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, mDeferredLightingTarget.mFrameBufferId);
+    } else {
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, mForwardRenderingTarget.mFrameBufferId);
+    }
 
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mRenderOutput.mFrameBufferId);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mRenderOutput.mFrameBufferId);
 
-        glBlitFramebuffer(0, 0, mSceneAreaWidth, mSceneAreaHeight,
-                          0, 0, mSceneAreaWidth, mSceneAreaHeight,
-                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, mSceneAreaWidth, mSceneAreaHeight,
+                      0, 0, mSceneAreaWidth, mSceneAreaHeight,
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
 		switch (sRendererSettings.RenderMode) {
 			case SceneRenderModeDefault:
-                mRenderTextureRef.mTextureIdPtr = &mRenderOutput.mColorTexture;
+        mRenderTextureRef.mTextureIdPtr = &mRenderOutput.mColorTexture;
 				break;
-			case SceneRenderModeColor:	
+			case SceneRenderModeColor:
 				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mColorTexture;
 				break;
-			case SceneRenderModeDepth:	
+			case SceneRenderModeDepth:
 				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mLinearizedDepthTexture;
 				break;
-			case SceneRenderModeNormals:	
+			case SceneRenderModeNormals:
 				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mNormalTexture;
 				break;
-			case SceneRenderModePositions:	
+			case SceneRenderModePositions:
 				mRenderTextureRef.mTextureIdPtr = &mForwardRenderingTarget.mPositionTexture;
 				break;
-			case SceneRenderModeAmbientOcclusion:	
+			case SceneRenderModeAmbientOcclusion:
 				mRenderTextureRef.mTextureIdPtr = &mSSAOBlurTarget.mColorTexture;
 				break;
 		}
