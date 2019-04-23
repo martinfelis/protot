@@ -58,8 +58,11 @@ INCLUDE_DIRECTORIES (
 	)
 
 FIND_PACKAGE (X11 REQUIRED)
-FIND_PACKAGE (OpenGL REQUIRED)
 FIND_PACKAGE (Threads REQUIRED)
+
+SET (OpenGL_GL_PREFERENCE "GLVND")
+FIND_PACKAGE (OpenGL REQUIRED)
+
 
 INCLUDE_DIRECTORIES ( 
 	3rdparty/glfw/deps
@@ -74,10 +77,8 @@ INCLUDE_DIRECTORIES (
 
 SUBDIRS ( 
 	src/modules
-	tests/
 
 	3rdparty/glfw
-	3rdparty/googletest
 	)
 
 SET (GLFW_BUILD_DOCS OFF)
@@ -95,8 +96,6 @@ SET ( protot_SRCS
 	3rdparty/imgui/imgui_demo.cpp
 	3rdparty/imgui/examples/imgui_impl_glfw.cpp
 	3rdparty/imgui/examples/imgui_impl_opengl3.cpp
-
-#	3rdparty/imgui_dock_lumix/imgui_dock.cpp
 	)
 
 SET (PROTOT_SOURCE_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
