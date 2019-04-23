@@ -1350,14 +1350,14 @@ void DebugDrawFrame(RenderProgram &program, const Matrix44f& mat) {
 	sCoordinateFrameMesh.Draw(GL_LINES);
 }
 
-void DebugDrawSphere(RenderProgram &program, const Matrix44f& mat, const Vector3f& color) {
+void DebugDrawSphere(RenderProgram &program, const Matrix44f& mat, const Vector4f& color) {
 	sVertexArray.Bind();
 	program.SetMat44("uModelMatrix", mat);
-	program.SetVec4("uColor", Vector4f (color[0], color[1], color[2], 1.0f));
+	program.SetVec4("uColor", Vector4f (color[0], color[1], color[2], color[3]));
 	sIcoSphere.Draw(GL_TRIANGLES);
 }
  
-void DebugDrawBone(RenderProgram &program, const Matrix44f& mat, const Vector3f& color) {
+void DebugDrawBone(RenderProgram &program, const Matrix44f& mat, const Vector4f& color) {
 	sVertexArray.Bind();
 
 	const float sphere_size = 0.035f;
@@ -1370,7 +1370,7 @@ void DebugDrawBone(RenderProgram &program, const Matrix44f& mat, const Vector3f&
 			);
 
 	program.SetMat44("uModelMatrix", mat);
-	program.SetVec4("uColor", Vector4f (color[0], color[1], color[2], 1.0f));
+	program.SetVec4("uColor", Vector4f (color[0], color[1], color[2], color[3]));
 	sBoneBody.Draw(GL_TRIANGLES);
 
 	DebugDrawSphere(
