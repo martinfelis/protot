@@ -1,5 +1,9 @@
 ProtoT - Fun 3D programming prototyping environment
-Copyright (c) 2016 - Martin Felis <martin@fysx.org
+Copyright (c) 2016 - Martin Felis <martin@fysx.org>
+
+Needed Packages:
+
+libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev 
 
 Needs inotifywait to work (in ubuntu provided by inotify-tools)
 
