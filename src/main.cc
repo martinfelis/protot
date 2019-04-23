@@ -333,7 +333,9 @@ int main(void)
 		}
 	}
 
-    module_manager.UnregisterModules();
+	gLog ("Exiting application");
+
+  module_manager.UnregisterModules();
 
 	gRenderer = nullptr;
 

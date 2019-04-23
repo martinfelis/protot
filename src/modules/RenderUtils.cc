@@ -594,6 +594,9 @@ void VertexArray::Initialize(const int& size, GLenum usage) {
 }
 
 void VertexArray::Cleanup() {
+	gLog ("deleting vertex buffer: %d", mVertexBuffer);
+	int is_buffer = glIsBuffer(mVertexBuffer);
+	gLog ("is buffer %d", is_buffer);
 	glDeleteBuffers(1, &mVertexBuffer);
 	mVertexBuffer = -1;
 	glDeleteVertexArrays(1, &mVertexArrayId);

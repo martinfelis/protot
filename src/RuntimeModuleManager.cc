@@ -143,7 +143,7 @@ void RuntimeModuleManager::UnloadModules() {
 		}
 	}
 
-	gLog ("Writting state to file %s", state_file);
+	gLog ("Writing state to file %s", state_file);
 	gWriteSerializer->Close();
 }
 

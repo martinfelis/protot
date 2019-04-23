@@ -131,6 +131,7 @@ static void module_finalize(struct module_state *state) {
 
 	assert (state->renderer != nullptr);
 	delete state->renderer;
+	gVertexArray.Cleanup();
 
 	free(state);
 }
@@ -563,7 +564,7 @@ void Renderer::CheckRenderBuffers() {
 	if (mSceneAreaWidth != mRenderOutput.mWidth
 			|| mSceneAreaHeight != mRenderOutput.mHeight
 			|| mForwardRenderingTarget.mFlags != required_render_flags ) {
-		mRenderOutput.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
+		mRenderOutput.Resize(mSceneAreaWidth, mSceneAreaHeight, RenderTarget::EnableColor);
 		mForwardRenderingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight, required_render_flags);
 		mDeferredLightingTarget.Resize(mSceneAreaWidth, mSceneAreaHeight,
                                        RenderTarget::EnableColor
@@ -696,7 +697,7 @@ void Renderer::RenderGl() {
 
 	DebugDrawFrame(
 			mSimpleProgram,
-		TranslateMat44(0.0f, 0.002f, 0.0f)
+		TranslateMat44(1.0f, 0.002f, 0.0f)
 		* mCamera.mViewMatrix
 		* mCamera.mProjectionMatrix
 		);
@@ -750,7 +751,8 @@ void Renderer::RenderGl() {
 		program->SetVec4("uShadowSplitBias", mLight.mSplitBias);
 		program->SetFloat("uShowCascadesAlpha", mLight.mShowCascadesAlpha);
 
-    program->SetMat44Array("uViewToLightMatrix", cNumSplits, light_matrices);
+
+		program->SetMat44Array("uViewToLightMatrix", cNumSplits, light_matrices);
 		program->SetMat44("uLightSpaceMatrix", mLight.mLightSpaceMatrix); 
 	}
 
