@@ -146,7 +146,7 @@ int main(void)
 	glfwSwapInterval(1);
 
 	// Initialize OpenGL loader
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+  gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
 
 	glfwSetKeyCallback(gWindow, key_callback);
 	glfwSetScrollCallback (gWindow, mouse_scroll_callback);
@@ -194,7 +194,7 @@ int main(void)
 	RuntimeModuleManager module_manager;
 	module_manager.RegisterModule("src/modules/libRenderModule.so");
 	module_manager.RegisterModule("src/modules/libTestModule.so");
-	module_manager.RegisterModule("src/modules/libSceneModule.so");
+//	module_manager.RegisterModule("src/modules/libSceneModule.so");
 //	module_manager.RegisterModule("src/modules/libCharacterModule.so");
 
 	// Setup global variables
