@@ -78,9 +78,6 @@ SUBDIRS (
 
 	3rdparty/glfw
 	3rdparty/googletest
-	3rdparty/fcl
-	3rdparty/libccd
-	3rdparty/physfs
 	)
 
 SET (GLFW_BUILD_DOCS OFF)
@@ -131,8 +128,6 @@ SET (glfw_dependencies
 
 TARGET_LINK_LIBRARIES ( protot
 	glfw
-	fcl
-	physfs
 	${glfw_dependencies}
 	${OPENGL_LIBRARIES}
 )
